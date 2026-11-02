@@ -835,6 +835,9 @@ select.cnative { position: absolute !important; opacity: 0 !important; pointer-e
 .rbsearch .input { flex: 1; }
 .rbscan { flex: none; padding-inline: 14px; gap: 6px; }
 .rbscan svg { width: 18px; height: 18px; }
+.rrow { display: flex; align-items: center; gap: 8px; padding-right: 10px; }
+.rrow .rmain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; border: 0; color: inherit; text-align: left; font: inherit; padding: 0; cursor: pointer; }
+.rrow .reat { flex: none; padding: 7px 12px; }
 
 </style>
 </head>
@@ -2871,7 +2874,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if (S.view === 'chat') { renderChips(); if (!S.streaming) renderMessages(); }
     if (S.view === 'idag') { var v = $('#v-idag'); if (!editingInside(v)) renderToday(); else S.dirtyToday = true; }
     if (S.view === 'matvarer') renderProducts();
-    if (S.view === 'oppskrifter') renderRecipes();
+    if (S.view === 'oppskrifter') { var ro = $('#v-oppskrifter'); if (!editingInside(ro)) renderRecipes(); }
     if (S.view === 'trening') { var t = $('#v-trening'); if (!editingInside(t)) renderTraining(); }
     if (S.view === 'fremgang') { var f = $('#v-fremgang'); if (!editingInside(f)) renderProgress(); }
     if (S.sheet && S.sheet.refresh) S.sheet.refresh();
@@ -4555,6 +4558,58 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     return '<button type="button" class="li" ' + attr + '><span class="av ' + esc(avClass(p)) + '" aria-hidden="true">' + esc((p.name || '?').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + esc(sub || [p.brand, E.stkWeight(p) && E.stkWeight(p).src !== 'pakning' ? '1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
       '<div class="kc">' + fmt(p.per100.kcal) + ' kcal<em>' + fmt(p.per100.protein, 1) + ' g P</em><span class="faint small">per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</span></div></button>';
   }
+  function recipeCalc(r) {
+    var ver = r.versions.find(function (x) { return x.version === r.currentVersion; });
+    try { return E.calcRecipe(ver, function (id) { return S.products.get(id); }); } catch (e) { return null; }
+  }
+  /* Oppskrifter sortert etter sist brukt, så de du spiser oftest kommer først. */
+  function recipeList() {
+    var last = {};
+    Array.from(S.days.keys()).sort().forEach(function (d) { var day = S.days.get(d); ((day && day.meals) || []).forEach(function (m) { if (m.recipeRef && m.recipeRef.id) last[m.recipeRef.id] = d; }); });
+    return Array.from(S.recipes.values()).sort(function (a, b) { var la = last[a.id] || '', lb = last[b.id] || ''; return la === lb ? a.name.localeCompare(b.name, 'nb') : la < lb ? 1 : -1; });
+  }
+  function recipeLi(r) {
+    var c = recipeCalc(r), ver = r.versions.find(function (x) { return x.version === r.currentVersion; }) || {};
+    return '<button type="button" class="li" data-rid="' + esc(r.id) + '"><span class="av a2" aria-hidden="true">' + esc((r.name || 'R').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">Oppskrift · ' + fmt(ver.portions || 1, 1) + ' porsjon' + ((ver.portions || 1) === 1 ? '' : 'er') + '</div></div>' +
+      (c ? '<div class="kc">' + fmt(c.perPortion.kcal) + ' kcal<em>' + fmt(c.perPortion.protein, 1) + ' g P</em><span class="faint small">per porsjon</span></div>' : '') + '</button>';
+  }
+  /* Loggfør en oppskrift som spist: antall porsjoner og måltid. */
+  function openLogRecipe(id, date, presetType) {
+    var r = S.recipes.get(id); if (!r) return;
+    date = date || S.date;
+    var c = recipeCalc(r), portions = 1, mt = presetType || r.defaultMealType || defaultMeal(), variant = '';
+    if (C.MEAL_TYPES.indexOf(mt) < 0) mt = 'mellommåltid';
+    var MT = [['frokost', 'Frokost'], ['lunsj', 'Lunsj'], ['middag', 'Middag'], ['kvelds', 'Kvelds'], ['mellommåltid', 'Snack']];
+    openSheet(date === today() ? 'Legg til i dag' : 'Legg til ' + dateLabel(date).toLowerCase(), function (body) {
+      function preview() {
+        var el = $('#lr_res'); if (!el) return;
+        var v = null; try { v = C.previewRecipe(ctx, { id: r.id, portions: portions, variant: variant || undefined }).values; } catch (e) { v = null; }
+        if (!v && c) v = { kcal: c.perPortion.kcal * portions, protein: c.perPortion.protein * portions, carbs: c.perPortion.carbs * portions, fat: c.perPortion.fat * portions };
+        el.innerHTML = v ? '<div class="afk"><b>' + fmt(v.kcal) + '</b><span>kcal</span></div><div class="afm"><span><i class="dot" style="background:var(--protein)"></i>' + fmt(v.protein, 1) + ' g protein</span><span><i class="dot" style="background:var(--carbs)"></i>' + fmt(v.carbs, 1) + ' g karbo</span><span><i class="dot" style="background:var(--fat)"></i>' + fmt(v.fat, 1) + ' g fett</span></div>' : '<div class="small muted">Kunne ikke regne ut oppskriften. Sjekk ingrediensene.</div>';
+        $('#lr_go').disabled = !(portions > 0);
+      }
+      body.innerHTML = '<div class="stack addsheet">' +
+        '<div class="afhead"><div><div class="afname">' + esc(r.name) + '</div><div class="small muted">' + (c ? fmt(c.perPortion.kcal) + ' kcal · ' + fmt(c.perPortion.protein, 1) + ' g protein per porsjon' : 'Oppskrift') + '</div></div><button type="button" class="btn ghost sm" id="lr_other">Bytt</button></div>' +
+        '<div class="field"><label for="lr_por">Hvor mange porsjoner spiste du?</label><div class="stepper"><button type="button" data-st="-0.5" aria-label="Mindre">−</button><input class="input" id="lr_por" inputmode="decimal" value="1"><button type="button" data-st="0.5" aria-label="Mer">+</button></div></div>' +
+        ((r.variants || []).length ? '<div class="field"><label for="lr_var">Variant</label><select class="input" id="lr_var"><option value="">Standard</option>' + r.variants.map(function (x) { return '<option>' + esc(x.name) + '</option>'; }).join('') + '</select></div>' : '') +
+        '<div class="afres" id="lr_res"></div>' +
+        '<div class="seg afmt" role="group" aria-label="Måltid">' + MT.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+        '<div id="lr_msg"></div><button type="button" class="btn primary" id="lr_go">Loggfør</button></div>';
+      $('#lr_por').addEventListener('input', function (e) { portions = E.num(e.target.value) || 0; preview(); });
+      body.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { portions = Math.max(0.5, Math.round(((portions || 0) + +b.dataset.st) * 2) / 2); $('#lr_por').value = numStr(portions); preview(); }; });
+      var vs = $('#lr_var'); if (vs) vs.onchange = function () { variant = vs.value; preview(); };
+      body.querySelectorAll('[data-mt]').forEach(function (b) { b.onclick = function () { mt = b.dataset.mt; body.querySelectorAll('[data-mt]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
+      $('#lr_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt }); }, 230); };
+      $('#lr_go').onclick = async function () {
+        var btn = $('#lr_go'); btn.disabled = true;
+        try {
+          await C.logMeal(ctx, { date: date, meal_type: mt, recipe: { id: r.id, portions: portions, variant: variant || undefined }, force: true });
+          closeSheet(); toast('Loggført ' + fmt(portions, 1) + ' porsjon' + (portions === 1 ? '' : 'er') + ' ' + r.name);
+        } catch (er) { $('#lr_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; btn.disabled = false; }
+      };
+      preview();
+    });
+  }
   function openFoodFinder(o) {
     o = o || {};
     var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0;
@@ -4566,27 +4621,29 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       body.innerHTML = '<div class="stack finder">' +
         '<div class="findtop"><button type="button" class="btn primary" id="ff_scan">' + ICON.barcode + 'Skann strekkode</button>' +
         '</div>' +
-        '<input class="input" id="ff_q" type="search" enterkeyhint="search" placeholder="Søk, f.eks. banan eller kvarg" autocomplete="off">' +
+        '<input class="input" id="ff_q" type="search" enterkeyhint="search" placeholder="' + (mode === 'log' ? 'Søk i mat og oppskrifter' : 'Søk, f.eks. banan eller kvarg') + '" autocomplete="off">' +
         '<div id="ff_res"></div>' +
         '<button type="button" class="btn ghost ownbtn" id="ff_own">Finner du det ikke? <b>Lag din egen</b></button></div>';
       var res = $('#ff_res');
       function bind() {
         res.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { after(S.products.get(b.dataset.pid)); }; });
         res.querySelectorAll('[data-mvt]').forEach(function (b) { b.onclick = async function () { try { after(await ensureProduct(mvtCache[b.dataset.mvt])); } catch (e) { toast(e.message); } }; });
-        res.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { closeSheet(); setTimeout(function () { openRecipe(b.dataset.rid); }, 230); }; });
+        res.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { closeSheet(); setTimeout(function () { openLogRecipe(b.dataset.rid, date, mt); }, 230); }; });
         var ob = res.querySelector('[data-offq]'); if (ob) ob.onclick = function () { closeSheet(); setTimeout(function () { openOffSearch(ob.dataset.offq); }, 230); };
       }
       function run() {
         var q = $('#ff_q').value.trim(), my = ++seq;
         if (!q) {
-          var rec = recentProducts(8);
-          res.innerHTML = rec.length ? '<div class="fhead">Nylig brukt</div><div class="list">' + rec.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '<p class="small muted" style="margin:4px 2px">Søk etter maten, eller skann strekkoden på pakken.</p>';
+          var rec = recentProducts(8), rr = mode === 'log' ? recipeList() : [];
+          res.innerHTML = (rr.length ? '<div class="fhead">Dine oppskrifter</div><div class="list">' + rr.slice(0, 6).map(recipeLi).join('') + '</div>' : '') +
+            (rec.length ? '<div class="fhead">Nylig brukt</div><div class="list">' + rec.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+            (!rec.length && !rr.length ? '<p class="small muted" style="margin:4px 2px">Søk etter maten, eller skann strekkoden på pakken.</p>' : '');
           bind(); return;
         }
         var own = C.findProducts(ctx, q, 8), nq = C.norm(q);
-        var recs = mode === 'log' ? Array.from(S.recipes.values()).filter(function (r) { return C.norm(r.name).indexOf(nq) >= 0; }).slice(0, 4) : [];
-        var html = (own.length ? '<div class="fhead">Dine matvarer</div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
-          (recs.length ? '<div class="fhead">Oppskrifter</div><div class="list">' + recs.map(function (r) { return '<button type="button" class="li" data-rid="' + esc(r.id) + '"><span class="av a2" aria-hidden="true">R</span><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">Oppskrift</div></div></button>'; }).join('') + '</div>' : '');
+        var recs = mode === 'log' ? recipeList().filter(function (r) { return C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(nq) >= 0; }).slice(0, 6) : [];
+        var html = (recs.length ? '<div class="fhead">Dine oppskrifter</div><div class="list">' + recs.map(recipeLi).join('') + '</div>' : '') + (own.length ? '<div class="fhead">Dine matvarer</div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+          '';
         res.innerHTML = html + '<div id="ff_mvt">' + (window.COACH_STANDALONE && q.length > 1 ? '<p class="small faint" style="margin:6px 2px">Søker i Matvaretabellen …</p>' : '') + '</div>' +
           (!window.COACH_STANDALONE && !own.length && !recs.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff på «' + esc(q) + '» i matvarene dine. Matvaretabellen og butikkvarer kan du søke i fra Coach-appen på hjemskjermen. Her kan du lage varen selv.</p>' : '') +
           (window.COACH_STANDALONE ? '<button type="button" class="btn sm" data-offq="' + esc(q) + '">Søk i butikkvarer (Open Food Facts)</button>' : '');
@@ -4754,15 +4811,26 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     var html = '<div class="section"><div class="row"><h2 class="vh grow">Oppskrifter</h2><button class="btn sm primary" id="btnNewRecipe">+ Ny oppskrift</button></div></div>';
     if (S.status === 'connecting') html += '<p class="small faint">Henter oppskrifter …</p>';
     else if (!list.length) html += '<div class="empty"><h3>Ingen oppskrifter ennå</h3><p class="small">Lag din egen: legg inn ingrediensene og hvor mange porsjoner det blir, så regner Coach ut kalorier og protein per porsjon.</p></div>';
-    html += '<div class="list">' + list.map(function (r) {
+    if (list.length) html += '<input class="input" id="recSearch" type="search" placeholder="Søk i oppskriftene" autocomplete="off" value="' + esc(S.recQuery || '') + '" style="margin-bottom:10px">';
+    var rq = C.norm(S.recQuery || '');
+    var shown = list.filter(function (r) { return !rq || C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(rq) >= 0; });
+    if (list.length && !shown.length) html += '<p class="small muted">Ingen oppskrifter heter «' + esc(S.recQuery) + '».</p>';
+    html += '<div class="list">' + shown.map(function (r) {
       var ver = r.versions.find(function (x) { return x.version === r.currentVersion; });
       var c = null; try { c = E.calcRecipe(ver, function (id) { return S.products.get(id); }); } catch (e) {}
-      return '<button class="li" data-rid="' + esc(r.id) + '"><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">' + esc((r.kind || '') + ' · ' + ver.portions + ' porsjon(er) · v' + ver.version + ' · ' + ver.items.length + ' ingredienser') + '</div></div>' +
-        '<div class="kc">' + (c ? fmt(c.perPortion.kcal) + ' kcal<em>' + fmt(c.perPortion.protein, 1) + ' g P</em><span class="faint small">per porsjon</span>' : '–') + '</div></button>';
+      return '<div class="li rrow"><button type="button" class="rmain" data-rid="' + esc(r.id) + '"><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">' + esc(fmt(ver.portions, 1) + ' porsjon' + (ver.portions === 1 ? '' : 'er') + ' · ' + ver.items.length + ' ingredienser') + '</div></div>' +
+        '<div class="kc">' + (c ? fmt(c.perPortion.kcal) + ' kcal<em>' + fmt(c.perPortion.protein, 1) + ' g P</em><span class="faint small">per porsjon</span>' : '–') + '</div></button>' +
+        '<button type="button" class="btn sm primary reat" data-eat="' + esc(r.id) + '" aria-label="Loggfør ' + esc(r.name) + ' som spist">+ Spist</button></div>';
     }).join('') + '</div>';
     if (!setHTML(v, html)) return;
     $('#btnNewRecipe').onclick = function () { openRecipeBuilder(null); };
     v.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { openRecipe(b.dataset.rid); }; });
+    v.querySelectorAll('[data-eat]').forEach(function (b) { b.onclick = function () { openLogRecipe(b.dataset.eat, S.date); }; });
+    var rs = $('#recSearch');
+    if (rs) rs.oninput = function () {
+      S.recQuery = rs.value; var q = C.norm(rs.value);
+      v.querySelectorAll('.rrow').forEach(function (row) { var r = S.recipes.get(row.querySelector('[data-rid]').dataset.rid); row.hidden = !!q && C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(q) < 0; });
+    };
   }
 
   function openRecipe(id) {
