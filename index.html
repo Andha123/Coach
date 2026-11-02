@@ -14,8 +14,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
-html { height: 100%; background: #120e0b; }
-body { margin: 0; height: 100%; min-height: 100dvh; }
+html { height: 100%; background: #120e0b; overflow: hidden; overscroll-behavior: none; }
+body { margin: 0; height: 100%; min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 /* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
 #root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
 [hidden] { display: none !important; }
@@ -689,6 +689,149 @@ button.li { font: inherit; text-align: left; width: 100%; cursor: pointer; }
 .hintlist { display: flex; flex-direction: column; gap: 8px; text-align: left; background: var(--surface-flat); border: 1px solid var(--glass-edge); border-radius: 18px; padding: 12px 14px; color: var(--ink-2); width: 100%; max-width: 420px; }
 .hintlist b { color: var(--ink); margin-right: 6px; }
 
+/* Loggfør mat og oppsett på I dag */
+.logrow { margin-top: 14px; gap: 10px; }
+.logfood { min-height: 52px; font-size: 17px; font-weight: 700; border-radius: 18px; }
+.logfood span { font-size: 22px; line-height: 0; margin-right: 4px; font-weight: 500; }
+.logrow > .btn:not(.logfood) { min-height: 52px; border-radius: 18px; padding-inline: 18px; }
+.setupcard { display: flex; flex-direction: column; gap: 12px; margin: 4px 0 14px; padding: 16px; }
+.setupcard .sct { font-weight: 750; font-size: 18px; margin-bottom: 4px; }
+
+/* Finn mat */
+.finder { gap: 12px; }
+.findtop { display: flex; gap: 8px; }
+.findtop .btn { flex: 1; min-height: 48px; justify-content: center; }
+.fhead { font-size: 12.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; margin: 10px 2px 6px; }
+.ownbtn { justify-content: center; color: var(--ink-2); font-weight: 500; }
+.ownbtn b { color: var(--accent); font-weight: 650; }
+.finder .list .li, .rbadd .list .li { padding-block: 9px; }
+
+/* Mengde-ark */
+.addsheet { gap: 14px; }
+.afhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.afname { font-size: 20px; font-weight: 750; letter-spacing: -.02em; line-height: 1.2; }
+.afamt { display: flex; gap: 10px; align-items: stretch; }
+.afamt #af_amt { width: 110px; flex: none; font-size: 26px; font-weight: 750; text-align: center; padding: 10px; font-variant-numeric: tabular-nums; }
+.afunits { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; }
+.afunits::-webkit-scrollbar { display: none; }
+.afunits button { flex: 1; white-space: nowrap; padding: 10px 12px; font-size: 15px; }
+.stkw { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--glass-edge); border-radius: 14px; padding: 8px 12px; }
+.stkw .input { width: 76px; padding: 7px 8px; text-align: center; font-weight: 700; }
+.stkw em { font-style: normal; font-size: 12.5px; color: var(--ink-3); flex-basis: 100%; }
+.afres { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 8px 0 2px; min-height: 86px; }
+.afk { display: flex; align-items: baseline; gap: 6px; }
+.afk b { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.afk span { color: var(--ink-2); font-weight: 600; }
+.afm { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; font-size: 13.5px; color: var(--ink-2); }
+.afm .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.afmt { display: flex; overflow-x: auto; scrollbar-width: none; }
+.afmt::-webkit-scrollbar { display: none; }
+.afmt button { flex: 1; white-space: nowrap; padding: 9px 10px; }
+#af_go { min-height: 52px; font-size: 17px; }
+.qpmore { background: var(--surface-flat); box-shadow: none; }
+
+/* Oppskriftsbygger */
+.rbuild { gap: 12px; }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.stepper button { width: 44px; height: 44px; flex: none; border-radius: 14px; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink); font-size: 22px; font-weight: 500; }
+.stepper .input { text-align: center; font-weight: 700; font-size: 18px; }
+.rbitems { display: flex; flex-direction: column; gap: 8px; }
+.rbitem { display: grid; grid-template-columns: 1fr 72px 86px 30px; gap: 6px; align-items: center; background: var(--surface-flat); border: 1px solid var(--glass-edge); border-radius: 16px; padding: 8px 8px 8px 12px; }
+.rbitem .rbn { min-width: 0; display: flex; flex-direction: column; }
+.rbitem .rbn b { font-weight: 650; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rbitem .rbn span { font-size: 12px; color: var(--ink-3); }
+.rbitem .input { padding: 8px 6px; text-align: center; font-weight: 650; }
+.rbitem .cselect { padding: 8px 8px; }
+.rbitem.flash { animation: exflash 1.1s ease; }
+.rbtot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rbtot > div { background: var(--surface-2); border: 1px solid var(--glass-edge); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
+.rbtot > div.per { background: linear-gradient(155deg, rgba(247, 183, 126, .4), rgba(170, 98, 46, .25)); border-color: rgba(255, 210, 170, .3); }
+.rbtot span { font-size: 12px; color: var(--ink-2); }
+.rbtot b { font-size: 22px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rbtot em { font-style: normal; font-size: 12px; color: var(--ink-2); }
+
+/* Kalkulator: mål */
+.goalpick { display: flex; flex-direction: column; gap: 8px; }
+.goalpick button { text-align: left; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink); border-radius: 16px; padding: 11px 14px; display: flex; flex-direction: column; gap: 2px; }
+.goalpick button b { font-weight: 650; }
+.goalpick button span { font-size: 12.5px; color: var(--ink-3); }
+.goalpick button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.goalpick button[aria-pressed="true"] b { color: var(--accent); }
+.srcs { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.srcs a { color: var(--accent); }
+
+/* Egne velgere */
+select.cnative { position: absolute !important; opacity: 0 !important; pointer-events: none !important; width: 1px !important; height: 1px !important; overflow: hidden; }
+.cselect { display: flex; align-items: center; justify-content: space-between; gap: 6px; text-align: left; cursor: pointer; font: inherit; color: var(--ink); }
+.cselect span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cselect svg { width: 16px; height: 16px; flex: none; stroke: var(--ink-3); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cselect:disabled { opacity: .5; }
+.cpick-bg { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, .18); }
+.cpick { position: fixed; z-index: 91; overflow-y: auto; max-width: calc(100vw - 20px); padding: 6px; border-radius: 18px; background: rgba(42, 34, 28, .92); -webkit-backdrop-filter: blur(28px) saturate(150%); backdrop-filter: blur(28px) saturate(150%); border: 1px solid var(--glass-edge); box-shadow: 0 20px 50px rgba(0, 0, 0, .5); display: flex; flex-direction: column; }
+.cpick button { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 0; background: transparent; color: var(--ink); text-align: left; padding: 11px 12px; border-radius: 12px; font-size: 15.5px; }
+.cpick button[aria-selected="true"] { color: var(--accent); font-weight: 650; background: var(--accent-soft); }
+.cpick button i { font-style: normal; }
+.cpick button:active { background: var(--surface-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .cpick.down { animation: cpIn .18s cubic-bezier(.2, .8, .2, 1); transform-origin: top center; }
+  .cpick.up { animation: cpIn .18s cubic-bezier(.2, .8, .2, 1); transform-origin: bottom center; }
+  .cpick-bg.closing { animation: fadeOut .15s ease-in forwards; }
+  @keyframes cpIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+}
+
+/* Velkommen */
+.onb { position: fixed; inset: 0; z-index: 80; background: radial-gradient(120% 70% at 50% 0%, #3a2516 0%, #1a130e 45%, #0f0b08 100%); color: var(--ink); display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 10px) max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 14px) max(20px, env(safe-area-inset-left, 0px)); overflow: hidden; }
+.ontop { display: flex; align-items: center; gap: 12px; height: 48px; flex: none; }
+.onprog { flex: 1; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.onprog i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f7b77e, #ee9550); transition: width .35s cubic-bezier(.2, .8, .2, 1); }
+.onlogo { width: 30px; height: 30px; display: grid; place-items: center; }
+.onlogo svg { width: 28px; height: 28px; }
+.onpage { flex: 1; overflow-y: auto; padding: 26px 2px 16px; display: flex; flex-direction: column; gap: 12px; }
+.onpage h1 { font-size: 30px; line-height: 1.12; letter-spacing: -.03em; font-weight: 800; margin: 0; }
+.onpage .onsub { margin: 0 0 10px; color: var(--ink-2); font-size: 16px; }
+.onh2 { font-size: 17px; margin: 14px 0 4px; }
+.onfield { font: inherit; font-size: 26px; font-weight: 700; background: transparent; border: 0; border-bottom: 2px solid rgba(255, 255, 255, .18); color: var(--ink); padding: 10px 2px; border-radius: 0; outline: none; }
+.onfield:focus { border-bottom-color: var(--accent); }
+.onfield::placeholder { color: rgba(251, 246, 241, .25); }
+.onnum { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.onstep { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink); font-size: 28px; font-weight: 400; flex: none; }
+.onin { display: flex; align-items: baseline; gap: 6px; }
+.onin input { font: inherit; width: 150px; text-align: center; font-size: 60px; font-weight: 800; letter-spacing: -.04em; background: transparent; border: 0; color: var(--ink); outline: none; font-variant-numeric: tabular-nums; padding: 0; }
+.onin input::placeholder { color: rgba(251, 246, 241, .2); }
+.onin span { font-size: 20px; color: var(--ink-2); font-weight: 600; }
+.onchoices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.onchoices.col { grid-template-columns: 1fr; }
+.onchoice { text-align: left; border: 1px solid var(--glass-edge); background: rgba(255, 255, 255, .05); color: var(--ink); border-radius: 18px; padding: 15px 16px; display: flex; flex-direction: column; gap: 3px; font: inherit; transition: background .2s ease, border-color .2s ease, transform .15s ease; }
+.onchoice b { font-size: 17px; font-weight: 650; }
+.onchoice span { font-size: 13.5px; color: var(--ink-3); }
+.onchoice.on { border-color: var(--accent); background: rgba(244, 162, 97, .14); }
+.onchoice.on b { color: var(--accent); }
+.onchoice:active { transform: scale(.98); }
+.onpills { display: flex; gap: 8px; flex-wrap: wrap; }
+.onpill { width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--glass-edge); background: rgba(255, 255, 255, .05); color: var(--ink); font-weight: 700; font-size: 16px; }
+.onpill.on { background: linear-gradient(150deg, #f7b77e, #ee9550); color: var(--accent-ink); border-color: transparent; }
+.onbot { flex: none; display: flex; flex-direction: column; gap: 8px; }
+.onnext { min-height: 56px; font-size: 18px; font-weight: 700; border-radius: 18px; width: 100%; }
+.onnext:disabled { opacity: .35; }
+.onres { display: flex; flex-direction: column; gap: 14px; }
+.onkcal { display: flex; flex-direction: column; align-items: center; padding: 18px; border-radius: 22px; background: linear-gradient(155deg, rgba(247, 183, 126, .5), rgba(170, 98, 46, .3)); border: 1px solid rgba(255, 210, 170, .3); }
+.onkcal b { font-size: 56px; font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.onkcal span { color: rgba(255, 245, 235, .85); font-weight: 600; margin-top: 4px; }
+.onmac { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.onmac > div { background: rgba(255, 255, 255, .05); border: 1px solid var(--glass-edge); border-radius: 16px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.onmac i { width: 8px; height: 8px; border-radius: 50%; }
+.onmac span { font-size: 12px; color: var(--ink-2); }
+.onmac b { font-size: 17px; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) {
+  .onb { animation: fadeIn .3s ease; }
+  .onb.closing { animation: fadeOut .26s ease-in forwards; }
+  .onpage.in { animation: onIn .34s cubic-bezier(.2, .8, .2, 1); }
+  .onpage.in.back { animation: onBack .34s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes onIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes onBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+}
+.input.bad { border-color: var(--fat); }
+
 </style>
 </head>
 <body>
@@ -956,6 +1099,26 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     return UNIT_ALIASES[k] || null;
   }
 
+  /* Vekt per stykk når produktet ikke har lagret sin egen: vanlige frukter/grønnsaker (spiselig del, typisk størrelse),
+   * ellers én pakning (f.eks. én iskaffe eller én proteinbar). Brukeren kan alltid overstyre med egen vekt per stk. */
+  var STK_DEFAULTS = {
+    banan: 120, bananer: 120, eple: 150, epler: 150, pære: 170, pærer: 170, appelsin: 140, appelsiner: 140,
+    klementin: 55, klementiner: 55, mandarin: 60, mandariner: 60, kiwi: 70, paprika: 150, tomat: 100, tomater: 100,
+    cherrytomat: 15, cherrytomater: 15, agurk: 350, gulrot: 70, gulrøtter: 70, avokado: 140, egg: 55, løk: 100,
+    rødløk: 100, vårløk: 15, potet: 100, poteter: 100, søtpotet: 250, nektarin: 130, fersken: 130, plomme: 55, plommer: 55,
+    sitron: 90, lime: 60, mango: 250, granateple: 200, grapefrukt: 250, squash: 300, aubergine: 300, hvitløk: 5,
+    brokkoli: 350, blomkål: 600, sjampinjong: 20, dadler: 8, daddel: 8, riskake: 8, riskaker: 8, knekkebrød: 13,
+    brødskive: 40, skive: 40, tortilla: 60, wrap: 60, pølse: 70, pølser: 70, kyllingfilet: 150
+  };
+  function stkWeight(product) {
+    if (!product) return null;
+    if (product.unitWeights && isNum(product.unitWeights.stk)) return { g: product.unitWeights.stk, src: 'lagret' };
+    var first = String(product.name || '').toLowerCase().replace(/[^a-zæøå ]+/g, ' ').trim().split(/\s+/)[0];
+    if (first && STK_DEFAULTS[first]) return { g: STK_DEFAULTS[first], src: 'typisk' };
+    if (isNum(product.packageSize) && product.packageSize > 0 && product.packageSize <= 1000) return { g: product.packageSize, src: 'pakning' };
+    return null;
+  }
+
   /* Gjør om en mengde til produktets basisenhet (g eller ml), med spiselig del.
    * Returnerer { qty, basis, notes[] } eller kaster Error med norsk melding. */
   function toBasis(product, amount, unit) {
@@ -973,9 +1136,11 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       case 'dl': ml = a * 100; break;
       case 'l': ml = a * 1000; break;
       case 'stk':
-        if (!product.unitWeights || !isNum(product.unitWeights.stk)) throw new Error('Mangler vekt per stk for ' + product.name + '. Oppgi mengden i gram.');
-        grams = a * product.unitWeights.stk;
-        notes.push(a + ' stk × ' + product.unitWeights.stk + ' g');
+        var sw = stkWeight(product);
+        if (!sw) throw new Error('Mangler vekt per stk for ' + product.name + '. Oppgi mengden i gram, eller hvor mye én stk veier.');
+        grams = a * sw.g;
+        notes.push(a + ' stk × ' + sw.g + ' ' + (sw.src === 'pakning' && basis === 'ml' ? 'ml' : 'g') + (sw.src === 'typisk' ? ' (typisk vekt)' : sw.src === 'pakning' ? ' (én pakning)' : ''));
+        if (sw.src === 'pakning' && basis === 'ml') { ml = grams; grams = null; }
         break;
       case 'porsjon':
         if (!isNum(product.servingSize)) throw new Error('Mangler porsjonsstørrelse for ' + product.name + '. Oppgi mengden i gram.');
@@ -1253,7 +1418,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   /* Mål ut fra energibehov og målsetting.
    * goal: fettreduksjon | vedlikehold | muskelvekst; pace: rolig | moderat | raskere */
   var LOSS_RATE = { rolig: 0.0025, moderat: 0.005, raskere: 0.0075 }; // andel av kroppsvekt per uke
-  var GAIN_SURPLUS = { rolig: 150, moderat: 250, raskere: 350 };
+  var GAIN_SURPLUS = { rolig: 0.10, moderat: 0.15, raskere: 0.20 }; // overskudd som andel av forbruket (Iraki mfl. 2019: 10–20 %)
+  var GAIN_RATE = { rolig: 0.0025, moderat: 0.0035, raskere: 0.005 }; // forventet økning, andel av kroppsvekt per uke (0,25–0,5 %)
   function computeTargets(energy, opts) {
     var kg = num(opts.weightKg), goal = opts.goal || 'fettreduksjon', pace = opts.pace || 'moderat';
     var why = [], warnings = [];
@@ -1264,25 +1430,29 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       kgPerWeek = -rate * kg;
       adjust = kgPerWeek * 7700 / 7;
       if (-adjust > tdee * 0.25) { adjust = -tdee * 0.25; kgPerWeek = adjust * 7 / 7700; warnings.push('Underskuddet er begrenset til 25 % av energibehovet.'); }
-      why.push('Fettreduksjon i ' + pace + ' tempo: ca. ' + fmtN(rate * 100, 2) + ' % av kroppsvekten per uke (' + fmtN(-kgPerWeek, 2) + ' kg). Et tempo på rundt 0,5–1 % per uke regnes som et godt kompromiss for å bevare muskelmasse når man trener styrke.');
+      why.push('Vekttap i ' + pace + ' tempo: ca. ' + fmtN(rate * 100, 2) + ' % av kroppsvekten per uke (' + fmtN(-kgPerWeek, 2) + ' kg). Forskningen anbefaler 0,5–1 % per uke for å beholde mest mulig muskler når du trener styrke (Helms mfl. 2014).');
     } else if (goal === 'muskelvekst') {
-      adjust = GAIN_SURPLUS[pace] || 250;
-      kgPerWeek = adjust * 7 / 7700;
-      why.push('Muskelvekst: et lite overskudd (+' + adjust + ' kcal) for å begrense fettøkning.');
+      var gs = GAIN_SURPLUS[pace] || GAIN_SURPLUS.moderat;
+      adjust = Math.round(tdee * gs / 10) * 10;
+      kgPerWeek = (GAIN_RATE[pace] || GAIN_RATE.moderat) * kg;
+      why.push('Vektøkning: overskudd på ' + Math.round(gs * 100) + ' % (+' + adjust + ' kcal), som gir omtrent ' + fmtN(kgPerWeek, 2) + ' kg opp per uke. Anbefalt er 10–20 % overskudd og 0,25–0,5 % av kroppsvekten per uke; jo mer trent du er, jo lavere ende (Iraki mfl. 2019).');
     } else why.push('Vedlikehold: inntak omtrent lik estimert forbruk.');
     var kcal = round50(tdee + adjust);
     var floor = round50(energy.bmr * 1.1);
     if (kcal < floor) { kcal = floor; warnings.push('Kalorimålet er ikke satt lavere enn ca. hvileforbrenning × 1,1.'); }
-    var pPerKg = goal === 'fettreduksjon' ? 2.0 : goal === 'muskelvekst' ? 1.8 : 1.6;
+    var pPerKg = goal === 'fettreduksjon' ? 2.2 : goal === 'muskelvekst' ? 1.8 : 1.6;
     var protein = round5(pPerKg * kg);
-    why.push('Protein ' + fmtN(pPerKg, 1) + ' g/kg: i underskudd og med styrketrening ligger nyttig inntak ofte rundt 1,6–2,2 g/kg; høyere enn dette gir lite ekstra for de fleste.');
+    why.push(goal === 'fettreduksjon'
+      ? 'Protein ' + fmtN(pPerKg, 1) + ' g/kg: i kaloriunderskudd beskytter høyt proteininntak muskelmassen. Anbefalt er 2,3–3,1 g per kg fettfri masse (Helms mfl. 2014), som for de fleste tilsvarer rundt 2–2,4 g per kg kroppsvekt.'
+      : 'Protein ' + fmtN(pPerKg, 1) + ' g/kg: muskelveksten flater ut rundt 1,6 g/kg, med øvre anslag opp mot 2,2 g/kg (Morton mfl. 2018).');
     var fat = round5(Math.min(kcal * 0.35 / 9, Math.max(0.8 * kg, kcal * 0.25 / 9)));
-    why.push('Fett ca. ' + fat + ' g (minst ~0,8 g/kg eller 25 % av energien) for et balansert kosthold og hormonell helse.');
+    why.push('Fett ' + fat + ' g (ca. ' + Math.round(fat * 9 / kcal * 100) + ' % av energien). Nordiske næringsanbefalinger (NNR 2023) anbefaler 25–40 %, og for trening anbefales 20–35 % (Iraki mfl. 2019).');
     var carbs = round5((kcal - protein * 4 - fat * 9) / 4);
     if (carbs < 100) warnings.push('Lite karbohydrater igjen; det kan gå ut over treningsøktene.');
     why.push('Karbohydrater fyller resten av energien (' + carbs + ' g) og er viktigste drivstoff for trening.');
-    var fiber = Math.max(25, Math.round(kcal / 1000 * 14));
-    why.push('Fiber minst ' + fiber + ' g (Helsedirektoratet anbefaler 25–35 g per dag; ca. 14 g per 1 000 kcal).');
+    var fiberMin = opts.sex === 'kvinne' ? 25 : 35;
+    var fiber = Math.max(fiberMin, Math.round(kcal * 4.184 / 1000 * 3));
+    why.push('Fiber minst ' + fiber + ' g: NNR 2023 anbefaler minst 3 g per MJ, det vil si minst ' + fiberMin + ' g per dag for ' + (opts.sex === 'kvinne' ? 'kvinner' : 'menn') + '.');
     var water = Math.round((35 * kg + (opts.trainingDaysPerWeek ? opts.trainingDaysPerWeek / 7 * 500 : 0)) / 100) * 100;
     return { kcal: kcal, protein: protein, fat: fat, carbs: carbs, fiber: fiber, waterMl: water, tdee: tdee, adjust: round(adjust), kgPerWeek: kgPerWeek, goal: goal, pace: pace, why: why, warnings: warnings };
   }
@@ -1374,7 +1544,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
   var api = {
     NUTRIENTS: NUTRIENTS, CORE: CORE, LABELS: LABELS,
-    num: num, normUnit: normUnit, toBasis: toBasis, scale: scale, calcItem: calcItem, sum: sum, divide: divide,
+    num: num, normUnit: normUnit, stkWeight: stkWeight, toBasis: toBasis, scale: scale, calcItem: calcItem, sum: sum, divide: divide,
     round: round, display: display, applyMods: applyMods, calcRecipe: calcRecipe, recipeFraction: recipeFraction,
     validateProduct: validateProduct, energyFromMacros: energyFromMacros, perServingTo100: perServingTo100,
     mifflin: mifflin, weightTrend: weightTrend, adaptiveTdee: adaptiveTdee, rollingAvg: rollingAvg,
@@ -1963,8 +2133,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         line.kind = 'product'; line.id = cands[0].id;
         if (!line.confident) line.confident = matchScore(name, cands[0]) >= 0.6;
         var p = cands[0];
-        if (line.amount !== null && !line.unit) line.unit = line.amount <= 12 && p.unitWeights && p.unitWeights.stk ? 'stk' : (line.amount <= 3 && p.servingSize ? 'porsjon' : (p.basis === 'ml' ? 'ml' : 'g'));
-        if (line.amount === null && p.unitWeights && p.unitWeights.stk) { line.amount = 1; line.unit = 'stk'; }
+        if (line.amount !== null && !line.unit) line.unit = line.amount <= 12 && E.stkWeight(p) ? 'stk' : (line.amount <= 3 && p.servingSize ? 'porsjon' : (p.basis === 'ml' ? 'ml' : 'g'));
+        if (line.amount === null && E.stkWeight(p) && E.stkWeight(p).src !== 'pakning') { line.amount = 1; line.unit = 'stk'; }
         if (line.amount === null && p.servingSize) { line.amount = 1; line.unit = 'porsjon'; }
       }
       return line;
@@ -2172,7 +2342,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if (missing.length) return { ok: false, missing: missing };
     var energy = E.estimateEnergy(inp);
     var trainDays = (inp.strength.sessionsPerWeek || 0) + ((inp.cardio.minutesPerWeek || 0) > 0 ? Math.min(7, (inp.cardio.minutesPerWeek || 0) / 30) : 0);
-    var targets = E.computeTargets(energy, { weightKg: inp.weightKg, goal: inp.goal, pace: inp.pace, trainingDaysPerWeek: Math.min(7, trainDays) });
+    var targets = E.computeTargets(energy, { weightKg: inp.weightKg, goal: inp.goal, pace: inp.pace, sex: inp.sex, trainingDaysPerWeek: Math.min(7, trainDays) });
     var end = localDate(ctx.now ? ctx.now() : new Date());
     var days = (await ctx.repo.list('days')).filter(function (d) { return d.date >= addDays(end, -27) && d.date < end; });
     var dt = days.map(function (d) { var x = E.dayTotals(d); return { date: d.date, kcal: x.values.kcal, complete: !!d.complete || x.items >= 3 }; });
@@ -2210,7 +2380,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
   /* ---------- Profil ---------- */
   var PROFILE_FIELDS = { age: 'num', sex: 'str', heightCm: 'num', weightKg: 'num', goal: 'str', kcalTarget: 'num', proteinTarget: 'num', activity: 'str', name: 'str',
-    jobActivity: 'str', avgSteps: 'num', strengthSessions: 'num', strengthMinutes: 'num', cardioMinutes: 'num', cardioIntensity: 'str', cardioType: 'str', goalType: 'str', pace: 'str' };
+    jobActivity: 'str', avgSteps: 'num', strengthSessions: 'num', strengthMinutes: 'num', cardioMinutes: 'num', cardioIntensity: 'str', cardioType: 'str', goalType: 'str', pace: 'str', onboarded: 'num' };
   var ENUMS = { jobActivity: ['sittende', 'stående', 'fysisk'], cardioIntensity: ['lett', 'moderat', 'hard'], goalType: ['fettreduksjon', 'vedlikehold', 'muskelvekst'], pace: ['rolig', 'moderat', 'raskere'], sex: ['mann', 'kvinne'] };
   async function updateProfile(ctx, fields) {
     var p = (await ctx.repo.get('meta/profile')) || {};
@@ -2268,7 +2438,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     status: 'connecting', // connecting | ready | nodb
     products: new Map(), recipes: new Map(), profile: null,
     days: new Map(), weights: [], workouts: [], plans: [], chats: new Map(), garmin: new Map(), measures: [], mcp: null, garminAvail: false, browserAvail: false, plan: null,
-    view: 'chat', date: C.localDate(), loaded: {},
+    view: 'idag', date: C.localDate(), loaded: {},
     pendingImages: [], streaming: false, abort: null, proposals: {},
     toolsOk: true, imagesOk: false, prodQuery: '', sheet: null, seen: new Set(), seenReady: false
   };
@@ -2311,7 +2481,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   var ICON = {
     chat: '<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',
     idag: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/></svg>',
-    mat: '<svg viewBox="0 0 24 24"><path d="M7 3h10l-1 4H8z"/><path d="M8 7h8l1 14H7z"/><path d="M9.5 12h5"/></svg>',
+    mat: '<svg viewBox="0 0 24 24"><path d="M12 8.2c-1.6-1.3-3.9-1.6-5.5-.5-2.5 1.7-2.8 5.3-1.4 8.7 1.2 3 3.3 5.1 4.9 5.1.8 0 1.2-.4 2-.4s1.2.4 2 .4c1.6 0 3.7-2.1 4.9-5.1 1.4-3.4 1.1-7-1.4-8.7-1.6-1.1-3.9-.8-5.5.5z"/><path d="M12 8.2c-.2-2.3.6-4.2 2.6-5.2"/><path d="M12.4 5.6c1.6-1.4 3.6-1.5 4.8-.7-1 1.4-2.9 2-4.8.7z"/></svg>',
     oppskrift: '<svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>',
     trening: '<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>',
     fremgang: '<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>',
@@ -2547,7 +2717,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
 
   function renderShell() {
-    var tabs = [['chat', 'Chat', ICON.chat], ['idag', 'I dag', ICON.idag], ['matvarer', 'Matvarer', ICON.mat], ['oppskrifter', 'Oppskrifter', ICON.oppskrift], ['trening', 'Trening', ICON.trening], ['fremgang', 'Fremgang', ICON.fremgang]];
+    var tabs = [['idag', 'I dag', ICON.idag], ['matvarer', 'Matvarer', ICON.mat], ['oppskrifter', 'Oppskrifter', ICON.oppskrift], ['trening', 'Trening', ICON.trening], ['fremgang', 'Fremgang', ICON.fremgang]];
     document.getElementById('root').innerHTML =
       '<div class="app">' +
       '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="gKcal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd2a6"/><stop offset="1" stop-color="#ee8a42"/></linearGradient><linearGradient id="gProt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9e0ff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs></svg>' +
@@ -2570,7 +2740,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       '</section>' +
       '<section class="view" id="v-idag" hidden></section>' +
       '<section class="view" id="v-matvarer" hidden>' +
-      '  <div class="section"><div class="row"><h2 class="vh grow">Matvarer</h2><button class="btn sm primary" id="btnScan">' + ICON.barcode + 'Skann</button><button class="btn sm" id="btnNewProduct">Ny</button>' + (window.COACH_STANDALONE ? '<button class="btn sm" id="btnOff">Søk nett</button>' : '') + '</div>' +
+      '  <div class="section"><div class="row"><h2 class="vh grow">Matvarer</h2><button class="btn sm primary" id="btnNewProduct">+ Matvare</button></div>' +
       '  <input class="input" id="prodSearch" type="search" placeholder="Søk i dine matvarer" autocomplete="off"></div>' +
       '  <div id="prodList"></div><div id="prodMvt"></div>' +
       '  <button class="fab" id="fabProduct" aria-label="Ny matvare">+</button>' +
@@ -2582,6 +2752,15 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       '<nav class="tabs" id="tabs">' + tabs.map(function (t) { return '<button data-view="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>' +
       '</div><div id="sheetHost"></div><div id="toastHost"></div>';
 
+    try {
+      var encQ = false;
+      new MutationObserver(function () { if (encQ) return; encQ = true; requestAnimationFrame(function () { encQ = false; enhanceSelects(document); }); }).observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* eldre nettlesere bruker vanlig velger */ }
+    /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
+    document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
+    window.addEventListener('scroll', function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, { passive: true });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (window.visualViewport.height > window.innerHeight * 0.85) resetPageScroll(); });
+    window.addEventListener('orientationchange', function () { setTimeout(resetPageScroll, 300); });
     $('#tabs').addEventListener('click', function (e) { var b = e.target.closest('button[data-view]'); if (b) go(b.dataset.view); });
     $('#btnSettings').addEventListener('click', openSettings);
     $('#btnSend').addEventListener('click', function () { if (S.streaming) { if (S.abort) S.abort.abort(); } else send(); });
@@ -2595,12 +2774,10 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     $('#btnAttach').addEventListener('click', function () { if (window.COACH_STANDALONE) scanBarcode(); else $('#fileInput').click(); });
     $('#fileInput').addEventListener('change', function (e) { addImages(e.target.files); e.target.value = ''; });
     $('#prodSearch').addEventListener('input', function (e) { S.prodQuery = e.target.value; renderProducts(); });
-    $('#btnNewProduct').addEventListener('click', function () { openProductForm(null); });
-    $('#btnScan').addEventListener('click', function () { scanBarcode(); });
-    if ($('#btnOff')) $('#btnOff').addEventListener('click', function () { openOffSearch(S.prodQuery || ''); });
-    $('#fabProduct').addEventListener('click', function () { openProductForm(null); });
-    try { var v = localStorage.getItem('pt.view'); if (v && document.getElementById('v-' + v)) S.view = v; } catch (e) {}
-    if (location.hash && document.getElementById('v-' + location.hash.slice(1))) S.view = location.hash.slice(1);
+    $('#btnNewProduct').addEventListener('click', function () { openFoodFinder({ mode: 'add' }); });
+    $('#fabProduct').addEventListener('click', function () { openFoodFinder({ mode: 'add' }); });
+    try { var v = localStorage.getItem('pt.view'); if (v && v !== 'chat' && document.getElementById('v-' + v)) S.view = v; } catch (e) {}
+    if (location.hash && location.hash !== '#chat' && document.getElementById('v-' + location.hash.slice(1))) S.view = location.hash.slice(1);
     window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (document.getElementById('v-' + h)) go(h, true); });
     go(S.view, true);
   }
@@ -2664,6 +2841,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if (S.view === 'trening') { var t = $('#v-trening'); if (!editingInside(t)) renderTraining(); }
     if (S.view === 'fremgang') { var f = $('#v-fremgang'); if (!editingInside(f)) renderProgress(); }
     if (S.sheet && S.sheet.refresh) S.sheet.refresh();
+    maybeOnboard();
   }
 
   function targets() { var p = S.profile || {}; return { kcal: p.kcalTarget || null, protein: p.proteinTarget || null }; }
@@ -2714,7 +2892,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
 
   function renderChips() {
-    var chips = window.COACH_STANDALONE ? ['Vanlig bowl til frokost', 'Kyllingpasta til lunsj', 'Skann strekkode', 'Logg vekt', 'Logg økt', 'Kalkulator'] : ['Vanlig bowl til frokost', 'Kyllingpasta til lunsj', 'Hvor mye har jeg igjen i dag?', 'Hva bør jeg spise til middag?', 'Skann strekkode', 'Logg vekt', 'Ta bilde av etikett'];
+    var chips = window.COACH_STANDALONE ? ['Skann strekkode', 'Logg vekt', 'Logg økt', 'Kalkulator'] : [ 'Hvor mye har jeg igjen i dag?', 'Hva bør jeg spise til middag?', 'Skann strekkode', 'Logg vekt', 'Ta bilde av etikett'];
     if (S.garminAvail) chips.splice(2, 0, 'Synk Garmin');
     var el = $('#chips');
     var key = chips.join('|');
@@ -2815,7 +2993,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if (S.status === 'connecting') { setHTML(el, '<div class="empty"><p class="small faint">Henter samtalen …</p></div>'); return; }
     if (!msgs.length) {
       setHTML(el, '<div class="empty"><h3>Klar når du er</h3><p class="small">' + (window.COACH_STANDALONE ? 'Skriv hva du har spist, så regner appen ut og registrerer det.' : 'Skriv eller snakk inn hva du har spist, så regner jeg ut og registrerer det. Send bilde av en etikett, så husker jeg varen. Spør også om trening, protein og hva du bør spise.') + '</p>' +
-        (window.COACH_STANDALONE ? '<div class="hintlist small"><div><b>Mat</b> «300 g q yoghurt, 30 g havregryn» eller «vanlig bowl»</div><div><b>Vekt</b> «vekt 80,2»</div><div><b>Trening</b> «push: shoulder press 50 x 6, dips 30 x 4»</div><div><b>Strekkode</b> trykk på kameraet</div></div>' : '') +
+        (window.COACH_STANDALONE ? '<div class="hintlist small"><div><b>Mat</b> «2 egg og 1 brødskive»</div><div><b>Vekt</b> «vekt 80,2»</div><div><b>Trening</b> «push: shoulder press 50 x 6, dips 30 x 4»</div><div><b>Strekkode</b> trykk på kameraet</div></div>' : '') +
         (!S.sample && !window.COACH_STANDALONE ? '<p class="notice small">Claude er ikke tilgjengelig i denne visningen. Matloggen, matvarene og oppskriftene kan fortsatt brukes manuelt.</p>' : '') + '</div>');
       return;
     }
@@ -3154,6 +3332,58 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     }
     openFoodConfirm(t, parsed);
   }
+  /* Rull inni visningen, ikke hele siden: scrollIntoView flytter hele appen på iPhone og gir en stripe nederst. */
+  function scrollInView(el, top) {
+    var v = el.closest('.view'); if (!v) return;
+    var r = el.getBoundingClientRect(), vr = v.getBoundingClientRect(), y = v.scrollTop;
+    if (top) y += r.top - vr.top - 8;
+    else if (r.bottom > vr.bottom - 12) y += r.bottom - vr.bottom + 24;
+    else if (r.top < vr.top) y += r.top - vr.top - 8;
+    else return;
+    v.scrollTo({ top: Math.max(0, y), behavior: MOTION ? 'smooth' : 'auto' });
+    resetPageScroll();
+  }
+  function resetPageScroll() { if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
+
+  /* ---------- Enheter: gram eller stk ----------
+   * Frukt, grønnsaker og ferdigvarer kan registreres som stk. Vekten per stk er lagret på varen, en typisk vekt
+   * (banan, paprika …) eller én pakning (iskaffe, proteinbar …). Siste valg huskes per vare. */
+  function unitMem() { try { return JSON.parse(localStorage.getItem('coach.units') || '{}') || {}; } catch (e) { return {}; } }
+  function rememberUnit(pid, unit, amount) { try { var m = unitMem(); m[pid] = { unit: unit, amount: amount }; localStorage.setItem('coach.units', JSON.stringify(m)); } catch (e) {} }
+  function stkLabel(p) { var sw = E.stkWeight(p); return sw ? 'stk (' + fmt(sw.g) + ' ' + (sw.src === 'pakning' && p.basis === 'ml' ? 'ml' : 'g') + ')' : 'stk'; }
+  function unitOptions(p, alwaysStk) {
+    if (!p) return [['g', 'g']];
+    var o = p.basis === 'ml' ? [['ml', 'ml'], ['dl', 'dl']] : [['g', 'g']];
+    if (p.basis === 'ml' && p.density) o.push(['g', 'g']);
+    if (p.basis !== 'ml' && p.density) o.push(['ml', 'ml'], ['dl', 'dl']);
+    var sw = E.stkWeight(p);
+    if (sw || alwaysStk) o.push(['stk', stkLabel(p)]);
+    if (p.servingSize) o.push(['porsjon', 'porsjon (' + fmt(p.servingSize) + ' g)']);
+    if (p.packageSize && !(sw && sw.src === 'pakning')) o.push(['pakke', 'pakke (' + fmt(p.packageSize) + ' ' + (p.basis === 'ml' ? 'ml' : 'g') + ')']);
+    if (p.edibleFactor) o.push(['g_med_skall', 'g med skall']);
+    return o;
+  }
+  function defaultUnit(p) {
+    if (!p) return { unit: 'g', amount: 100 };
+    var m = unitMem()[p.id], opts = unitOptions(p);
+    if (m && opts.some(function (u) { return u[0] === m.unit; })) return { unit: m.unit, amount: m.amount || (m.unit === 'stk' || m.unit === 'porsjon' || m.unit === 'pakke' ? 1 : 100) };
+    var sw = E.stkWeight(p);
+    if (sw && (sw.src !== 'pakning' || sw.g <= (p.basis === 'ml' ? 600 : 150))) return { unit: 'stk', amount: 1 };
+    if ((p.commonPortions || []).length) return { unit: p.basis === 'ml' ? 'ml' : 'g', amount: p.commonPortions[0] };
+    return { unit: p.basis === 'ml' ? 'ml' : 'g', amount: 100 };
+  }
+  /* Bytt enhet uten å endre hvor mye det er: 240 g banan → 2 stk. */
+  function convertAmount(p, amount, from, to) {
+    try {
+      var q = E.toBasis(p, amount, from).qty, one = E.toBasis(p, 1, to).qty; if (!one) return amount;
+      var n = q / one;
+      return (to === 'stk' || to === 'porsjon' || to === 'pakke') ? Math.max(0.5, Math.round(n * 2) / 2) : Math.round(n);
+    } catch (e) { return to === 'stk' || to === 'porsjon' || to === 'pakke' ? 1 : 100; }
+  }
+  function withStk(p, g) { return g ? Object.assign({}, p, { unitWeights: { stk: g } }) : p; }
+  function defaultMeal() { var h = new Date().getHours(); return h < 10 ? 'frokost' : h < 14 ? 'lunsj' : h < 19 ? 'middag' : 'kvelds'; }
+  function numStr(n) { return n === null || n === undefined ? '' : String(E.round(n, 2)).replace('.', ','); }
+
   function lineValues(l) {
     try {
       if (l.kind === 'recipe' && l.id) { var sum = C.previewRecipe(ctx, { id: l.id, portions: l.amount || 1 }); return { kcal: sum.values.kcal, protein: sum.values.protein }; }
@@ -3178,11 +3408,13 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           lines.map(function (l, i) {
             var v = lineValues(l);
             if (v && !v.error) { tot.kcal += v.kcal || 0; tot.protein += v.protein || 0; } else ok = false;
-            var units = l.kind === 'recipe' ? ['porsjon'] : ['g', 'ml', 'dl', 'stk', 'porsjon', 'pakke'];
+            var lp = l.kind === 'product' ? (S.products.get(l.id) || mvtCache[l.id]) : null;
+            var units = l.kind === 'recipe' ? [['porsjon', 'porsjon']] : unitOptions(lp);
+            if (l.unit && !units.some(function (u) { return u[0] === l.unit; })) units.push([l.unit, l.unit]);
             return '<div class="exrow fcrow' + (l.kind && l.confident ? '' : ' unsure') + '" data-i="' + i + '"><div class="small faint">«' + esc(l.raw) + '»</div>' +
               '<select class="input" data-f="pick">' + opts(l) + '</select>' +
               (l.kind ? '<div class="setrow fcset"><label class="unitin"><input class="input" data-f="amount" inputmode="decimal" value="' + esc(l.amount === null ? '' : String(l.amount).replace('.', ',')) + '" placeholder="mengde"><span></span></label>' +
-                '<select class="input" data-f="unit">' + units.map(function (u) { return '<option' + ((l.unit || 'g') === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select>' +
+                '<select class="input" data-f="unit">' + units.map(function (u) { return '<option value="' + u[0] + '"' + ((l.unit || 'g') === u[0] ? ' selected' : '') + '>' + esc(u[1]) + '</option>'; }).join('') + '</select>' +
                 '<div class="fck">' + (v && !v.error ? fmt(v.kcal) + ' kcal<em>' + fmt(v.protein, 1) + ' g P</em>' : '<span class="faint small">' + esc(v && v.error ? 'sjekk mengde' : 'mangler mengde') + '</span>') + '</div>' +
                 '<button type="button" class="xbtn" data-f="del" aria-label="Fjern">×</button></div>' : '<div class="row"><input class="input grow" data-f="search" placeholder="Søk i matvarer" value="' + esc(l.name) + '"><button type="button" class="btn sm" data-f="dosearch">Søk</button><button type="button" class="xbtn" data-f="del" aria-label="Fjern">×</button></div><div class="fchits"></div>') +
               '</div>';
@@ -3195,9 +3427,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       }
       body.addEventListener('change', function (e) {
         var row = e.target.closest('[data-i]'); if (!row) return; var l = lines[+row.dataset.i], f = e.target.dataset.f;
-        if (f === 'pick') { var v = e.target.value; if (!v) { l.kind = null; l.id = null; } else { l.kind = v[0] === 'r' ? 'recipe' : 'product'; l.id = v.slice(2); l.confident = true; l.picked = true; if (l.kind === 'recipe') l.unit = 'porsjon'; if (l.amount === null) { var pp = S.products.get(l.id) || mvtCache[l.id]; l.amount = l.kind === 'recipe' ? 1 : (pp && pp.unitWeights ? 1 : 100); l.unit = l.kind === 'recipe' ? 'porsjon' : (pp && pp.unitWeights ? 'stk' : 'g'); } } draw(); }
+        if (f === 'pick') { var v = e.target.value; if (!v) { l.kind = null; l.id = null; } else { l.kind = v[0] === 'r' ? 'recipe' : 'product'; l.id = v.slice(2); l.confident = true; l.picked = true; if (l.kind === 'recipe') l.unit = 'porsjon'; if (l.amount === null) { var pp = S.products.get(l.id) || mvtCache[l.id]; var dfu = defaultUnit(pp); l.amount = l.kind === 'recipe' ? 1 : dfu.amount; l.unit = l.kind === 'recipe' ? 'porsjon' : dfu.unit; } } draw(); }
         if (f === 'amount') { l.amount = E.num(e.target.value); draw(); }
-        if (f === 'unit') { l.unit = e.target.value; draw(); }
+        if (f === 'unit') { var up = S.products.get(l.id) || mvtCache[l.id]; if (up && l.amount) l.amount = convertAmount(up, l.amount, l.unit || 'g', e.target.value); l.unit = e.target.value; draw(); }
       });
       body.addEventListener('click', function (e) {
         var b = e.target.closest('[data-f]'); if (!b) return; var row = b.closest('[data-i]'); if (!row) return; var l = lines[+row.dataset.i];
@@ -3209,7 +3441,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           function showHits() {
           box.innerHTML = (hits.length ? hits.map(function (p) { return '<button type="button" class="li" data-hit="' + esc(p.id) + '"><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + fmt(p.per100.kcal) + ' kcal / 100' + (p.mvtId ? ' · Matvaretabellen' : '') + '</div></div></button>'; }).join('') : '<p class="small muted">Ingen treff.</p>') +
             (window.COACH_STANDALONE ? '<button type="button" class="btn sm" data-off="1">Søk i Open Food Facts</button>' : '');
-          box.querySelectorAll('[data-hit]').forEach(function (h) { h.onclick = function () { l.kind = 'product'; l.id = h.dataset.hit; if (mvtCache[l.id]) l.mvt = [l.id].concat(l.mvt || []); else l.candidates = [h.dataset.hit].concat(l.candidates || []); l.confident = true; l.picked = true; if (l.amount === null) { var p = S.products.get(l.id) || mvtCache[l.id]; l.amount = p.unitWeights ? 1 : 100; l.unit = p.unitWeights ? 'stk' : 'g'; } draw(); }; });
+          box.querySelectorAll('[data-hit]').forEach(function (h) { h.onclick = function () { l.kind = 'product'; l.id = h.dataset.hit; if (mvtCache[l.id]) l.mvt = [l.id].concat(l.mvt || []); else l.candidates = [h.dataset.hit].concat(l.candidates || []); l.confident = true; l.picked = true; if (l.amount === null) { var p = S.products.get(l.id) || mvtCache[l.id]; var dfu = defaultUnit(p); l.amount = dfu.amount; l.unit = dfu.unit; } draw(); }; });
           var ob = box.querySelector('[data-off]');
           if (ob) ob.onclick = function () { closeSheet(); setTimeout(function () { openOffSearch(q); }, 230); };
           }
@@ -3225,7 +3457,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           if (prods.length) results.push(await C.logMeal(ctx, { meal_type: mt, items: prods.map(function (l) { return { product_id: l.id, amount: l.amount, unit: l.unit || 'g', amount_source: 'bruker' }; }), name: recipes.length ? undefined : undefined, force: true }));
           /* Husk valg for neste gang */
           var al = await loadAliases(), changed = false;
-          lines.forEach(function (l) { if (l.kind === 'product' && l.picked) { al[C.norm(l.name)] = l.id; changed = true; } });
+          lines.forEach(function (l) { if (l.kind === 'product' && l.picked) { al[C.norm(l.name)] = l.id; changed = true; } if (l.kind === 'product') rememberUnit(l.id, l.unit || 'g', l.amount); });
           if (changed) await repo.set('meta/aliases', { map: al });
           closeSheet();
           var day = S.days.get(today()) || { meals: [] }, tt = E.dayTotals(day).values, tg = targets();
@@ -3700,7 +3932,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       return '<div class="tile ' + cls + '"><div class="k">' + k + '</div><div class="v">' + fmt(value) + '<small>' + unit + '</small></div>' +
         (pct !== null ? '<div class="bar ' + cls + '"><i style="width:' + pct.toFixed(1) + '%"></i></div>' : '') + '<div class="t">' + (extra || '') + '</div></div>';
     }
-    var html =
+    var needSetup = !tg.kcal;
+    var html = (needSetup ? '<div class="gcard setupcard"><div><div class="sct">Kom i gang</div><div class="small muted">Legg inn vekt, alder og høyde, og velg om du vil ned eller opp i vekt. Da regner Coach ut kalorier, protein, karbo, fett og fiber for deg.</div></div><button type="button" class="btn primary" id="btnSetup">Regn ut mine mål</button></div>' : '') +
       '<div class="datenav"><button class="iconbtn" id="dPrev" aria-label="Forrige dag">' + ICON.left + '</button><div class="d">' + esc(cap(dateLabel(date))) + '<small>' + esc(new Date(date + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })) + '</small></div><button class="iconbtn" id="dNext" aria-label="Neste dag">' + ICON.right + '</button></div>' +
       '<div class="hero" aria-label="Dagens energi og protein">' +
       '<div class="dial ring">' + ringSvg(220, [{ value: val.kcal, max: tg.kcal, color: kcalColor(val.kcal, tg.kcal) }, { value: val.protein, max: tg.protein, color: 'url(#gProt)' }], 18) +
@@ -3711,6 +3944,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       tile('carbs', 'Karbo', val.carbs, 'g', (S.profile || {}).carbTarget || null, (S.profile || {}).carbTarget ? 'av ' + fmt(S.profile.carbTarget) + ' g' : '') +
       tile('fat', 'Fett', val.fat, 'g', (S.profile || {}).fatTarget || null, (S.profile || {}).fatTarget ? 'av ' + fmt(S.profile.fatTarget) + ' g' : '') +
       tile('fiber', 'Fiber', val.fiber, 'g', (S.profile || {}).fiberTarget || 30, missFiber ? 'mangler data for ' + t.missing.fiber : 'av ' + fmt((S.profile || {}).fiberTarget || 30) + ' g') + '</div>' +
+      '<div class="row logrow"><button type="button" class="btn primary logfood grow" id="btnLogFood"><span aria-hidden="true">+</span> Loggfør mat</button>' + (needSetup ? '' : '<button type="button" class="btn" id="btnGoals">Mål</button>') + '</div>' +
       (gd ? '<div class="garminrow">' +
         (gd.steps !== undefined ? '<div class="tile"><div class="k">Skritt</div><div class="v">' + fmt(gd.steps) + '</div><div class="t">Garmin</div></div>' : '') +
         (gd.sleepSeconds !== undefined ? '<div class="tile"><div class="k">Søvn</div><div class="v">' + Math.floor(gd.sleepSeconds / 3600) + '<small>t</small> ' + Math.round(gd.sleepSeconds % 3600 / 60) + '<small>m</small></div><div class="t">' + (gd.sleepScore !== undefined ? 'score ' + fmt(gd.sleepScore) : 'Garmin') + '</div></div>' : '') +
@@ -3756,6 +3990,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
     $('#dNext').onclick = function () { S.date = C.addDays(S.date, 1); renderToday(); };
     $('#btnAddItem').onclick = function () { openAddItem(date, null, 'mellommåltid'); };
+    $('#btnLogFood').onclick = function () { openFoodFinder({ date: date }); };
+    if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
+    if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
     $('#dayComplete').onchange = async function (e) {
       var d = clone(S.days.get(date)) || { date: date, meals: [] };
@@ -4140,14 +4377,14 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       try { off = await foodLookup(code); } catch (e) { off = null; }
       clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
       if (off && off.name && off.per100.kcal !== null) { openOffProduct(off); return; }
-      if (off && off.name) { toast('Fant «' + off.name + '», men næringsinnholdet mangler. Fyll inn fra etiketten.'); setTimeout(function () { openProductForm(null, Object.assign({ per100: {} }, off)); }, 300); return; }
+      if (off && off.name) { toast('Fant «' + off.name + '», men næringsinnholdet mangler. Fyll inn fra etiketten.'); setTimeout(function () { openQuickProduct(Object.assign({ per100: {} }, off)); }, 300); return; }
     }
     openSheet(p ? 'Funnet' : 'Ny vare', function (body) {
       if (p) {
         body.innerHTML = '<div class="stack"><div class="card stack" style="gap:6px"><div class="eyebrow">Strekkode ' + esc(code) + '</div>' +
           '<div style="font-size:21px;font-weight:700;letter-spacing:-.02em">' + esc(p.name) + '</div><div class="small muted">' + esc(p.brand || '') + '</div>' +
           '<div class="small">' + fmt(p.per100.kcal) + ' kcal · ' + fmt(p.per100.protein, 1) + ' g protein per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</div></div>' +
-          '<div class="row"><button class="btn primary" id="sc_add">Legg til i dag</button><button class="btn" id="sc_open">Se varen</button><button class="btn ghost" id="sc_again">Skann en til</button></div></div>';
+          '<div class="row"><button class="btn primary" id="sc_add">Loggfør</button><button class="btn" id="sc_open">Se varen</button><button class="btn ghost" id="sc_again">Skann en til</button></div></div>';
         $('#sc_add').onclick = function () { closeSheet(); setTimeout(function () { openAddItem(today(), p.id); }, 230); };
         $('#sc_open').onclick = function () { closeSheet(); setTimeout(function () { openProduct(p.id); }, 230); };
         $('#sc_again').onclick = function () { closeSheet(); scanBarcode(); };
@@ -4158,12 +4395,12 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<div class="stack" style="gap:8px">' +
         (S.sample && S.imagesOk ? '<button class="btn primary" id="sc_label">Ta bilde av næringsdeklarasjonen</button>' : '') +
         (S.sample && S.browserAvail ? '<button class="btn" id="sc_web">Søk den opp på nett</button>' : '') +
-        '<button class="btn' + (window.COACH_STANDALONE ? ' primary' : '') + '" id="sc_manual">Legg inn fra etiketten</button></div></div>';
+        '<button class="btn' + (window.COACH_STANDALONE ? ' primary' : '') + '" id="sc_manual">Lag din egen fra etiketten</button></div></div>';
       var lb = $('#sc_label');
       if (lb) lb.onclick = function () { pickPhoto(function (f) { closeSheet(); askCoach('Ny vare med strekkode ' + code + '. Les næringsdeklarasjonen på bildet og lag et produktforslag med barcode "' + code + '".', [f]); }); };
       var wb = $('#sc_web');
       if (wb) wb.onclick = function () { closeSheet(); askCoach('Finn varen med strekkode ' + code + ' på nett (Open Food Facts først) og lag et produktforslag med barcode "' + code + '".'); };
-      $('#sc_manual').onclick = function () { closeSheet(); setTimeout(function () { openProductForm(null, { per100: {}, basis: 'g', state: 'ferdig', status: 'bruker', barcode: code }); }, 230); };
+      $('#sc_manual').onclick = function () { closeSheet(); setTimeout(function () { openQuickProduct({ per100: {}, basis: 'g', barcode: code }); }, 230); };
     });
   }
   function openScanFail(file) {
@@ -4255,49 +4492,203 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     });
   }
 
+  /* ---------- Loggfør mat ----------
+   * Ett sted å starte: skann, søk (dine varer, oppskrifter, Matvaretabellen, butikkvarer) eller lag din egen. */
+  function recentProducts(n) {
+    var out = [], seen = {};
+    Array.from(S.days.keys()).sort().reverse().slice(0, 30).forEach(function (d) {
+      var day = S.days.get(d);
+      (day.meals || []).slice().reverse().forEach(function (m) { (m.items || []).forEach(function (i) {
+        var p = i.productId && S.products.get(i.productId);
+        if (p && !p.archived && !seen[p.id]) { seen[p.id] = 1; out.push(p); }
+      }); });
+    });
+    return out.slice(0, n || 8);
+  }
+  function foodLi(p, attr, sub) {
+    return '<button type="button" class="li" ' + attr + '><span class="av ' + esc(avClass(p)) + '" aria-hidden="true">' + esc((p.name || '?').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + esc(sub || [p.brand, E.stkWeight(p) && E.stkWeight(p).src !== 'pakning' ? '1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
+      '<div class="kc">' + fmt(p.per100.kcal) + ' kcal<em>' + fmt(p.per100.protein, 1) + ' g P</em><span class="faint small">per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</span></div></button>';
+  }
+  function openFoodFinder(o) {
+    o = o || {};
+    var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0;
+    function after(p) {
+      closeSheet();
+      setTimeout(function () { if (mode === 'log') openAddItem(date, p.id, mt); else { toast('Lagret ' + p.name); openProduct(p.id); } }, 230);
+    }
+    openSheet(mode === 'log' ? 'Loggfør mat' : 'Legg til matvare', function (body) {
+      body.innerHTML = '<div class="stack finder">' +
+        '<div class="findtop"><button type="button" class="btn primary" id="ff_scan">' + ICON.barcode + 'Skann strekkode</button>' +
+        '</div>' +
+        '<input class="input" id="ff_q" type="search" enterkeyhint="search" placeholder="Søk, f.eks. banan eller kvarg" autocomplete="off">' +
+        '<div id="ff_res"></div>' +
+        '<button type="button" class="btn ghost ownbtn" id="ff_own">Finner du det ikke? <b>Lag din egen</b></button></div>';
+      var res = $('#ff_res');
+      function bind() {
+        res.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { after(S.products.get(b.dataset.pid)); }; });
+        res.querySelectorAll('[data-mvt]').forEach(function (b) { b.onclick = async function () { try { after(await ensureProduct(mvtCache[b.dataset.mvt])); } catch (e) { toast(e.message); } }; });
+        res.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { closeSheet(); setTimeout(function () { openRecipe(b.dataset.rid); }, 230); }; });
+        var ob = res.querySelector('[data-offq]'); if (ob) ob.onclick = function () { closeSheet(); setTimeout(function () { openOffSearch(ob.dataset.offq); }, 230); };
+      }
+      function run() {
+        var q = $('#ff_q').value.trim(), my = ++seq;
+        if (!q) {
+          var rec = recentProducts(8);
+          res.innerHTML = rec.length ? '<div class="fhead">Nylig brukt</div><div class="list">' + rec.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '<p class="small muted" style="margin:4px 2px">Søk etter maten, eller skann strekkoden på pakken.</p>';
+          bind(); return;
+        }
+        var own = C.findProducts(ctx, q, 8), nq = C.norm(q);
+        var recs = mode === 'log' ? Array.from(S.recipes.values()).filter(function (r) { return C.norm(r.name).indexOf(nq) >= 0; }).slice(0, 4) : [];
+        var html = (own.length ? '<div class="fhead">Dine matvarer</div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+          (recs.length ? '<div class="fhead">Oppskrifter</div><div class="list">' + recs.map(function (r) { return '<button type="button" class="li" data-rid="' + esc(r.id) + '"><span class="av a2" aria-hidden="true">R</span><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">Oppskrift</div></div></button>'; }).join('') + '</div>' : '');
+        res.innerHTML = html + '<div id="ff_mvt">' + (window.COACH_STANDALONE && q.length > 1 ? '<p class="small faint" style="margin:6px 2px">Søker i Matvaretabellen …</p>' : '') + '</div>' +
+          (window.COACH_STANDALONE ? '<button type="button" class="btn sm" data-offq="' + esc(q) + '">Søk i butikkvarer (Open Food Facts)</button>' : '');
+        bind();
+        if (!window.COACH_STANDALONE || q.length < 2) return;
+        clearTimeout(timer);
+        timer = setTimeout(async function () {
+          var list = []; try { list = await mvtSearch(q, 8); } catch (e) { list = []; }
+          if (my !== seq) return;
+          var box = $('#ff_mvt'); if (!box) return;
+          var known = {}; own.forEach(function (p) { if (p.source && p.source.mvtId) known[p.source.mvtId] = 1; });
+          list = list.filter(function (p) { return !known[p.mvtId]; });
+          box.innerHTML = list.length ? '<div class="fhead">Matvaretabellen</div><div class="list">' + list.map(function (p) { return foodLi(p, 'data-mvt="' + esc(p.id) + '"', 'Matvaretabellen' + (E.stkWeight(p) && E.stkWeight(p).src === 'typisk' ? ' · 1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : '')); }).join('') + '</div>' : (own.length || recs.length ? '' : '<p class="small muted" style="margin:6px 2px">Ingen treff i Matvaretabellen.</p>');
+          bind();
+        }, 220);
+      }
+      $('#ff_q').addEventListener('input', run);
+      $('#ff_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+      $('#ff_scan').onclick = function () { closeSheet(); setTimeout(scanBarcode, 120); };
+      $('#ff_own').onclick = function () { var q = $('#ff_q').value.trim(); closeSheet(); setTimeout(function () { openQuickProduct({ name: q }, { mode: mode, date: date, mealType: mt }); }, 230); };
+      run();
+    });
+  }
+
+  /* Lag din egen vare: navn og de viktigste tallene først, resten under «Flere detaljer». Tallene kan gjelde per 100 g, per 100 ml eller per stk. */
+  function openQuickProduct(pre, o) {
+    pre = pre || {}; o = o || {};
+    var per = pre.per100 || {}, basis = pre.basis === 'ml' ? 'ml' : 'g';
+    openSheet('Lag din egen', function (body) {
+      function f(id, label, val, extra) { return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" inputmode="decimal" value="' + esc(numStr(E.num(val))) + '"' + (extra || '') + '></div>'; }
+      body.innerHTML = '<form id="qp" class="stack" novalidate>' +
+        '<div class="field"><label for="qp_name">Navn</label><input class="input" id="qp_name" value="' + esc(pre.name || '') + '" placeholder="F.eks. Proteinbar sjokolade" autocomplete="off"></div>' +
+        '<div class="field"><label for="qp_brand">Merke <span class="faint">(valgfritt)</span></label><input class="input" id="qp_brand" value="' + esc(pre.brand || '') + '" autocomplete="off"></div>' +
+        '<div class="field"><label>Tallene gjelder</label><div class="seg" id="qp_basis" role="group">' + [['g', 'Per 100 g'], ['ml', 'Per 100 ml'], ['stk', 'Per stk']].map(function (x) { return '<button type="button" data-b="' + x[0] + '" aria-pressed="' + (basis === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
+        '<div class="field" id="qp_stkw" hidden><label for="qp_stk">Hvor mye veier én stk? <span class="faint">(g, valgfritt)</span></label><input class="input" id="qp_stk" inputmode="decimal" value="' + esc(numStr(pre.unitWeights && pre.unitWeights.stk)) + '" placeholder="Vet du ikke, la det stå tomt"></div>' +
+        '<div class="grid2 qpmain">' + f('qp_kcal', 'Kalorier (kcal)', per.kcal) + f('qp_protein', 'Protein (g)', per.protein) + f('qp_carbs', 'Karbohydrater (g)', per.carbs) + f('qp_fat', 'Fett (g)', per.fat) + '</div>' +
+        '<details class="qpmore"><summary>Flere detaljer</summary><div class="grid2" style="margin-top:10px">' +
+          f('qp_sugars', 'Sukkerarter (g)', per.sugars) + f('qp_satFat', 'Mettet fett (g)', per.satFat) + f('qp_fiber', 'Fiber (g)', per.fiber) + f('qp_salt', 'Salt (g)', per.salt) +
+          f('qp_stk2', 'Vekt per stk (g)', pre.unitWeights && pre.unitWeights.stk) + f('qp_serving', 'Porsjon (g)', pre.servingSize) + f('qp_pkg', 'Pakning (g/ml)', pre.packageSize) +
+          '<div class="field"><label for="qp_barcode">Strekkode</label><input class="input" id="qp_barcode" inputmode="numeric" value="' + esc(pre.barcode || '') + '"></div>' +
+          '<div class="field" style="grid-column:1/-1"><label for="qp_aliases">Andre navn <span class="faint">(komma)</span></label><input class="input" id="qp_aliases" value="' + esc((pre.aliases || []).join(', ')) + '"></div>' +
+          '<div class="field" style="grid-column:1/-1"><label for="qp_notes">Notat</label><textarea class="input" id="qp_notes" rows="2">' + esc(pre.notes || '') + '</textarea></div>' +
+        '</div></details>' +
+        '<div id="qp_msg"></div><div class="row"><button class="btn primary grow" type="submit">' + (o.mode === 'add' ? 'Lagre' : 'Lagre og loggfør') + '</button><button class="btn ghost" type="button" id="qp_cancel">Avbryt</button></div></form>';
+      function setBasis(b) {
+        basis = b;
+        body.querySelectorAll('#qp_basis [data-b]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.b === b)); });
+        $('#qp_stkw').hidden = b !== 'stk';
+      }
+      $('#qp_basis').onclick = function (e) { var b = e.target.closest('[data-b]'); if (b) setBasis(b.dataset.b); };
+      $('#qp_stk').addEventListener('input', function (e) { $('#qp_stk2').value = e.target.value; });
+      $('#qp_stk2').addEventListener('input', function (e) { $('#qp_stk').value = e.target.value; });
+      setBasis(basis);
+      $('#qp_cancel').onclick = closeSheet;
+      $('#qp').onsubmit = async function (e) {
+        e.preventDefault();
+        function v(id) { return $('#' + id).value.trim(); }
+        var msg = $('#qp_msg');
+        if (!v('qp_name')) { msg.innerHTML = '<div class="notice bad">Gi varen et navn.</div>'; return; }
+        var miss = [['qp_kcal', 'kalorier'], ['qp_protein', 'protein'], ['qp_carbs', 'karbohydrater'], ['qp_fat', 'fett']].filter(function (x) { return E.num(v(x[0])) === null; });
+        body.querySelectorAll('.qpmain .input').forEach(function (x) { x.classList.toggle('bad', E.num(x.value) === null); });
+        if (miss.length) { msg.innerHTML = '<div class="notice bad">Fyll inn ' + miss.map(function (x) { return x[1]; }).join(', ').replace(/, ([^,]*)$/, ' og $1') + '. Står det ikke på pakken, skriv 0.</div>'; return; }
+        var vals = {}; E.NUTRIENTS.forEach(function (k) { vals[k] = E.num(v('qp_' + k)); });
+        var stkW = E.num(v('qp_stk')) || E.num(v('qp_stk2')), notes = v('qp_notes'), perStk = basis === 'stk';
+        var per100 = {};
+        if (perStk) {
+          /* Tall per stk: regnes om til per 100 g. Uten vekt brukes 100 g som «én stk», så mengden logges i stk. */
+          var w = stkW || 100;
+          E.NUTRIENTS.forEach(function (k) { per100[k] = vals[k] === null ? null : E.round(vals[k] * 100 / w, 3); });
+          stkW = w;
+          if (!E.num(v('qp_stk')) && !E.num(v('qp_stk2'))) notes = (notes ? notes + ' ' : '') + 'Tallene er lagt inn per stk (vekten er ukjent). Logg denne i stk.';
+        } else per100 = vals;
+        var data = {
+          name: v('qp_name'), brand: v('qp_brand'), state: pre.state || 'ferdig', basis: basis === 'ml' ? 'ml' : 'g', status: 'bruker',
+          per100: per100, aliases: v('qp_aliases').split(',').map(function (x) { return x.trim(); }).filter(Boolean), notes: notes,
+          source: { type: 'bruker', name: 'Lagt inn selv', checkedAt: today() },
+          servingSize: E.num(v('qp_serving')), packageSize: E.num(v('qp_pkg')), barcode: v('qp_barcode').replace(/\D/g, '') || undefined
+        };
+        if (stkW) data.unitWeights = { stk: stkW };
+        try {
+          var r = await C.saveProduct(ctx, data, { reason: 'Lagt inn selv', override: true });
+          if (perStk) rememberUnit(r.product.id, 'stk', 1);
+          closeSheet();
+          if (o.mode === 'add') { toast('Lagret ' + r.product.name); return; }
+          setTimeout(function () { openAddItem(o.date || S.date, r.product.id, o.mealType); }, 230);
+        } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
+      };
+    });
+  }
+
+  /* Mengde og måltid for én vare. Velg gram, ml eller stk; vekten per stk kan justeres og lagres på varen. */
   function openAddItem(date, productId, presetType) {
     var picked = productId ? S.products.get(productId) : null;
+    if (!picked) { openFoodFinder({ date: date, mealType: presetType }); return; }
+    var du = defaultUnit(picked), unit = du.unit, amount = du.amount, mt = presetType || defaultMeal();
+    var sw0 = E.stkWeight(picked), stkG = sw0 && sw0.src !== 'pakning' ? sw0.g : (sw0 ? sw0.g : null), stkTouched = false;
+    var MT = [['frokost', 'Frokost'], ['lunsj', 'Lunsj'], ['middag', 'Middag'], ['kvelds', 'Kvelds'], ['mellommåltid', 'Snack']];
+    if (C.MEAL_TYPES.indexOf(mt) < 0) mt = 'mellommåltid';
     openSheet(date === today() ? 'Legg til i dag' : 'Legg til ' + dateLabel(date).toLowerCase(), function (body) {
-      body.innerHTML = '<form id="af" class="stack" novalidate>' +
-        '<div class="field"><label for="af_q">Matvare</label><input class="input" id="af_q" type="search" autocomplete="off" placeholder="Søk …" value="' + esc(picked ? picked.name : '') + '"></div>' +
-        '<div id="af_hits" class="list"></div>' +
-        '<div class="grid3"><div class="field"><label for="af_amt">Mengde</label><input class="input" id="af_amt" inputmode="decimal"></div>' +
-        '<div class="field"><label for="af_unit">Enhet</label><select class="input" id="af_unit"></select></div>' +
-        '<div class="field"><label for="af_type">Måltid</label><select class="input" id="af_type">' + C.MEAL_TYPES.map(function (t) { return '<option>' + t + '</option>'; }).join('') + '</select></div></div>' +
-        '<div id="af_prev" class="small muted"></div><div id="af_msg"></div>' +
-        '<div class="row"><button class="btn primary" type="submit">Registrer</button></div></form>';
-      var h = new Date().getHours();
-      $('#af_type').value = presetType || (h < 10 ? 'frokost' : h < 14 ? 'lunsj' : h < 19 ? 'middag' : 'kvelds');
-      function units() {
-        var u = ['g'];
-        if (picked) { if (picked.basis === 'ml' || picked.density) u.push('ml', 'dl'); if (picked.unitWeights && picked.unitWeights.stk) u.push('stk'); if (picked.servingSize) u.push('porsjon'); if (picked.edibleFactor) u.push('g_med_skall'); }
-        $('#af_unit').innerHTML = u.map(function (x) { return '<option value="' + x + '">' + (x === 'g_med_skall' ? 'g med skall' : x) + '</option>'; }).join('');
-        if (picked && picked.basis === 'ml') $('#af_unit').value = 'ml';
-        if (picked && (picked.commonPortions || []).length && !$('#af_amt').value) $('#af_amt').value = String(picked.commonPortions[0]).replace('.', ',');
+      function prod() { return unit === 'stk' && stkG ? withStk(picked, stkG) : picked; }
+      function calc() { try { return { c: E.calcItem(prod(), amount, unit) }; } catch (e) { return { err: e.message }; } }
+      function preview() {
+        var r = calc(), el = $('#af_res'); if (!el) return;
+        if (r.c) {
+          var x = r.c.values;
+          el.innerHTML = '<div class="afk"><b>' + fmt(x.kcal) + '</b><span>kcal</span></div><div class="afm"><span><i class="dot" style="background:var(--protein)"></i>' + fmt(x.protein, 1) + ' g protein</span><span><i class="dot" style="background:var(--carbs)"></i>' + fmt(x.carbs, 1) + ' g karbo</span><span><i class="dot" style="background:var(--fat)"></i>' + fmt(x.fat, 1) + ' g fett</span></div>' +
+            (unit !== 'g' && unit !== 'ml' ? '<div class="small faint">= ' + fmt(r.c.qty) + ' ' + r.c.basis + '</div>' : '');
+        } else el.innerHTML = '<div class="small muted">' + esc(amount === null ? 'Skriv inn mengde.' : r.err) + '</div>';
+        $('#af_go').disabled = !r.c;
       }
-      function hits() {
-        var q = $('#af_q').value;
-        if (picked && q === picked.name) { $('#af_hits').innerHTML = ''; return; }
-        var l = C.findProducts(ctx, q, 6);
-        $('#af_hits').innerHTML = l.map(function (p) { return '<button type="button" class="li" data-pid="' + esc(p.id) + '"><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + esc(p.state || '') + ' · ' + fmt(p.per100.kcal) + ' kcal / 100</div></div></button>'; }).join('');
-        $('#af_hits').querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { picked = S.products.get(b.dataset.pid); $('#af_q').value = picked.name; $('#af_hits').innerHTML = ''; units(); prev(); }; });
+      function draw() {
+        var opts = unitOptions(prod(), true);
+        if (!opts.some(function (u) { return u[0] === unit; })) unit = opts[0][0];
+        var sw = E.stkWeight(prod());
+        body.innerHTML = '<div class="stack addsheet">' +
+          '<div class="afhead"><div><div class="afname">' + esc(picked.name) + '</div><div class="small muted">' + esc([picked.brand, fmt(picked.per100.kcal) + ' kcal per 100 ' + (picked.basis === 'ml' ? 'ml' : 'g')].filter(Boolean).join(' · ')) + '</div></div><button type="button" class="btn ghost sm" id="af_other">Bytt</button></div>' +
+          '<div class="afamt"><input class="input" id="af_amt" inputmode="decimal" aria-label="Mengde" value="' + esc(numStr(amount)) + '"><div class="seg afunits" role="group" aria-label="Enhet">' +
+            opts.map(function (u) { return '<button type="button" data-u="' + u[0] + '" aria-pressed="' + (u[0] === unit) + '">' + esc(u[0] === 'stk' ? 'stk' : u[0] === 'g_med_skall' ? 'm/skall' : u[0]) + '</button>'; }).join('') + '</div></div>' +
+          (unit === 'stk' ? '<div class="stkw"><span>1 stk =</span><input class="input" id="af_stk" inputmode="decimal" value="' + esc(numStr(stkG)) + '" placeholder="vekt"><span>' + (sw && sw.src === 'pakning' && picked.basis === 'ml' ? 'ml' : 'g') + '</span><em>' + (stkTouched ? 'lagres på varen' : (sw = E.stkWeight(picked)) ? (sw.src === 'typisk' ? 'typisk vekt – endre om din er større/mindre' : sw.src === 'pakning' ? 'én pakning' : 'lagret på varen') : 'skriv inn hvor mye én veier') + '</em></div>' : '') +
+          '<div class="afres" id="af_res"></div>' +
+          '<div class="seg afmt" role="group" aria-label="Måltid">' + MT.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+          '<div id="af_msg"></div><button type="button" class="btn primary" id="af_go">Loggfør</button></div>';
+        $('#af_amt').addEventListener('input', function (e) { amount = E.num(e.target.value); preview(); });
+        var si = $('#af_stk'); if (si) si.addEventListener('input', function (e) { stkG = E.num(e.target.value); stkTouched = true; preview(); });
+        body.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () {
+          var nu = b.dataset.u; if (nu === unit) return;
+          if (amount !== null) amount = convertAmount(nu === 'stk' && stkG ? withStk(picked, stkG) : prod(), amount, unit, nu);
+          unit = nu; draw();
+        }; });
+        body.querySelectorAll('[data-mt]').forEach(function (b) { b.onclick = function () { mt = b.dataset.mt; body.querySelectorAll('[data-mt]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
+        $('#af_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt }); }, 230); };
+        $('#af_go').onclick = save;
+        preview();
       }
-      function prev() {
-        if (!picked) { $('#af_prev').textContent = ''; return; }
-        try { var c = E.calcItem(picked, $('#af_amt').value, $('#af_unit').value); $('#af_prev').textContent = fmt(c.values.kcal) + ' kcal · ' + fmt(c.values.protein, 1) + ' g protein · ' + fmt(c.values.carbs, 1) + ' g karbo · ' + fmt(c.values.fat, 1) + ' g fett'; }
-        catch (e) { $('#af_prev').textContent = $('#af_amt').value ? e.message : ''; }
-      }
-      $('#af_q').addEventListener('input', function () { picked = null; hits(); units(); prev(); });
-      $('#af_amt').addEventListener('input', prev); $('#af_unit').addEventListener('change', prev);
-      units(); hits(); prev();
-      $('#af').onsubmit = async function (e) {
-        e.preventDefault();
-        if (!picked) { $('#af_msg').innerHTML = '<div class="notice bad">Velg en matvare fra listen.</div>'; return; }
+      async function save() {
+        var btn = $('#af_go'); btn.disabled = true;
         try {
-          await C.logMeal(ctx, { date: date, meal_type: $('#af_type').value, items: [{ product_id: picked.id, amount: E.num($('#af_amt').value), unit: $('#af_unit').value }] });
-          closeSheet(); toast('Registrert ' + picked.name);
-        } catch (er) { $('#af_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
-      };
+          var p = picked;
+          var stored = p.unitWeights && p.unitWeights.stk;
+          if (unit === 'stk' && stkG && (stkTouched || !E.stkWeight(p)) && stored !== stkG) {
+            var r = await C.saveProduct(ctx, Object.assign({}, p, { unitWeights: { stk: stkG } }), { id: p.id, reason: 'Vekt per stk', override: true });
+            p = r.product;
+          }
+          await C.logMeal(ctx, { date: date, meal_type: mt, items: [{ product_id: p.id, amount: amount, unit: unit }] });
+          rememberUnit(p.id, unit, amount);
+          closeSheet(); toast('Loggført ' + fmt(amount, 2) + ' ' + (unit === 'g_med_skall' ? 'g' : unit) + ' ' + p.name);
+        } catch (er) { $('#af_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; btn.disabled = false; }
+      }
+      draw();
     });
   }
 
@@ -4305,9 +4696,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   function renderRecipes() {
     var v = $('#v-oppskrifter');
     var list = Array.from(S.recipes.values()).sort(function (a, b) { return a.name.localeCompare(b.name, 'nb'); });
-    var html = '<div class="section"><h2 class="vh">Oppskrifter</h2></div>';
+    var html = '<div class="section"><div class="row"><h2 class="vh grow">Oppskrifter</h2><button class="btn sm primary" id="btnNewRecipe">+ Ny oppskrift</button></div></div>';
     if (S.status === 'connecting') html += '<p class="small faint">Henter oppskrifter …</p>';
-    else if (!list.length) html += '<div class="empty"><h3>Ingen oppskrifter ennå</h3><p class="small">Beskriv en oppskrift i chatten, så lagres den.</p></div>';
+    else if (!list.length) html += '<div class="empty"><h3>Ingen oppskrifter ennå</h3><p class="small">Lag din egen: legg inn ingrediensene og hvor mange porsjoner det blir, så regner Coach ut kalorier og protein per porsjon.</p></div>';
     html += '<div class="list">' + list.map(function (r) {
       var ver = r.versions.find(function (x) { return x.version === r.currentVersion; });
       var c = null; try { c = E.calcRecipe(ver, function (id) { return S.products.get(id); }); } catch (e) {}
@@ -4315,6 +4706,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<div class="kc">' + (c ? fmt(c.perPortion.kcal) + ' kcal<em>' + fmt(c.perPortion.protein, 1) + ' g P</em><span class="faint small">per porsjon</span>' : '–') + '</div></button>';
     }).join('') + '</div>';
     if (!setHTML(v, html)) return;
+    $('#btnNewRecipe').onclick = function () { openRecipeBuilder(null); };
     v.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { openRecipe(b.dataset.rid); }; });
   }
 
@@ -4342,7 +4734,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<div class="section"><h3>Logg</h3><div class="grid3"><div class="field"><label for="rl_type">Måltid</label><select class="input" id="rl_type">' + C.MEAL_TYPES.map(function (t) { return '<option' + (t === r.defaultMealType ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div>' +
         '<div class="field"><label for="rl_por">Porsjoner</label><input class="input" id="rl_por" inputmode="decimal" value="1"></div>' +
         ((r.variants || []).length ? '<div class="field"><label for="rl_var">Variant</label><select class="input" id="rl_var"><option value="">Standard</option>' + r.variants.map(function (x) { return '<option>' + esc(x.name) + '</option>'; }).join('') + '</select></div>' : '') +
-        '</div><div id="rl_msg"></div><div class="row"><button class="btn primary" id="rl_go"' + (vnum !== r.currentVersion ? ' disabled title="Bare gjeldende versjon kan logges"' : '') + '>Registrer i ' + esc(dateLabel(S.date).toLowerCase()) + '</button></div></div></div>';
+        '</div><div id="rl_msg"></div><div class="row"><button class="btn primary" id="rl_go"' + (vnum !== r.currentVersion ? ' disabled title="Bare gjeldende versjon kan logges"' : '') + '>Registrer i ' + esc(dateLabel(S.date).toLowerCase()) + '</button><button class="btn" id="rl_edit">Endre oppskrift</button></div></div></div>';
+      $('#rl_edit').onclick = function () { closeSheet(); setTimeout(function () { openRecipeBuilder(r); }, 230); };
       if ($('#rv')) $('#rv').onchange = function (e) { selVer = +e.target.value; openRecipeRedraw(); };
       $('#rl_go').onclick = async function () {
         try {
@@ -4352,6 +4745,121 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       };
     }, { live: true });
     function openRecipeRedraw() { if (S.sheet) S.sheet.force(); }
+  }
+
+  /* Lag eller endre en oppskrift: navn, antall porsjoner og ingredienser (søk i dine varer og Matvaretabellen).
+   * Endringer lagres som ny versjon, så måltider du har logget før beholder tallene sine. */
+  function openRecipeBuilder(existing) {
+    var cur = existing ? existing.versions.find(function (x) { return x.version === existing.currentVersion; }) : null;
+    var st = {
+      name: existing ? existing.name : '', portions: cur ? cur.portions : 4, mt: existing ? existing.defaultMealType || '' : '', cooked: cur && cur.cookedWeightG ? cur.cookedWeightG : null,
+      items: cur ? cur.items.map(function (it) { return { pid: it.productId, amount: it.amount, unit: it.unit || 'g' }; }) : []
+    };
+    var seq = 0, timer = null;
+    openSheet(existing ? 'Endre oppskrift' : 'Ny oppskrift', function (body) {
+      function prodOf(it) { return S.products.get(it.pid); }
+      function totals() {
+        var vals = [], bad = 0;
+        st.items.forEach(function (it) { var p = prodOf(it); try { vals.push(E.calcItem(p, it.amount, it.unit).values); it.err = null; } catch (e) { it.err = e.message; bad++; } });
+        var t = E.sum(vals).values, n = E.num(st.portions) || 1;
+        return { t: t, per: E.divide(t, n), bad: bad, n: n };
+      }
+      function totHtml() {
+        var x = totals();
+        return '<div class="rbtot"><div><span>Hele oppskriften</span><b>' + fmt(x.t.kcal) + ' kcal</b><em>' + fmt(x.t.protein, 1) + ' g protein</em></div>' +
+          '<div class="per"><span>Per porsjon (1/' + fmt(x.n, 1) + ')</span><b>' + fmt(x.per.kcal) + ' kcal</b><em>' + fmt(x.per.protein, 1) + ' g P · ' + fmt(x.per.carbs, 1) + ' g K · ' + fmt(x.per.fat, 1) + ' g F</em></div></div>' +
+          (x.bad ? '<div class="small" style="color:var(--fat)">Sjekk mengden på ' + x.bad + ' ingrediens' + (x.bad > 1 ? 'er' : '') + '.</div>' : '');
+      }
+      function itemHtml(it, i) {
+        var p = prodOf(it); if (!p) return '';
+        var v = null; try { v = E.calcItem(p, it.amount, it.unit).values; } catch (e) { v = null; }
+        return '<div class="rbitem" data-ri="' + i + '"><div class="rbn"><b>' + esc(p.name) + '</b><span>' + (v ? fmt(v.kcal) + ' kcal · ' + fmt(v.protein, 1) + ' g P' : 'sjekk mengde') + '</span></div>' +
+          '<input class="input" data-rf="amount" inputmode="decimal" value="' + esc(numStr(it.amount)) + '" aria-label="Mengde">' +
+          '<select class="input" data-rf="unit" aria-label="Enhet">' + unitOptions(p).map(function (u) { return '<option value="' + u[0] + '"' + (u[0] === it.unit ? ' selected' : '') + '>' + esc(u[0] === 'stk' ? 'stk' : u[0] === 'g_med_skall' ? 'g m/skall' : u[0]) + '</option>'; }).join('') + '</select>' +
+          '<button type="button" class="xbtn" data-rf="del" aria-label="Fjern">×</button></div>';
+      }
+      function draw() {
+        body.innerHTML = '<div class="stack rbuild">' +
+          '<div class="field"><label for="rb_name">Navn</label><input class="input" id="rb_name" value="' + esc(st.name) + '" placeholder="F.eks. Kyllinggryte" autocomplete="off"></div>' +
+          '<div class="grid2"><div class="field"><label for="rb_por">Antall porsjoner</label><div class="stepper"><button type="button" data-step="-1" aria-label="Færre">−</button><input class="input" id="rb_por" inputmode="decimal" value="' + esc(numStr(st.portions)) + '"><button type="button" data-step="1" aria-label="Flere">+</button></div></div>' +
+          '<div class="field"><label for="rb_mt">Brukes oftest til</label><select class="input" id="rb_mt"><option value="">Velg</option>' + C.MEAL_TYPES.map(function (t) { return '<option' + (t === st.mt ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div></div>' +
+          '<h3 style="margin:4px 0 0">Ingredienser</h3>' +
+          '<div id="rb_items" class="rbitems">' + (st.items.length ? st.items.map(itemHtml).join('') : '<p class="small muted" style="margin:0">Ingen ingredienser ennå. Søk under og trykk for å legge til.</p>') + '</div>' +
+          '<div class="rbadd"><input class="input" id="rb_q" type="search" enterkeyhint="search" placeholder="+ Legg til ingrediens, f.eks. kyllingfilet" autocomplete="off"><div id="rb_hits"></div></div>' +
+          '<div id="rb_tot">' + totHtml() + '</div>' +
+          '<details class="cdet"><summary>Ferdig vekt (valgfritt)</summary><div class="field" style="margin-top:8px"><label for="rb_cooked">Hvor mye veier hele retten ferdig laget? (g)</label><input class="input" id="rb_cooked" inputmode="decimal" value="' + esc(numStr(st.cooked)) + '"><p class="small faint" style="margin:4px 0 0">Da kan du senere logge i gram av den ferdige retten.</p></div></details>' +
+          '<div id="rb_msg"></div><div class="row"><button type="button" class="btn primary grow" id="rb_save">' + (existing ? 'Lagre ny versjon' : 'Lagre oppskrift') + '</button><button type="button" class="btn ghost" id="rb_cancel">Avbryt</button></div></div>';
+        bind();
+      }
+      function refreshTot() { var t = $('#rb_tot'); if (t) t.innerHTML = totHtml(); }
+      function refreshItem(i) {
+        var row = body.querySelector('[data-ri="' + i + '"]'), it = st.items[i], p = prodOf(it); if (!row || !p) return;
+        var v = null; try { v = E.calcItem(p, it.amount, it.unit).values; } catch (e) { v = null; }
+        row.querySelector('.rbn span').textContent = v ? fmt(v.kcal) + ' kcal · ' + fmt(v.protein, 1) + ' g P' : 'sjekk mengde';
+      }
+      function addProduct(p) {
+        var du = defaultUnit(p);
+        st.items.push({ pid: p.id, amount: du.unit === 'g' || du.unit === 'ml' ? 100 : du.amount, unit: du.unit });
+        st.name = $('#rb_name').value; draw();
+        var rows = body.querySelectorAll('.rbitem'), last = rows[rows.length - 1];
+        if (last) { last.classList.add('flash'); var a = last.querySelector('[data-rf="amount"]'); if (a) { a.focus(); a.select(); } }
+      }
+      function search() {
+        var q = $('#rb_q').value.trim(), box = $('#rb_hits'), my = ++seq;
+        if (q.length < 2) { box.innerHTML = ''; return; }
+        var own = C.findProducts(ctx, q, 6);
+        function render(mvt) {
+          box.innerHTML = '<div class="list">' + own.map(function (p) { return foodLi(p, 'data-rp="' + esc(p.id) + '"'); }).join('') + (mvt || []).map(function (p) { return foodLi(p, 'data-rm="' + esc(p.id) + '"', 'Matvaretabellen'); }).join('') + '</div>' +
+            (!own.length && mvt && !mvt.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff. <button type="button" class="btn ghost sm" id="rb_own">Lag egen vare</button></p>' : '');
+          box.querySelectorAll('[data-rp]').forEach(function (b) { b.onclick = function () { addProduct(S.products.get(b.dataset.rp)); }; });
+          box.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = async function () { try { addProduct(await ensureProduct(mvtCache[b.dataset.rm])); } catch (e) { toast(e.message); } }; });
+          var ob = $('#rb_own'); if (ob) ob.onclick = function () { toast('Lagre oppskriften først, eller lag varen under Matvarer → + Matvare.'); };
+        }
+        render(window.COACH_STANDALONE ? null : []);
+        if (!window.COACH_STANDALONE) return;
+        clearTimeout(timer);
+        timer = setTimeout(async function () {
+          var m = []; try { m = await mvtSearch(q, 6); } catch (e) { m = []; }
+          if (my !== seq) return;
+          var known = {}; own.forEach(function (p) { if (p.source && p.source.mvtId) known[p.source.mvtId] = 1; });
+          render(m.filter(function (p) { return !known[p.mvtId]; }));
+        }, 220);
+      }
+      function bind() {
+        $('#rb_name').addEventListener('input', function (e) { st.name = e.target.value; });
+        $('#rb_por').addEventListener('input', function (e) { st.portions = E.num(e.target.value); refreshTot(); });
+        body.querySelectorAll('[data-step]').forEach(function (b) { b.onclick = function () { st.portions = Math.max(1, Math.round((E.num(st.portions) || 1) + +b.dataset.step)); $('#rb_por').value = numStr(st.portions); refreshTot(); }; });
+        $('#rb_mt').onchange = function (e) { st.mt = e.target.value; };
+        $('#rb_cooked').addEventListener('input', function (e) { st.cooked = E.num(e.target.value); });
+        $('#rb_q').addEventListener('input', search);
+        $('#rb_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+        $('#rb_items').addEventListener('input', function (e) { var row = e.target.closest('[data-ri]'); if (!row || e.target.dataset.rf !== 'amount') return; var i = +row.dataset.ri; st.items[i].amount = E.num(e.target.value); refreshItem(i); refreshTot(); });
+        $('#rb_items').addEventListener('change', function (e) {
+          var row = e.target.closest('[data-ri]'); if (!row || e.target.dataset.rf !== 'unit') return; var i = +row.dataset.ri, it = st.items[i], p = prodOf(it);
+          if (it.amount) it.amount = convertAmount(p, it.amount, it.unit, e.target.value);
+          it.unit = e.target.value; row.querySelector('[data-rf="amount"]').value = numStr(it.amount); refreshItem(i); refreshTot();
+        });
+        $('#rb_items').addEventListener('click', function (e) { var b = e.target.closest('[data-rf="del"]'); if (!b) return; st.items.splice(+b.closest('[data-ri]').dataset.ri, 1); st.name = $('#rb_name').value; draw(); });
+        $('#rb_cancel').onclick = closeSheet;
+        $('#rb_save').onclick = save;
+      }
+      async function save() {
+        var msg = $('#rb_msg');
+        st.name = $('#rb_name').value.trim();
+        if (!st.name) { msg.innerHTML = '<div class="notice bad">Gi oppskriften et navn.</div>'; return; }
+        if (!st.items.length) { msg.innerHTML = '<div class="notice bad">Legg til minst én ingrediens.</div>'; return; }
+        if (totals().bad) { msg.innerHTML = '<div class="notice bad">Sjekk mengdene som er merket.</div>'; return; }
+        if (!(E.num(st.portions) > 0)) { msg.innerHTML = '<div class="notice bad">Skriv inn antall porsjoner.</div>'; return; }
+        $('#rb_save').disabled = true;
+        try {
+          var r = await C.saveRecipe(ctx, { id: existing ? existing.id : undefined, name: st.name, portions: st.portions, cooked_weight_g: st.cooked || undefined, default_meal_type: st.mt || undefined,
+            items: st.items.map(function (it) { return { product_id: it.pid, amount: it.amount, unit: it.unit }; }) });
+          if (existing && st.mt && r.recipe.defaultMealType !== st.mt) { var rr = clone(r.recipe); rr.defaultMealType = st.mt; await repo.set('recipes/' + rr.id, rr); }
+          closeSheet(); toast((existing ? 'Oppdatert ' : 'Lagret ') + r.recipe.name + ' · ' + fmt(r.calc.perPortion.kcal) + ' kcal per porsjon');
+        } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; $('#rb_save').disabled = false; }
+      }
+      draw();
+    });
   }
 
   /* ---------- Trening ---------- */
@@ -4488,7 +4996,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     }).join('') + '</div>' +
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<div class="row"><input class="input grow" id="lg_newex" placeholder="Legg til øvelse" list="lg_known"><button type="button" class="btn" data-lg="addex">Legg til</button></div>' +
-      '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 2 nov push» og «Shoulder press 50 x 6» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Pulldown 85 x 10&#10;Rows 79 x 7"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
+      '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
   }
@@ -4512,7 +5020,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       d.exercises.push({ name: c.name, sets: sets });
       rerender();
       var row = $('.logger .exrow[data-key="' + k.replace(/"/g, '') + '"]');
-      if (row) { row.classList.add('flash'); row.scrollIntoView({ behavior: MOTION ? 'smooth' : 'auto', block: 'nearest' }); }
+      if (row) { row.classList.add('flash'); scrollInView(row); }
     }; });
     box.addEventListener('input', function (e) {
       var row = e.target.closest('[data-ex]'); if (!row) return;
@@ -4623,7 +5131,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         var sp = SPLITS.find(function (x) { return C.norm(w.title || '').indexOf(C.norm(x)) === 0; }) || '';
         S.draft = { date: w.date, split: sp, volume: /volum/i.test(w.title || ''), title: w.title === 'Styrketrening' && !hasEx ? '' : w.title, editId: w.id,
           exercises: (w.exercises || []).map(function (e) { return { name: e.name, sets: (e.sets && e.sets.length ? e.sets : [{}]).map(function (x) { return { w: x.weightKg === null || x.weightKg === undefined ? '' : String(x.weightKg).replace('.', ','), r: x.reps === null || x.reps === undefined ? '' : String(x.reps).replace('.', ',') }; }) }; }) };
-        saveDraft(); S.trType = 'styrke'; closeSheet(); go('trening'); renderTraining(); var lg = $('.logger'); if (lg) lg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        saveDraft(); S.trType = 'styrke'; closeSheet(); go('trening'); renderTraining(); var lg = $('.logger'); if (lg) scrollInView(lg, true);
       };
       var tb = $('#wo_tpl');
       if (tb) tb.onclick = function () {
@@ -4730,7 +5238,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     var firstWaist = S.measures.length > 1 ? S.measures[0] : null;
     var html = '<div class="section"><h2 class="vh">Fremgang</h2>' +
       '<form id="wf" class="card stack" novalidate style="gap:10px"><div class="wfgrid">' +
-      '<div class="field"><label for="wf_kg">Vekt (kg)</label><input class="input" id="wf_kg" inputmode="decimal" placeholder="76,0"></div>' +
+      '<div class="field"><label for="wf_kg">Vekt (kg)</label><input class="input" id="wf_kg" inputmode="decimal" placeholder="kg"></div>' +
       '<div class="field"><label for="wf_waist">Midje (cm)</label><input class="input" id="wf_waist" inputmode="decimal" placeholder="valgfritt"></div>' +
       '<div class="field"><label for="wf_date">Dato</label><input class="input" id="wf_date" type="date" value="' + today() + '"></div></div>' +
       '<button class="btn primary" type="submit">Lagre måling</button></form><div id="wf_msg"></div></div>' +
@@ -4829,6 +5337,13 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   /* ---------- Kaloriekalkulator ----------
    * Mifflin–St Jeor + aktivitet (skritt, jobb, styrke, kondisjon) via Engine. Forhåndsutfylt fra profil,
    * Garmin og treningsloggen. Regner mens du skriver; ingenting lagres før du trykker. */
+  var CALC_SOURCES = [
+    ['Mifflin-St Jeor: mest treffsikre formel for hvileforbrenning (Frankenfield mfl. 2005)', 'https://pubmed.ncbi.nlm.nih.gov/15883556/'],
+    ['Vekttap med bevaring av muskler: protein og tempo (Helms mfl. 2014, JISSN)', 'https://jissn.biomedcentral.com/articles/10.1186/1550-2783-11-20'],
+    ['Protein og muskelvekst, metaanalyse (Morton mfl. 2018, BJSM)', 'https://bjsm.bmj.com/content/52/6/376'],
+    ['Overskudd og tempo ved vektøkning (Iraki mfl. 2019, Sports)', 'https://www.mdpi.com/2075-4663/7/7/154'],
+    ['Fiber og fett: Nordiske næringsanbefalinger 2023', 'https://pub.norden.org/nord2023-003/dietary-fibre.html']
+  ];
   async function openCalculator() {
     var p = S.profile || {}, inp = null;
     try { inp = await C.energyInputs(ctx, p); } catch (e) { inp = null; }
@@ -4849,10 +5364,10 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         (srcNote ? '<p class="small muted" style="margin:0">Fylt ut med ' + esc(srcNote) + '. Endre det du vil.</p>' : '') +
         '<div class="gcard calcres" id="cl_res"></div>' +
         '<h3>Deg</h3><div class="grid3">' + sel('cl_sex', 'Kjønn', v.sex, ['mann', 'kvinne']) + num('cl_age', 'Alder', v.age, 'år') + num('cl_h', 'Høyde', v.h, 'cm') + num('cl_w', 'Vekt', v.w, 'kg') + '</div>' +
-        '<h3>Hverdag</h3><div class="grid3">' + sel('cl_job', 'Jobb/skole', v.job, [['sittende', 'Sittende'], ['stående', 'Stående'], ['fysisk', 'Fysisk']]) + num('cl_steps', 'Skritt per dag', v.steps, 'skritt') + '</div>' +
-        '<h3>Trening per uke</h3><div class="grid3">' + num('cl_ss', 'Styrkeøkter', v.ss, 'stk') + num('cl_sm', 'Min per økt', v.sm, 'min') + num('cl_cm', 'Kondisjon', v.cm, 'min') + sel('cl_ci', 'Intensitet', v.ci, [['lett', 'Lett'], ['moderat', 'Moderat'], ['hard', 'Hard']]) + '</div>' +
-        '<h3>Mål</h3><div class="seg" role="group" id="cl_goal">' + [['fettreduksjon', 'Ned i fett'], ['vedlikehold', 'Holde'], ['muskelvekst', 'Bygge']].map(function (g) { return '<button type="button" data-g="' + g[0] + '" aria-pressed="' + (v.goal === g[0]) + '">' + g[1] + '</button>'; }).join('') + '</div>' +
-        '<div class="seg" role="group" id="cl_pace">' + [['rolig', 'Rolig'], ['moderat', 'Moderat'], ['raskere', 'Raskere']].map(function (g) { return '<button type="button" data-p="' + g[0] + '" aria-pressed="' + (v.pace === g[0]) + '">' + g[1] + '</button>'; }).join('') + '</div>' +
+        '<h3>Hva vil du?</h3><div class="goalpick" role="group" id="cl_goal">' + [['fettreduksjon', 'Gå ned i vekt', 'Behold musklene: høyt protein og et moderat underskudd'], ['vedlikehold', 'Holde vekten', 'Spis det du forbrenner'], ['muskelvekst', 'Gå opp i vekt', 'Bygg muskler: litt overskudd og nok protein']].map(function (g) { return '<button type="button" data-g="' + g[0] + '" aria-pressed="' + (v.goal === g[0]) + '"><b>' + g[1] + '</b><span>' + g[2] + '</span></button>'; }).join('') + '</div>' +
+        '<div class="field" id="cl_pacebox"><label>Tempo</label><div class="seg" role="group" id="cl_pace">' + [['rolig', 'Rolig'], ['moderat', 'Moderat'], ['raskere', 'Raskere']].map(function (g) { return '<button type="button" data-p="' + g[0] + '" aria-pressed="' + (v.pace === g[0]) + '">' + g[1] + '</button>'; }).join('') + '</div></div>' +
+        '<details class="cdet"' + (v.steps || v.ss ? ' open' : '') + '><summary>Aktivitet (gjør tallet mer presist)</summary><div class="grid3" style="margin-top:10px">' + sel('cl_job', 'Jobb/skole', v.job, [['sittende', 'Sittende'], ['stående', 'Stående'], ['fysisk', 'Fysisk']]) + num('cl_steps', 'Skritt per dag', v.steps, 'skritt') +
+        num('cl_ss', 'Styrkeøkter/uke', v.ss, 'stk') + num('cl_sm', 'Min per økt', v.sm, 'min') + num('cl_cm', 'Kondisjon/uke', v.cm, 'min') + sel('cl_ci', 'Intensitet', v.ci, [['lett', 'Lett'], ['moderat', 'Moderat'], ['hard', 'Hard']]) + '</div></details>' +
         '<div id="cl_msg"></div><div class="row"><button class="btn primary grow" id="cl_apply">Bruk som mine mål</button></div></div>';
       function val(id) { return $('#' + id).value; }
       function calc() {
@@ -4863,13 +5378,15 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           strength: { sessionsPerWeek: E.num(val('cl_ss')) || 0, minutes: E.num(val('cl_sm')) || 60, source: 'oppgitt' },
           cardio: { minutesPerWeek: E.num(val('cl_cm')) || 0, intensity: val('cl_ci'), walking: cd.walking, source: 'oppgitt' } });
         var days = Math.min(7, (E.num(val('cl_ss')) || 0) + Math.min(7, (E.num(val('cl_cm')) || 0) / 30));
-        var t = E.computeTargets(energy, { weightKg: w, goal: v.goal, pace: v.pace, trainingDaysPerWeek: days });
-        res.innerHTML = '<div class="calcgrid"><div class="cbig"><span>Mål per dag</span><b>' + fmt(t.kcal) + '</b><em>kcal</em></div>' +
+        var t = E.computeTargets(energy, { weightKg: w, goal: v.goal, pace: v.pace, sex: val('cl_sex'), trainingDaysPerWeek: days });
+        $('#cl_pacebox').hidden = v.goal === 'vedlikehold';
+        res.innerHTML = '<div class="small" style="font-weight:650">' + esc(v.goal === 'fettreduksjon' ? 'Gå ned i vekt og behold musklene' : v.goal === 'muskelvekst' ? 'Gå opp i vekt og bygg muskler' : 'Holde vekten') + '</div><div class="calcgrid"><div class="cbig"><span>Spis per dag</span><b>' + fmt(t.kcal) + '</b><em>kcal</em></div>' +
           '<div class="cbig alt"><span>Vedlikehold</span><b>' + fmt(Math.round(energy.tdee / 10) * 10) + '</b><em>kcal (' + fmt(Math.round(energy.low / 50) * 50) + '–' + fmt(Math.round(energy.high / 50) * 50) + ')</em></div></div>' +
           '<div class="cmac"><div><i style="background:var(--protein)"></i>Protein<b>' + fmt(t.protein) + ' g</b></div><div><i style="background:var(--carbs)"></i>Karbo<b>' + fmt(t.carbs) + ' g</b></div><div><i style="background:var(--fat)"></i>Fett<b>' + fmt(t.fat) + ' g</b></div><div><i style="background:var(--fiber)"></i>Fiber<b>' + fmt(t.fiber) + ' g</b></div></div>' +
           '<div class="small muted">Hvileforbrenning ' + fmt(Math.round(energy.bmr)) + ' kcal · vann ' + fmt(t.waterMl / 1000, 1) + ' l' + (t.kgPerWeek ? ' · ca. ' + fmt(Math.abs(t.kgPerWeek), 2) + ' kg ' + (t.kgPerWeek < 0 ? 'ned' : 'opp') + ' per uke' : '') + '</div>' +
-          '<details class="cdet"><summary>Hva tallet består av</summary><ul class="small">' + energy.components.map(function (c) { return '<li>' + esc(c.label) + ': <b>' + fmt(c.kcal) + '</b></li>'; }).join('') + '</ul></details>' +
-          ((t.warnings || []).length ? '<div class="notice small">' + t.warnings.map(esc).join('<br>') + '</div>' : '');
+          '<details class="cdet"><summary>Hvorfor disse tallene</summary><ul class="small">' + (t.why || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + energy.components.map(function (c) { return '<li>' + esc(c.label) + ': <b>' + fmt(c.kcal) + '</b> kcal</li>'; }).join('') + '</ul></details>' +
+          ((t.warnings || []).length ? '<div class="notice small">' + t.warnings.map(esc).join('<br>') + '</div>' : '') +
+          '<details class="cdet"><summary>Kilder</summary><ul class="small srcs">' + CALC_SOURCES.map(function (x) { return '<li><a href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + '</a></li>'; }).join('') + '</ul><p class="small faint" style="margin:0">Dette er anslag. Følg vekten over 2–3 uker og juster med 100–200 kcal hvis det går for fort eller for sakte.</p></details>';
         return t;
       }
       body.addEventListener('input', calc); body.addEventListener('change', calc);
@@ -4887,6 +5404,166 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     });
   }
 
+  /* ---------- Velkommen: nye brukere svarer på ett spørsmål om gangen ---------- */
+  var GOALS = [
+    { k: 'fett', t: 'Forbrenne fett og bevare muskler', d: 'Moderat underskudd og høyt protein', goal: 'fettreduksjon', pace: 'moderat' },
+    { k: 'muskel', t: 'Bygge muskler', d: 'Lite overskudd for å gå opp i muskelmasse', goal: 'muskelvekst', pace: 'moderat' },
+    { k: 'rekomp', t: 'Bygge muskler og miste fett samtidig', d: 'Lite underskudd og høyt protein. Passer best for nybegynnere og de som kommer tilbake', goal: 'fettreduksjon', pace: 'rolig' },
+    { k: 'ned', t: 'Gå ned i vekt', d: 'Du velger tempo selv', goal: 'fettreduksjon', pace: 'moderat' },
+    { k: 'opp', t: 'Gå opp i vekt', d: 'For deg som synes det er vanskelig å spise nok', goal: 'muskelvekst', pace: 'raskere' },
+    { k: 'sterk', t: 'Bli sterkere og prestere bedre', d: 'Nok energi til trening, uten underskudd', goal: 'vedlikehold', pace: 'moderat' },
+    { k: 'holde', t: 'Holde vekten', d: 'Spis omtrent det du forbrenner', goal: 'vedlikehold', pace: 'moderat' },
+    { k: 'sunn', t: 'Spise sunnere', d: 'Følg med på protein, fiber og fett', goal: 'vedlikehold', pace: 'moderat' }
+  ];
+  var onboardShown = false;
+  function maybeOnboard() {
+    if (onboardShown || S.status !== 'ready' || !S.loaded.profile || !window.COACH_STANDALONE) return;
+    var p = S.profile || {};
+    if (p.onboarded || p.kcalTarget || (p.age && p.heightCm)) return;
+    onboardShown = true;
+    openOnboarding(false);
+  }
+  function openOnboarding(fromButton) {
+    onboardShown = true;
+    var p = S.profile || {};
+    var a = { name: p.name || '', sex: p.sex || '', age: E.num(p.age), h: E.num(p.heightCm), goalKey: '', w: E.num(p.weightKg), job: p.jobActivity || '', ss: E.num(p.strengthSessions), pace: p.pace || 'moderat' };
+    var steps = ['name', 'sex', 'age', 'height', 'goal', 'weight', 'activity', 'pace', 'result'];
+    var i = 0, ov = document.createElement('div');
+    ov.className = 'onb';
+    document.body.appendChild(ov);
+    function goalObj() { return GOALS.find(function (g) { return g.k === a.goalKey; }); }
+    function list() { return steps.filter(function (s) { return s !== 'pace' || (goalObj() && goalObj().goal !== 'vedlikehold' && a.goalKey !== 'rekomp'); }); }
+    function targetsNow() {
+      var g = goalObj() || GOALS[0];
+      var en = E.estimateEnergy({ sex: a.sex || 'mann', age: a.age, heightCm: a.h, weightKg: a.w, job: a.job || 'sittende', steps: null,
+        strength: { sessionsPerWeek: a.ss || 0, minutes: 60, source: 'oppgitt' }, cardio: { minutesPerWeek: 0, intensity: 'moderat', source: 'oppgitt' } });
+      var pace = a.goalKey === 'rekomp' ? 'rolig' : g.goal === 'vedlikehold' ? 'moderat' : a.pace;
+      return { en: en, t: E.computeTargets(en, { weightKg: a.w, goal: g.goal, pace: pace, sex: a.sex || 'mann', trainingDaysPerWeek: a.ss || 0 }), g: g, pace: pace };
+    }
+    function numPage(key, q, sub, unit, min, max, step, dec) {
+      return '<h1>' + q + '</h1><p class="onsub">' + sub + '</p><div class="onnum"><button type="button" class="onstep" data-d="-' + step + '" aria-label="Mindre">−</button>' +
+        '<label class="onin"><input id="on_in" inputmode="' + (dec ? 'decimal' : 'numeric') + '" value="' + esc(a[key] === null || a[key] === undefined ? '' : numStr(a[key])) + '" placeholder="' + (key === 'age' ? '30' : key === 'h' ? '175' : '75') + '" data-k="' + key + '" data-min="' + min + '" data-max="' + max + '"><span>' + unit + '</span></label>' +
+        '<button type="button" class="onstep" data-d="' + step + '" aria-label="Mer">+</button></div>';
+    }
+    function valid(st) {
+      if (st === 'name') return !!a.name.trim();
+      if (st === 'sex') return !!a.sex;
+      if (st === 'age') return a.age >= 14 && a.age <= 100;
+      if (st === 'height') return a.h >= 120 && a.h <= 230;
+      if (st === 'goal') return !!a.goalKey;
+      if (st === 'weight') return a.w >= 35 && a.w <= 250;
+      if (st === 'activity') return !!a.job && a.ss !== null && a.ss !== undefined;
+      return true;
+    }
+    function page(st) {
+      var first = (a.name || '').trim().split(' ')[0];
+      if (st === 'name') return '<h1>Hva heter du?</h1><p class="onsub">Så vet Coach hva den skal kalle deg.</p><input class="onfield" id="on_name" autocomplete="given-name" placeholder="Fornavn" value="' + esc(a.name) + '">';
+      if (st === 'sex') return '<h1>Hei' + (first ? ', ' + esc(first) : '') + '! Er du mann eller kvinne?</h1><p class="onsub">Brukes til å regne ut hvor mye du forbrenner i hvile.</p><div class="onchoices">' + [['mann', 'Mann'], ['kvinne', 'Kvinne']].map(function (x) { return '<button type="button" class="onchoice' + (a.sex === x[0] ? ' on' : '') + '" data-set="sex" data-v="' + x[0] + '"><b>' + x[1] + '</b></button>'; }).join('') + '</div>';
+      if (st === 'age') return numPage('age', 'Hvor gammel er du?', 'Forbrenningen synker litt med alderen.', 'år', 14, 100, 1);
+      if (st === 'height') return numPage('h', 'Hvor høy er du?', 'I centimeter.', 'cm', 120, 230, 1);
+      if (st === 'goal') return '<h1>Hva er målet ditt?</h1><p class="onsub">Du kan endre det senere.</p><div class="onchoices col">' + GOALS.map(function (g) { return '<button type="button" class="onchoice' + (a.goalKey === g.k ? ' on' : '') + '" data-set="goalKey" data-v="' + g.k + '"><b>' + esc(g.t) + '</b><span>' + esc(g.d) + '</span></button>'; }).join('') + '</div>';
+      if (st === 'weight') return numPage('w', 'Hva veier du nå?', 'Gjerne om morgenen, før frokost.', 'kg', 35, 250, 0.5, true);
+      if (st === 'activity') return '<h1>Hvor aktiv er du?</h1><p class="onsub">I hverdagen, utenom trening.</p><div class="onchoices col">' + [['sittende', 'Mest sittende', 'Kontor, skole, mye bil'], ['stående', 'Mye på beina', 'Butikk, undervisning, lager'], ['fysisk', 'Fysisk jobb', 'Bygg, løfting, bæring']].map(function (x) { return '<button type="button" class="onchoice' + (a.job === x[0] ? ' on' : '') + '" data-set="job" data-v="' + x[0] + '"><b>' + x[1] + '</b><span>' + x[2] + '</span></button>'; }).join('') + '</div>' +
+        '<h2 class="onh2">Styrkeøkter per uke</h2><div class="onpills">' + [0, 1, 2, 3, 4, 5, 6].map(function (n) { return '<button type="button" class="onpill' + (a.ss === n ? ' on' : '') + '" data-set="ss" data-v="' + n + '">' + (n === 6 ? '6+' : n) + '</button>'; }).join('') + '</div>';
+      if (st === 'pace') {
+        var g = goalObj(), up = g.goal === 'muskelvekst';
+        return '<h1>Hvor fort?</h1><p class="onsub">' + (up ? 'Saktere gir mindre fett. Jo mer trent du er, jo saktere bør det gå.' : 'Saktere gjør det lettere å beholde musklene og holde ut.') + '</p><div class="onchoices col">' +
+          [['rolig', 'Rolig', up ? '0,25 % av kroppsvekten per uke' : '0,25 % av kroppsvekten per uke'], ['moderat', 'Moderat', up ? '0,35 % per uke' : '0,5 % per uke – anbefalt'], ['raskere', 'Raskere', up ? '0,5 % per uke' : '0,75 % per uke']].map(function (x) {
+            var kg = a.w ? fmt(a.w * (up ? { rolig: 0.0025, moderat: 0.0035, raskere: 0.005 }[x[0]] : { rolig: 0.0025, moderat: 0.005, raskere: 0.0075 }[x[0]]), 2) + ' kg' : '';
+            return '<button type="button" class="onchoice' + (a.pace === x[0] ? ' on' : '') + '" data-set="pace" data-v="' + x[0] + '"><b>' + x[1] + (kg ? ' · ca. ' + kg + ' per uke' : '') + '</b><span>' + x[2] + '</span></button>';
+          }).join('') + '</div>';
+      }
+      var r = targetsNow(), t = r.t;
+      return '<h1>' + (first ? esc(first) + ', her' : 'Her') + ' er planen din</h1><p class="onsub">' + esc(r.g.t) + (t.kgPerWeek ? ' · ca. ' + fmt(Math.abs(t.kgPerWeek), 2) + ' kg ' + (t.kgPerWeek < 0 ? 'ned' : 'opp') + ' per uke' : '') + '</p>' +
+        '<div class="onres"><div class="onkcal"><b>' + fmt(t.kcal) + '</b><span>kcal per dag</span></div>' +
+        '<div class="onmac"><div><i style="background:var(--protein)"></i><span>Protein</span><b>' + fmt(t.protein) + ' g</b></div><div><i style="background:var(--carbs)"></i><span>Karbo</span><b>' + fmt(t.carbs) + ' g</b></div><div><i style="background:var(--fat)"></i><span>Fett</span><b>' + fmt(t.fat) + ' g</b></div><div><i style="background:var(--fiber)"></i><span>Fiber</span><b>' + fmt(t.fiber) + ' g</b></div></div>' +
+        '<p class="small muted" style="margin:0">Du forbrenner rundt ' + fmt(Math.round(r.en.tdee / 10) * 10) + ' kcal per dag. Tallene bygger på forskning: Mifflin-St Jeor for forbrenning, Helms mfl. og Morton mfl. for protein, Iraki mfl. for vektøkning og de nordiske næringsanbefalingene (NNR 2023) for fett og fiber. Følg vekten i 2–3 uker og juster ved behov.</p>' +
+        '<details class="cdet"><summary>Hvorfor disse tallene</summary><ul class="small">' + t.why.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></details></div>';
+    }
+    function draw(dir) {
+      var L = list(); if (i >= L.length) i = L.length - 1;
+      var st = L[i], last = st === 'result';
+      ov.innerHTML = '<div class="ontop">' + (i > 0 ? '<button type="button" class="iconbtn" id="on_back" aria-label="Tilbake">' + ICON.left + '</button>' : (fromButton ? '<button type="button" class="iconbtn" id="on_close" aria-label="Lukk">' + ICON.close + '</button>' : '<span style="width:42px"></span>')) +
+        '<div class="onprog"><i style="width:' + Math.round((i + 1) / L.length * 100) + '%"></i></div><span class="onlogo">' + LOGO_SVG + '</span></div>' +
+        '<div class="onpage' + (dir ? ' in' + (dir < 0 ? ' back' : '') : '') + '">' + page(st) + '</div>' +
+        '<div class="onbot"><div id="on_msg"></div><button type="button" class="btn primary onnext" id="on_next"' + (valid(st) ? '' : ' disabled') + '>' + (last ? 'Start' : 'Neste') + '</button></div>';
+      var nx = $('#on_next');
+      function check() { nx.disabled = !valid(st); }
+      var nm = $('#on_name'); if (nm) nm.addEventListener('input', function () { a.name = nm.value; check(); });
+      var ni = $('#on_in');
+      if (ni) {
+        ni.addEventListener('input', function () { a[ni.dataset.k] = E.num(ni.value); check(); });
+        ov.querySelectorAll('.onstep').forEach(function (b) { b.onclick = function () { var k = ni.dataset.k, d = +b.dataset.d, cur = a[k] || +ni.placeholder; var nv = Math.min(+ni.dataset.max, Math.max(+ni.dataset.min, Math.round((cur + d) * 10) / 10)); a[k] = nv; ni.value = numStr(nv); check(); }; });
+      }
+      ov.querySelectorAll('[data-set]').forEach(function (b) { b.onclick = function () {
+        var k = b.dataset.set, v = b.dataset.v; a[k] = k === 'ss' ? +v : v;
+        if (k === 'goalKey') { var g = goalObj(); a.pace = g.pace; }
+        ov.querySelectorAll('[data-set="' + k + '"]').forEach(function (x) { x.classList.toggle('on', x === b); });
+        check();
+        if ((st === 'sex' || st === 'goal' || st === 'pace') && valid(st)) setTimeout(next, 220);
+      }; });
+      var bk = $('#on_back'); if (bk) bk.onclick = function () { i--; draw(-1); };
+      var cl = $('#on_close'); if (cl) cl.onclick = close;
+      nx.onclick = next;
+      ov.onkeydown = function (e) { if (e.key === 'Enter' && !nx.disabled) { e.preventDefault(); next(); } };
+    }
+    function close() { ov.classList.add('closing'); setTimeout(function () { ov.remove(); resetPageScroll(); }, 260); }
+    async function next() {
+      var L = list(), st = L[i];
+      if (!valid(st)) return;
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      if (st !== 'result') { i++; draw(1); return; }
+      var r = targetsNow(), btn = $('#on_next'); btn.disabled = true;
+      try {
+        await C.updateProfile(ctx, { name: a.name.trim(), sex: a.sex, age: a.age, heightCm: a.h, weightKg: a.w, jobActivity: a.job, strengthSessions: a.ss, strengthMinutes: 60, goalType: r.g.goal, pace: r.pace, goal: r.g.t, onboarded: 1 });
+        await C.applyTargets(ctx, { kcal: r.t.kcal, protein: r.t.protein, carbs: r.t.carbs, fat: r.t.fat, fiber: r.t.fiber, waterMl: r.t.waterMl }, { method: 'oppstart i appen' });
+        try { await C.logWeight(ctx, { date: today(), kg: a.w }); } catch (e) { /* vekten kan logges senere */ }
+        S.plan = null; close(); go('idag'); toast('Velkommen, ' + (a.name.trim().split(' ')[0] || '') + '!');
+      } catch (er) { $('#on_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; btn.disabled = false; }
+    }
+    draw(0);
+  }
+
+  /* ---------- Egne velgere i stedet for iPhone-hjulet ----------
+   * Alle <select class="input"> får en knapp i Coach-stil; valget skrives tilbake til select-feltet og sender «change». */
+  var CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
+  function enhanceSelects(root) {
+    (root || document).querySelectorAll('select.input').forEach(function (sel) {
+      if (sel._cbtn) { sel._sync(); return; }
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'input cselect';
+      if (sel.style.maxWidth) b.style.maxWidth = sel.style.maxWidth;
+      if (sel.getAttribute('aria-label')) b.setAttribute('aria-label', sel.getAttribute('aria-label'));
+      if (sel.id) { b.id = sel.id + '__btn'; var lab = document.querySelector('label[for="' + sel.id + '"]'); if (lab) lab.setAttribute('for', b.id); }
+      sel._cbtn = b;
+      sel._sync = function () { var o = sel.options[sel.selectedIndex], h = '<span>' + esc(o ? o.text : '') + '</span>' + CHEV; if (b._h !== h) { b._h = h; b.innerHTML = h; } if (b.disabled !== sel.disabled) b.disabled = sel.disabled; };
+      sel._sync();
+      sel.classList.add('cnative'); sel.tabIndex = -1; sel.setAttribute('aria-hidden', 'true');
+      sel.addEventListener('change', sel._sync);
+      b.onclick = function () { openPickMenu(b, sel); };
+      sel.parentNode.insertBefore(b, sel.nextSibling);
+    });
+  }
+  function openPickMenu(btn, sel) {
+    var bg = document.createElement('div'); bg.className = 'cpick-bg';
+    var m = document.createElement('div'); m.className = 'cpick'; m.setAttribute('role', 'listbox');
+    m.innerHTML = Array.prototype.map.call(sel.options, function (o, k) { return '<button type="button" role="option" data-k="' + k + '" aria-selected="' + (k === sel.selectedIndex) + '"><span>' + esc(o.text) + '</span>' + (k === sel.selectedIndex ? '<i>✓</i>' : '') + '</button>'; }).join('');
+    bg.appendChild(m); document.body.appendChild(bg);
+    var r = btn.getBoundingClientRect(), vh = window.innerHeight, w = Math.max(r.width, 180);
+    m.style.minWidth = w + 'px';
+    m.style.left = Math.max(10, Math.min(r.left, window.innerWidth - w - 10)) + 'px';
+    var below = vh - r.bottom, mh = Math.min(m.scrollHeight, vh * 0.5);
+    if (below > mh + 16 || below > r.top) { m.style.top = (r.bottom + 6) + 'px'; m.style.maxHeight = Math.max(160, below - 20) + 'px'; m.classList.add('down'); }
+    else { m.style.bottom = (vh - r.top + 6) + 'px'; m.style.maxHeight = Math.max(160, r.top - 20) + 'px'; m.classList.add('up'); }
+    var cur = m.querySelector('[aria-selected="true"]'); if (cur) m.scrollTop = Math.max(0, cur.offsetTop - 60);
+    function close() { bg.classList.add('closing'); setTimeout(function () { bg.remove(); }, 160); }
+    bg.addEventListener('click', function (e) {
+      var o = e.target.closest('[data-k]');
+      if (o) { sel.selectedIndex = +o.dataset.k; sel.dispatchEvent(new Event('change', { bubbles: true })); sel._sync(); }
+      close();
+    });
+  }
+
   /* ---------- Innstillinger ---------- */
   function openSettings() {
     openSheet('Innstillinger', function (body) {
@@ -4894,6 +5571,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       function sel(id, label, val, opts) { return '<div class="field"><label for="' + id + '">' + label + '</label><select class="input" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (o === val ? ' selected' : '') + '>' + esc(o || 'velg') + '</option>'; }).join('') + '</select></div>'; }
       function f(id, label, val, num) { return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" ' + (num ? 'inputmode="decimal"' : '') + ' value="' + esc(val === undefined || val === null ? '' : String(val).replace('.', ',')) + '"></div>'; }
       body.innerHTML = '<div class="stack">' +
+        '<button class="btn primary" id="s_calc">Kalkulator: regn ut kalorier og makroer</button>' +
         '<form id="sf" class="stack" novalidate><h3>Profil og mål</h3><div class="grid3">' +
         f('s_age', 'Alder', p.age, 1) + '<div class="field"><label for="s_sex">Kjønn</label><select class="input" id="s_sex"><option' + (p.sex === 'mann' ? ' selected' : '') + '>mann</option><option' + (p.sex === 'kvinne' ? ' selected' : '') + '>kvinne</option></select></div>' +
         f('s_h', 'Høyde (cm)', p.heightCm, 1) + f('s_w', 'Vekt (kg)', p.weightKg, 1) + f('s_kcal', 'Kalorimål (kcal)', p.kcalTarget, 1) + f('s_prot', 'Proteinmål (g)', p.proteinTarget, 1) + '</div>' +
@@ -4914,6 +5592,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<div class="section"><h3>Status</h3><dl class="kv small"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd><dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' + (S.toolsOk && S.toolMode !== 'json' ? ', med verktøy' : ', registrering via appen') : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + (S.assets ? ', lagres' : '') + '</dd><dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd><dt>Nettsøk</dt><dd>' + (S.browserAvail ? 'tilgjengelig via nettleseren i Claude-skrivebordsappen' : 'ikke tilgjengelig her. Åpne appen i Claude-skrivebordsappen for nettsøk; ellers brukes lagrede data, og ukjente varer merkes som estimat.') + '</dd></dl></div>' +
         '</div>';
       fillSuggestion();
+      $('#s_calc').onclick = function () { closeSheet(); setTimeout(openCalculator, 230); };
       if ($('#s_logout')) $('#s_logout').onclick = function () { if (window.coachSignOut) window.coachSignOut(); };
       $('#sf').onsubmit = async function (e) {
         e.preventDefault();

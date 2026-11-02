@@ -573,8 +573,8 @@
         line.kind = 'product'; line.id = cands[0].id;
         if (!line.confident) line.confident = matchScore(name, cands[0]) >= 0.6;
         var p = cands[0];
-        if (line.amount !== null && !line.unit) line.unit = line.amount <= 12 && p.unitWeights && p.unitWeights.stk ? 'stk' : (line.amount <= 3 && p.servingSize ? 'porsjon' : (p.basis === 'ml' ? 'ml' : 'g'));
-        if (line.amount === null && p.unitWeights && p.unitWeights.stk) { line.amount = 1; line.unit = 'stk'; }
+        if (line.amount !== null && !line.unit) line.unit = line.amount <= 12 && E.stkWeight(p) ? 'stk' : (line.amount <= 3 && p.servingSize ? 'porsjon' : (p.basis === 'ml' ? 'ml' : 'g'));
+        if (line.amount === null && E.stkWeight(p) && E.stkWeight(p).src !== 'pakning') { line.amount = 1; line.unit = 'stk'; }
         if (line.amount === null && p.servingSize) { line.amount = 1; line.unit = 'porsjon'; }
       }
       return line;
@@ -782,7 +782,7 @@
     if (missing.length) return { ok: false, missing: missing };
     var energy = E.estimateEnergy(inp);
     var trainDays = (inp.strength.sessionsPerWeek || 0) + ((inp.cardio.minutesPerWeek || 0) > 0 ? Math.min(7, (inp.cardio.minutesPerWeek || 0) / 30) : 0);
-    var targets = E.computeTargets(energy, { weightKg: inp.weightKg, goal: inp.goal, pace: inp.pace, trainingDaysPerWeek: Math.min(7, trainDays) });
+    var targets = E.computeTargets(energy, { weightKg: inp.weightKg, goal: inp.goal, pace: inp.pace, sex: inp.sex, trainingDaysPerWeek: Math.min(7, trainDays) });
     var end = localDate(ctx.now ? ctx.now() : new Date());
     var days = (await ctx.repo.list('days')).filter(function (d) { return d.date >= addDays(end, -27) && d.date < end; });
     var dt = days.map(function (d) { var x = E.dayTotals(d); return { date: d.date, kcal: x.values.kcal, complete: !!d.complete || x.items >= 3 }; });
@@ -820,7 +820,7 @@
 
   /* ---------- Profil ---------- */
   var PROFILE_FIELDS = { age: 'num', sex: 'str', heightCm: 'num', weightKg: 'num', goal: 'str', kcalTarget: 'num', proteinTarget: 'num', activity: 'str', name: 'str',
-    jobActivity: 'str', avgSteps: 'num', strengthSessions: 'num', strengthMinutes: 'num', cardioMinutes: 'num', cardioIntensity: 'str', cardioType: 'str', goalType: 'str', pace: 'str' };
+    jobActivity: 'str', avgSteps: 'num', strengthSessions: 'num', strengthMinutes: 'num', cardioMinutes: 'num', cardioIntensity: 'str', cardioType: 'str', goalType: 'str', pace: 'str', onboarded: 'num' };
   var ENUMS = { jobActivity: ['sittende', 'stående', 'fysisk'], cardioIntensity: ['lett', 'moderat', 'hard'], goalType: ['fettreduksjon', 'vedlikehold', 'muskelvekst'], pace: ['rolig', 'moderat', 'raskere'], sex: ['mann', 'kvinne'] };
   async function updateProfile(ctx, fields) {
     var p = (await ctx.repo.get('meta/profile')) || {};

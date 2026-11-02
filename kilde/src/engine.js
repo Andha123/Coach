@@ -31,6 +31,26 @@
     return UNIT_ALIASES[k] || null;
   }
 
+  /* Vekt per stykk når produktet ikke har lagret sin egen: vanlige frukter/grønnsaker (spiselig del, typisk størrelse),
+   * ellers én pakning (f.eks. én iskaffe eller én proteinbar). Brukeren kan alltid overstyre med egen vekt per stk. */
+  var STK_DEFAULTS = {
+    banan: 120, bananer: 120, eple: 150, epler: 150, pære: 170, pærer: 170, appelsin: 140, appelsiner: 140,
+    klementin: 55, klementiner: 55, mandarin: 60, mandariner: 60, kiwi: 70, paprika: 150, tomat: 100, tomater: 100,
+    cherrytomat: 15, cherrytomater: 15, agurk: 350, gulrot: 70, gulrøtter: 70, avokado: 140, egg: 55, løk: 100,
+    rødløk: 100, vårløk: 15, potet: 100, poteter: 100, søtpotet: 250, nektarin: 130, fersken: 130, plomme: 55, plommer: 55,
+    sitron: 90, lime: 60, mango: 250, granateple: 200, grapefrukt: 250, squash: 300, aubergine: 300, hvitløk: 5,
+    brokkoli: 350, blomkål: 600, sjampinjong: 20, dadler: 8, daddel: 8, riskake: 8, riskaker: 8, knekkebrød: 13,
+    brødskive: 40, skive: 40, tortilla: 60, wrap: 60, pølse: 70, pølser: 70, kyllingfilet: 150
+  };
+  function stkWeight(product) {
+    if (!product) return null;
+    if (product.unitWeights && isNum(product.unitWeights.stk)) return { g: product.unitWeights.stk, src: 'lagret' };
+    var first = String(product.name || '').toLowerCase().replace(/[^a-zæøå ]+/g, ' ').trim().split(/\s+/)[0];
+    if (first && STK_DEFAULTS[first]) return { g: STK_DEFAULTS[first], src: 'typisk' };
+    if (isNum(product.packageSize) && product.packageSize > 0 && product.packageSize <= 1000) return { g: product.packageSize, src: 'pakning' };
+    return null;
+  }
+
   /* Gjør om en mengde til produktets basisenhet (g eller ml), med spiselig del.
    * Returnerer { qty, basis, notes[] } eller kaster Error med norsk melding. */
   function toBasis(product, amount, unit) {
@@ -48,9 +68,11 @@
       case 'dl': ml = a * 100; break;
       case 'l': ml = a * 1000; break;
       case 'stk':
-        if (!product.unitWeights || !isNum(product.unitWeights.stk)) throw new Error('Mangler vekt per stk for ' + product.name + '. Oppgi mengden i gram.');
-        grams = a * product.unitWeights.stk;
-        notes.push(a + ' stk × ' + product.unitWeights.stk + ' g');
+        var sw = stkWeight(product);
+        if (!sw) throw new Error('Mangler vekt per stk for ' + product.name + '. Oppgi mengden i gram, eller hvor mye én stk veier.');
+        grams = a * sw.g;
+        notes.push(a + ' stk × ' + sw.g + ' ' + (sw.src === 'pakning' && basis === 'ml' ? 'ml' : 'g') + (sw.src === 'typisk' ? ' (typisk vekt)' : sw.src === 'pakning' ? ' (én pakning)' : ''));
+        if (sw.src === 'pakning' && basis === 'ml') { ml = grams; grams = null; }
         break;
       case 'porsjon':
         if (!isNum(product.servingSize)) throw new Error('Mangler porsjonsstørrelse for ' + product.name + '. Oppgi mengden i gram.');
@@ -328,7 +350,8 @@
   /* Mål ut fra energibehov og målsetting.
    * goal: fettreduksjon | vedlikehold | muskelvekst; pace: rolig | moderat | raskere */
   var LOSS_RATE = { rolig: 0.0025, moderat: 0.005, raskere: 0.0075 }; // andel av kroppsvekt per uke
-  var GAIN_SURPLUS = { rolig: 150, moderat: 250, raskere: 350 };
+  var GAIN_SURPLUS = { rolig: 0.10, moderat: 0.15, raskere: 0.20 }; // overskudd som andel av forbruket (Iraki mfl. 2019: 10–20 %)
+  var GAIN_RATE = { rolig: 0.0025, moderat: 0.0035, raskere: 0.005 }; // forventet økning, andel av kroppsvekt per uke (0,25–0,5 %)
   function computeTargets(energy, opts) {
     var kg = num(opts.weightKg), goal = opts.goal || 'fettreduksjon', pace = opts.pace || 'moderat';
     var why = [], warnings = [];
@@ -339,25 +362,29 @@
       kgPerWeek = -rate * kg;
       adjust = kgPerWeek * 7700 / 7;
       if (-adjust > tdee * 0.25) { adjust = -tdee * 0.25; kgPerWeek = adjust * 7 / 7700; warnings.push('Underskuddet er begrenset til 25 % av energibehovet.'); }
-      why.push('Fettreduksjon i ' + pace + ' tempo: ca. ' + fmtN(rate * 100, 2) + ' % av kroppsvekten per uke (' + fmtN(-kgPerWeek, 2) + ' kg). Et tempo på rundt 0,5–1 % per uke regnes som et godt kompromiss for å bevare muskelmasse når man trener styrke.');
+      why.push('Vekttap i ' + pace + ' tempo: ca. ' + fmtN(rate * 100, 2) + ' % av kroppsvekten per uke (' + fmtN(-kgPerWeek, 2) + ' kg). Forskningen anbefaler 0,5–1 % per uke for å beholde mest mulig muskler når du trener styrke (Helms mfl. 2014).');
     } else if (goal === 'muskelvekst') {
-      adjust = GAIN_SURPLUS[pace] || 250;
-      kgPerWeek = adjust * 7 / 7700;
-      why.push('Muskelvekst: et lite overskudd (+' + adjust + ' kcal) for å begrense fettøkning.');
+      var gs = GAIN_SURPLUS[pace] || GAIN_SURPLUS.moderat;
+      adjust = Math.round(tdee * gs / 10) * 10;
+      kgPerWeek = (GAIN_RATE[pace] || GAIN_RATE.moderat) * kg;
+      why.push('Vektøkning: overskudd på ' + Math.round(gs * 100) + ' % (+' + adjust + ' kcal), som gir omtrent ' + fmtN(kgPerWeek, 2) + ' kg opp per uke. Anbefalt er 10–20 % overskudd og 0,25–0,5 % av kroppsvekten per uke; jo mer trent du er, jo lavere ende (Iraki mfl. 2019).');
     } else why.push('Vedlikehold: inntak omtrent lik estimert forbruk.');
     var kcal = round50(tdee + adjust);
     var floor = round50(energy.bmr * 1.1);
     if (kcal < floor) { kcal = floor; warnings.push('Kalorimålet er ikke satt lavere enn ca. hvileforbrenning × 1,1.'); }
-    var pPerKg = goal === 'fettreduksjon' ? 2.0 : goal === 'muskelvekst' ? 1.8 : 1.6;
+    var pPerKg = goal === 'fettreduksjon' ? 2.2 : goal === 'muskelvekst' ? 1.8 : 1.6;
     var protein = round5(pPerKg * kg);
-    why.push('Protein ' + fmtN(pPerKg, 1) + ' g/kg: i underskudd og med styrketrening ligger nyttig inntak ofte rundt 1,6–2,2 g/kg; høyere enn dette gir lite ekstra for de fleste.');
+    why.push(goal === 'fettreduksjon'
+      ? 'Protein ' + fmtN(pPerKg, 1) + ' g/kg: i kaloriunderskudd beskytter høyt proteininntak muskelmassen. Anbefalt er 2,3–3,1 g per kg fettfri masse (Helms mfl. 2014), som for de fleste tilsvarer rundt 2–2,4 g per kg kroppsvekt.'
+      : 'Protein ' + fmtN(pPerKg, 1) + ' g/kg: muskelveksten flater ut rundt 1,6 g/kg, med øvre anslag opp mot 2,2 g/kg (Morton mfl. 2018).');
     var fat = round5(Math.min(kcal * 0.35 / 9, Math.max(0.8 * kg, kcal * 0.25 / 9)));
-    why.push('Fett ca. ' + fat + ' g (minst ~0,8 g/kg eller 25 % av energien) for et balansert kosthold og hormonell helse.');
+    why.push('Fett ' + fat + ' g (ca. ' + Math.round(fat * 9 / kcal * 100) + ' % av energien). Nordiske næringsanbefalinger (NNR 2023) anbefaler 25–40 %, og for trening anbefales 20–35 % (Iraki mfl. 2019).');
     var carbs = round5((kcal - protein * 4 - fat * 9) / 4);
     if (carbs < 100) warnings.push('Lite karbohydrater igjen; det kan gå ut over treningsøktene.');
     why.push('Karbohydrater fyller resten av energien (' + carbs + ' g) og er viktigste drivstoff for trening.');
-    var fiber = Math.max(25, Math.round(kcal / 1000 * 14));
-    why.push('Fiber minst ' + fiber + ' g (Helsedirektoratet anbefaler 25–35 g per dag; ca. 14 g per 1 000 kcal).');
+    var fiberMin = opts.sex === 'kvinne' ? 25 : 35;
+    var fiber = Math.max(fiberMin, Math.round(kcal * 4.184 / 1000 * 3));
+    why.push('Fiber minst ' + fiber + ' g: NNR 2023 anbefaler minst 3 g per MJ, det vil si minst ' + fiberMin + ' g per dag for ' + (opts.sex === 'kvinne' ? 'kvinner' : 'menn') + '.');
     var water = Math.round((35 * kg + (opts.trainingDaysPerWeek ? opts.trainingDaysPerWeek / 7 * 500 : 0)) / 100) * 100;
     return { kcal: kcal, protein: protein, fat: fat, carbs: carbs, fiber: fiber, waterMl: water, tdee: tdee, adjust: round(adjust), kgPerWeek: kgPerWeek, goal: goal, pace: pace, why: why, warnings: warnings };
   }
@@ -449,7 +476,7 @@
 
   var api = {
     NUTRIENTS: NUTRIENTS, CORE: CORE, LABELS: LABELS,
-    num: num, normUnit: normUnit, toBasis: toBasis, scale: scale, calcItem: calcItem, sum: sum, divide: divide,
+    num: num, normUnit: normUnit, stkWeight: stkWeight, toBasis: toBasis, scale: scale, calcItem: calcItem, sum: sum, divide: divide,
     round: round, display: display, applyMods: applyMods, calcRecipe: calcRecipe, recipeFraction: recipeFraction,
     validateProduct: validateProduct, energyFromMacros: energyFromMacros, perServingTo100: perServingTo100,
     mifflin: mifflin, weightTrend: weightTrend, adaptiveTdee: adaptiveTdee, rollingAvg: rollingAvg,

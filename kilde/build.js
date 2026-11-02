@@ -48,8 +48,8 @@ const web = `<!doctype html>
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
-html { height: 100%; background: #120e0b; }
-body { margin: 0; height: 100%; min-height: 100dvh; }
+html { height: 100%; background: #120e0b; overflow: hidden; overscroll-behavior: none; }
+body { margin: 0; height: 100%; min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 /* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
 #root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
 [hidden] { display: none !important; }
