@@ -1631,7 +1631,7 @@
     clearTimeout(mvtTimer);
     if (!window.COACH_STANDALONE || q.length < 2) { box.innerHTML = ''; return; }
     mvtTimer = setTimeout(async function () {
-      var list = await mvtSearch(q, 10);
+      var list = []; try { list = await mvtSearch(q, 10); } catch (e) { list = []; }
       if ((S.prodQuery || '').trim() !== q) return;
       box.innerHTML = '<div class="section" style="padding-bottom:0"><div class="row"><h3 class="grow">Matvaretabellen</h3><button class="btn ghost sm" id="mvtOff">Søk i butikkvarer</button></div></div>' +
         (list.length ? '<div class="list">' + list.map(function (p) { return '<button class="li" data-mvt="' + esc(p.id) + '"><span class="av a3" aria-hidden="true">M</span><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">Matvaretabellen</div></div><div class="kc">' + fmt(p.per100.kcal) + ' kcal<em>' + fmt(p.per100.protein, 1) + ' g P</em><span class="faint small">per 100 g</span></div></button>'; }).join('') + '</div>' : '<p class="small muted">Ingen treff.</p>');
@@ -1844,7 +1844,8 @@
     var qr = sb.from('mvt_foods').select('id,name,kcal,protein,carbs,sugars,fat,sat_fat,fiber,salt,edible_pct');
     words.forEach(function (w) { qr = qr.ilike('name', '%' + w.replace(/[%_]/g, '') + '%'); });
     var r = await qr.limit(40);
-    if (r.error || !r.data) return [];
+    if (r.error) throw new Error(r.error.message || 'Matvaretabellen svarte ikke');
+    if (!r.data) return [];
     var list = r.data.map(function (f) {
       var p = { id: 'mvt:' + f.id, mvtId: f.id, name: f.name, brand: '', state: /rå|tørr|ukokt/i.test(f.name) ? (/tørr|ukokt/i.test(f.name) ? 'tørr' : 'rå') : (/kokt|stekt|grillet/i.test(f.name) ? 'tilberedt' : 'ferdig'), basis: 'g', status: 'offentlig',
         per100: { kcal: E.num(f.kcal), protein: E.num(f.protein), carbs: E.num(f.carbs), sugars: E.num(f.sugars), fat: E.num(f.fat), satFat: E.num(f.sat_fat), fiber: E.num(f.fiber), salt: E.num(f.salt) },
@@ -2113,25 +2114,33 @@
         var html = (own.length ? '<div class="fhead">Dine matvarer</div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
           (recs.length ? '<div class="fhead">Oppskrifter</div><div class="list">' + recs.map(function (r) { return '<button type="button" class="li" data-rid="' + esc(r.id) + '"><span class="av a2" aria-hidden="true">R</span><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">Oppskrift</div></div></button>'; }).join('') + '</div>' : '');
         res.innerHTML = html + '<div id="ff_mvt">' + (window.COACH_STANDALONE && q.length > 1 ? '<p class="small faint" style="margin:6px 2px">Søker i Matvaretabellen …</p>' : '') + '</div>' +
+          (!window.COACH_STANDALONE && !own.length && !recs.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff på «' + esc(q) + '» i matvarene dine. Matvaretabellen og butikkvarer kan du søke i fra Coach-appen på hjemskjermen. Her kan du lage varen selv.</p>' : '') +
           (window.COACH_STANDALONE ? '<button type="button" class="btn sm" data-offq="' + esc(q) + '">Søk i butikkvarer (Open Food Facts)</button>' : '');
         bind();
         if (!window.COACH_STANDALONE || q.length < 2) return;
         clearTimeout(timer);
         timer = setTimeout(async function () {
-          var list = []; try { list = await mvtSearch(q, 8); } catch (e) { list = []; }
+          var list = [], failed = false; try { list = await mvtSearch(q, 8); } catch (e) { list = []; failed = true; }
           if (my !== seq) return;
           var box = $('#ff_mvt'); if (!box) return;
+          if (failed) { box.innerHTML = '<p class="small muted" style="margin:6px 2px">Fikk ikke kontakt med Matvaretabellen. Sjekk nettet og prøv igjen.</p>'; return; }
           var known = {}; own.forEach(function (p) { if (p.source && p.source.mvtId) known[p.source.mvtId] = 1; });
           list = list.filter(function (p) { return !known[p.mvtId]; });
           box.innerHTML = list.length ? '<div class="fhead">Matvaretabellen</div><div class="list">' + list.map(function (p) { return foodLi(p, 'data-mvt="' + esc(p.id) + '"', 'Matvaretabellen' + (E.stkWeight(p) && E.stkWeight(p).src === 'typisk' ? ' · 1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : '')); }).join('') + '</div>' : (own.length || recs.length ? '' : '<p class="small muted" style="margin:6px 2px">Ingen treff i Matvaretabellen.</p>');
           bind();
         }, 220);
       }
-      $('#ff_q').addEventListener('input', run);
+      var lastQ = null;
+      function safeRun() {
+        var q = $('#ff_q') ? $('#ff_q').value : '';
+        if (q === lastQ) return; lastQ = q;
+        try { run(); } catch (e) { res.innerHTML = '<div class="notice bad small">Søket feilet: ' + esc(e.message) + '</div>'; }
+      }
+      ['input', 'keyup', 'change', 'search'].forEach(function (ev) { $('#ff_q').addEventListener(ev, safeRun); });
       $('#ff_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
       $('#ff_scan').onclick = function () { closeSheet(); setTimeout(scanBarcode, 120); };
       $('#ff_own').onclick = function () { var q = $('#ff_q').value.trim(); closeSheet(); setTimeout(function () { openQuickProduct({ name: q }, { mode: mode, date: date, mealType: mt }); }, 230); };
-      run();
+      safeRun();
     });
   }
 
