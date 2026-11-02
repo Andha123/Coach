@@ -4023,6 +4023,28 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     var r = await C.saveProduct(ctx, d, { reason: (data.source && data.source.name) || 'importert', override: true });
     return r.product;
   }
+  /* Strekkodeoppslag via databasens egen funksjon (Kassalapp + Open Food Facts, kcal kontrollert mot makroer).
+   * Faller tilbake til Open Food Facts direkte hvis funksjonen ikke svarer. */
+  async function foodLookup(code) {
+    var sb = window.coachSupabase;
+    if (sb && sb.functions) {
+      try {
+        var r = await sb.functions.invoke('food-lookup', { body: { ean: code } });
+        if (!r.error && r.data) {
+          if (r.data.found && r.data.product) {
+            var p = r.data.product;
+            p.state = 'ferdig'; p.status = 'nett';
+            p.source = Object.assign({ checkedAt: today() }, p.source || {});
+            if (p.kcalCorrected) p.notes = 'Energien fra kilden stemte ikke med makroene, så kcal er regnet ut fra protein, karbo og fett. Sjekk mot etiketten.';
+            delete p.kcalCorrected;
+            return p;
+          }
+          return null;
+        }
+      } catch (e) { /* prøv direkte */ }
+    }
+    return offLookup(code);
+  }
   async function offLookup(code) {
     var r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + encodeURIComponent(code) + '.json?fields=' + OFF_FIELDS);
     if (!r.ok) return null;
@@ -4037,7 +4059,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
   function offCard(p) {
     var x = p.per100;
-    return '<div class="card stack" style="gap:6px"><div class="eyebrow">Open Food Facts' + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
+    return '<div class="card stack" style="gap:6px"><div class="eyebrow">' + esc((p.source && p.source.name) || 'Open Food Facts') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
       '<div style="font-size:20px;font-weight:700;letter-spacing:-.02em">' + esc(p.name || 'Uten navn') + '</div><div class="small muted">' + esc([p.brand, p.packageSize ? fmt(p.packageSize) + ' ' + p.basis : ''].filter(Boolean).join(' · ')) + '</div>' +
       '<div class="small">Per 100 ' + p.basis + ': <b>' + fmt(x.kcal) + ' kcal</b> · ' + fmt(x.protein, 1) + ' g protein · ' + fmt(x.carbs, 1) + ' g karbo · ' + fmt(x.fat, 1) + ' g fett' + (x.fiber !== null ? ' · ' + fmt(x.fiber, 1) + ' g fiber' : '') + '</div>' +
       (['protein', 'carbs', 'fat'].some(function (k) { return x[k] === null; }) ? '<div class="notice small">Noen tall mangler. Sjekk mot etiketten før du lagrer.</div>' : '') + '</div>';
@@ -4076,9 +4098,10 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if (!p && window.COACH_STANDALONE) {
       toast('Slår opp ' + code + ' …');
       var off = null;
-      try { off = await offLookup(code); } catch (e) { off = null; }
+      try { off = await foodLookup(code); } catch (e) { off = null; }
       clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
       if (off && off.name && off.per100.kcal !== null) { openOffProduct(off); return; }
+      if (off && off.name) { toast('Fant «' + off.name + '», men næringsinnholdet mangler. Fyll inn fra etiketten.'); setTimeout(function () { openProductForm(null, Object.assign({ per100: {} }, off)); }, 300); return; }
     }
     openSheet(p ? 'Funnet' : 'Ny vare', function (body) {
       if (p) {
@@ -4092,11 +4115,11 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         return;
       }
       body.innerHTML = '<div class="stack"><div class="card stack" style="gap:6px"><div class="eyebrow">Strekkode</div><div class="mono" style="font-size:22px;font-weight:700">' + esc(code) + '</div>' +
-        '<div class="small muted">Denne varen finnes ikke i matvarene dine ennå. Ta bilde av næringsdeklarasjonen én gang, så kjenner appen den igjen neste gang du skanner.</div></div>' +
+        '<div class="small muted">' + (window.COACH_STANDALONE ? 'Fant ikke varen i matvarebasene. Skriv inn tallene fra næringsdeklarasjonen én gang, så kjenner appen den igjen neste gang du skanner.' : 'Denne varen finnes ikke i matvarene dine ennå. Ta bilde av næringsdeklarasjonen én gang, så kjenner appen den igjen neste gang du skanner.') + '</div></div>' +
         '<div class="stack" style="gap:8px">' +
         (S.sample && S.imagesOk ? '<button class="btn primary" id="sc_label">Ta bilde av næringsdeklarasjonen</button>' : '') +
         (S.sample && S.browserAvail ? '<button class="btn" id="sc_web">Søk den opp på nett</button>' : '') +
-        '<button class="btn" id="sc_manual">Legg inn manuelt</button></div></div>';
+        '<button class="btn' + (window.COACH_STANDALONE ? ' primary' : '') + '" id="sc_manual">Legg inn fra etiketten</button></div></div>';
       var lb = $('#sc_label');
       if (lb) lb.onclick = function () { pickPhoto(function (f) { closeSheet(); askCoach('Ny vare med strekkode ' + code + '. Les næringsdeklarasjonen på bildet og lag et produktforslag med barcode "' + code + '".', [f]); }); };
       var wb = $('#sc_web');
@@ -4195,7 +4218,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
   function openAddItem(date, productId, presetType) {
     var picked = productId ? S.products.get(productId) : null;
-    openSheet('Legg til i ' + dateLabel(date).toLowerCase(), function (body) {
+    openSheet(date === today() ? 'Legg til i dag' : 'Legg til ' + dateLabel(date).toLowerCase(), function (body) {
       body.innerHTML = '<form id="af" class="stack" novalidate>' +
         '<div class="field"><label for="af_q">Matvare</label><input class="input" id="af_q" type="search" autocomplete="off" placeholder="Søk …" value="' + esc(picked ? picked.name : '') + '"></div>' +
         '<div id="af_hits" class="list"></div>' +
