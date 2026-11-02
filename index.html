@@ -576,6 +576,30 @@ a { color: var(--accent); }
 .exname { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ink); font-weight: 650; font-size: 16px; padding: 4px 0; }
 .exname:focus { outline: none; box-shadow: inset 0 -1px 0 var(--accent); }
 .exlast { font-size: 12.5px; color: var(--ink-3); margin-top: -4px; }
+button.exlast { font: inherit; font-size: 12.5px; text-align: left; display: flex; align-items: flex-start; gap: 8px; background: rgba(244, 162, 97, .07); border: 1px solid rgba(244, 162, 97, .16); border-radius: 12px; padding: 7px 10px; color: var(--ink-2); cursor: pointer; margin-top: -2px; line-height: 1.45; }
+button.exlast > span { flex: 1; min-width: 0; }
+button.exlast b { color: var(--accent); font-weight: 700; }
+button.exlast i { font-style: normal; color: var(--accent); font-weight: 600; white-space: nowrap; }
+button.exlast:active { transform: scale(.985); }
+.expick { display: flex; flex-direction: column; gap: 8px; }
+.exphead { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 650; color: var(--ink-2); padding: 0 2px; }
+.exphead .btn { padding: 4px 8px; }
+.expchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.expchip { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink); border-radius: 14px; padding: 8px 12px; cursor: pointer; max-width: 100%; transition: transform .15s ease, background .2s ease, border-color .2s ease; }
+.expchip b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.expchip span { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.expchip.on { border-color: var(--accent); background: var(--accent-soft); }
+.expchip.on b { color: var(--accent); }
+.expchip:active { transform: scale(.96); }
+.exrow.flash { animation: exflash 1.1s ease; }
+@keyframes exflash { 0% { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(244, 162, 97, .25); } 100% { border-color: var(--glass-edge); box-shadow: none; } }
+.exhtiles { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+.exhtiles .tile .v { font-size: 19px; }
+.exbars { display: flex; align-items: flex-end; gap: 6px; height: 96px; padding: 8px 4px 0; }
+.exbar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; min-width: 0; }
+.exbar i { display: block; width: 100%; max-width: 26px; border-radius: 7px 7px 4px 4px; background: linear-gradient(180deg, #f7b77e, rgba(238, 149, 80, .45)); }
+.exbar:last-child i { background: linear-gradient(180deg, #ffd0a4, #ee9550); box-shadow: 0 4px 14px rgba(244, 162, 97, .35); }
+.exbar span { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .setrow { display: grid; grid-template-columns: 22px 1fr 14px 1fr 30px; gap: 8px; align-items: center; }
 .setno { font-size: 12px; color: var(--ink-3); text-align: center; font-variant-numeric: tabular-nums; }
 .setrow .unitin .input { padding: 9px 44px 9px 12px; font-size: 16px; font-weight: 650; }
@@ -1385,6 +1409,21 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'vare';
   }
   function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9æøå ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  /* Felles nøkkel for en øvelse, så ulike skrivemåter blir samme øvelse i historikken:
+   * «Incline bech press» = «incline bench», «Incline smith» = «Incline bench Smith», «Rear delt» = «Rear delts»,
+   * «Stående curls» = «Stående biceps curls». Rekkefølgen på ordene spiller ingen rolle. */
+  var EX_WORD = { flies: 'fly', flyes: 'fly', flys: 'fly', bech: 'bench', benk: 'bench', benkpress: 'bench', cabel: 'cable', kabel: 'cable', dumbell: 'dumbbell', db: 'dumbbell', manual: 'dumbbell', manualer: 'dumbbell', skulderpress: 'shoulder', skråbenk: 'incline' };
+  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1, maskin: 1, machine: 1 };
+  function exKey(name) {
+    var w = norm(name).split(' ').filter(Boolean).map(function (x) { x = EX_WORD[x] || x; if (x.length > 3 && /s$/.test(x) && !/ss$/.test(x)) x = x.slice(0, -1); return EX_WORD[x] || x; });
+    var hasCurl = w.indexOf('curl') >= 0;
+    if (hasCurl && w.indexOf('stående') >= 0 && !w.some(function (x) { return x === 'bicep' || x === 'hammer' || x === 'leg'; })) w.push('bicep');
+    if (w.indexOf('incline') >= 0 && w.indexOf('smith') >= 0 && w.indexOf('bench') < 0) w.push('bench');
+    var core = w.filter(function (x) { return !EX_DROP[x]; });
+    if (!core.length) core = w;
+    var seen = {};
+    return core.filter(function (x) { if (seen[x]) return false; seen[x] = 1; return true; }).sort().join(' ');
+  }
   function localDate(d) {
     var x = d || new Date();
     var m = String(x.getMonth() + 1).padStart(2, '0'), day = String(x.getDate()).padStart(2, '0');
@@ -2006,9 +2045,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   /* Siste registrerte arbeidssett for en øvelse. */
   async function lastSetsFor(ctx, name) {
     var list = (await ctx.repo.list('workouts')).filter(function (w) { return !w.planned; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-    var n = norm(name);
+    var n = exKey(name);
     for (var i = 0; i < list.length; i++) {
-      var ex = (list[i].exercises || []).find(function (e) { return norm(e.name) === n; });
+      var ex = (list[i].exercises || []).find(function (e) { return exKey(e.name) === n; });
       if (ex && (ex.sets || []).length) return { date: list[i].date, sets: ex.sets };
     }
     return null;
@@ -2204,7 +2243,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
   var api = {
     MEAL_TYPES: MEAL_TYPES, STATUS_RANK: STATUS_RANK, STATUS_LABEL: STATUS_LABEL,
-    uid: uid, slug: slug, norm: norm, localDate: localDate, addDays: addDays, isDate: isDate, mealType: mealType,
+    uid: uid, slug: slug, norm: norm, exKey: exKey, localDate: localDate, addDays: addDays, isDate: isDate, mealType: mealType,
     findProducts: findProducts, cleanProductInput: cleanProductInput, saveProduct: saveProduct,
     snapshotItem: snapshotItem, findRecipe: findRecipe, recipeItems: recipeItems, previewRecipe: previewRecipe,
     getDay: getDay, mealTotals: mealTotals, compactMeal: compactMeal, logMeal: logMeal, updateMeal: updateMeal, deleteMeal: deleteMeal, restoreMeal: restoreMeal,
@@ -4372,19 +4411,46 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   function saveDraft() { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} }
   function draftTitle(d) { return d.title || (d.split ? d.split + (d.volume ? ' (volum)' : '') : 'Styrketrening'); }
   function doneWorkouts(excludeId) { return S.workouts.filter(function (w) { return !w.planned && w.id !== excludeId && (w.exercises || []).length; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }); }
-  function lastFor(name, excludeId) {
-    var n = C.norm(name), list = doneWorkouts(excludeId);
-    for (var i = 0; i < list.length; i++) {
-      var ex = list[i].exercises.find(function (e) { return C.norm(e.name) === n && (e.sets || []).some(function (x) { return x.weightKg !== null || x.reps !== null; }); });
-      if (ex) return { date: list[i].date, sets: ex.sets };
-    }
-    return null;
+  function exKey(n) { return C.exKey(n); }
+  function hasVal(x) { return x && ((x.weightKg !== null && x.weightKg !== undefined) || (x.reps !== null && x.reps !== undefined)); }
+  function splitOf(title) { return SPLITS.find(function (x) { return C.norm(title || '').indexOf(C.norm(x)) === 0; }) || ''; }
+  /* Alle tidligere ganger en øvelse er gjort (nyest først), uansett skrivemåte. */
+  function exHistory(name, excludeId) {
+    var k = exKey(name), out = []; if (!k) return out;
+    doneWorkouts(excludeId).forEach(function (w) {
+      var ex = w.exercises.find(function (e) { return exKey(e.name) === k && (e.sets || []).some(hasVal); });
+      if (ex) out.push({ id: w.id, date: w.date, title: w.title, name: ex.name, sets: ex.sets.filter(hasVal) });
+    });
+    return out;
   }
+  function lastFor(name, excludeId) { return exHistory(name, excludeId)[0] || null; }
+  function topSet(sets) {
+    var b = null, be = -1;
+    (sets || []).forEach(function (x) { var e = x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; if (e > be || (e === be && (x.weightKg || 0) > ((b && b.weightKg) || 0))) { be = e; b = x; } });
+    return b;
+  }
+  /* Øvelsene du har gjort på økter av denne typen: nyeste økt først (samme volum-valg foran), i den rekkefølgen du tok dem. */
+  function splitCatalog(split, excludeId, volume) {
+    if (!split) return [];
+    var ws = doneWorkouts(excludeId).filter(function (w) { return splitOf(w.title) === split; });
+    ws.sort(function (a, b) { var va = /volum/i.test(a.title || '') === !!volume, vb = /volum/i.test(b.title || '') === !!volume; return va === vb ? 0 : va ? -1 : 1; });
+    var m = {}, order = [];
+    ws.forEach(function (w) { w.exercises.forEach(function (e) {
+      var k = exKey(e.name); if (!k) return;
+      if (!m[k]) { m[k] = { key: k, name: e.name, n: 0 }; order.push(k); }
+      m[k].n++;
+    }); });
+    return order.map(function (k) { var c = m[k], l = lastFor(c.name, excludeId); c.last = l; if (l) c.name = l.name; return c; });
+  }
+  function shortDate(ds) { return new Date(ds + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace(/\./g, ''); }
   function setTxt(x) { return (x.weightKg !== null && x.weightKg !== undefined ? fmt(x.weightKg, 2) : '–') + ' × ' + (x.reps !== null && x.reps !== undefined ? fmt(x.reps, 1) : '–'); }
-  function knownExercises() { var m = {}; S.workouts.forEach(function (w) { (w.exercises || []).forEach(function (e) { m[e.name] = 1; }); }); return Object.keys(m).sort(function (a, b) { return a.localeCompare(b, 'nb'); }); }
+  function knownExercises() {
+    var m = {};
+    doneWorkouts().slice().reverse().forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (k) m[k] = e.name; }); });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return a.localeCompare(b, 'nb'); });
+  }
   function templateFor(split, excludeId, volume) {
-    var n = C.norm(split);
-    var cands = doneWorkouts(excludeId).filter(function (x) { return C.norm(x.title || '').indexOf(n) === 0; });
+    var cands = doneWorkouts(excludeId).filter(function (x) { return splitOf(x.title) === split; });
     var w = cands.find(function (x) { return /volum/i.test(x.title || '') === !!volume; }) || cands[0];
     return w ? w.exercises.map(function (e) { return { name: e.name, sets: (e.sets && e.sets.length ? e.sets : [{}]).map(function () { return { w: '', r: '' }; }) }; }) : [];
   }
@@ -4396,11 +4462,20 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       (d.editId ? '<div class="notice info small">Endrer økten fra ' + esc(dateLabel(d.date)) + '. <button class="btn ghost sm" type="button" data-lg="canceledit">Avbryt</button></div>' : '') +
       '<div class="row"><input class="input" id="lg_date" type="date" value="' + esc(d.date) + '" style="max-width:170px"><label class="chiptoggle' + (d.volume ? ' on' : '') + '"><input type="checkbox" id="lg_vol"' + (d.volume ? ' checked' : '') + '> Volum</label></div>' +
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
-    if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økt å hente øvelser fra. Legg til under.' : 'Velg økt, så hentes øvelsene fra forrige gang.') + '</p>';
+    var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
+    d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
+    if (d.split && cat.length) {
+      html += '<div class="expick"><div class="exphead"><span>Velg øvelse · ' + esc(d.split.toLowerCase()) + '</span>' +
+        (cat.some(function (c) { return !inDraft[c.key]; }) ? '<button type="button" class="btn ghost sm" data-lg="tplall">Hent forrige økt</button>' : '') + '</div>' +
+        '<div class="expchips">' + cat.map(function (c) {
+          var t = c.last ? topSet(c.last.sets) : null, on = inDraft[c.key];
+          return '<button type="button" class="expchip' + (on ? ' on' : '') + '" data-pick="' + esc(c.key) + '"><b>' + (on ? '✓ ' : '') + esc(c.name) + '</b><span>' + (t ? esc(setTxt(t)) + ' · ' + esc(shortDate(c.last.date)) : 'ingen tall') + '</span></button>';
+        }).join('') + '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
+    } else if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økter ennå. Legg til øvelser under.' : 'Velg økt, så ser du øvelsene du har gjort før og hva du tok sist.') + '</p>';
     html += '<div class="exlist">' + d.exercises.map(function (e, i) {
-      var last = lastFor(e.name, d.editId);
-      return '<div class="exrow" data-ex="' + i + '"><div class="exhead"><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
-        (last ? '<div class="exlast">Sist ' + last.sets.map(setTxt).join(', ') + ' · ' + esc(new Date(last.date + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })) + '</div>' : '') +
+      var hist = exHistory(e.name, d.editId), last = hist[0], prev = hist[1];
+      return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
+        (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {};
           return '<div class="setrow" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
@@ -4422,11 +4497,22 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     var d = loadDraft(), box = root.querySelector('.logger'); if (!box) return;
     function rerender() { saveDraft(); renderTraining(); }
     box.querySelector('#lg_date').onchange = function (e) { d.date = e.target.value || today(); saveDraft(); };
-    box.querySelector('#lg_vol').onchange = function (e) { d.volume = e.target.checked; d.title = ''; if (d.split && !draftHasValues(d)) d.exercises = templateFor(d.split, d.editId, d.volume); rerender(); };
+    box.querySelector('#lg_vol').onchange = function (e) { d.volume = e.target.checked; d.title = ''; rerender(); };
     box.querySelectorAll('[data-split]').forEach(function (b) { b.onclick = function () {
       d.split = d.split === b.dataset.split ? '' : b.dataset.split; d.title = '';
-      if (d.split && !draftHasValues(d)) d.exercises = templateFor(d.split, d.editId, d.volume);
+      if (!draftHasValues(d)) d.exercises = [];
       rerender();
+    }; });
+    box.querySelectorAll('[data-pick]').forEach(function (b) { b.onclick = function () {
+      var k = b.dataset.pick, have = d.exercises.find(function (e) { return exKey(e.name) === k; });
+      var c = splitCatalog(d.split, d.editId, d.volume).find(function (x) { return x.key === k; }); if (!c) return;
+      if (have) { openExHistory(have.name); return; }
+      var n = c.last ? Math.max(1, Math.min(c.last.sets.length, 6)) : 1, sets = [];
+      for (var j = 0; j < n; j++) sets.push({ w: '', r: '' });
+      d.exercises.push({ name: c.name, sets: sets });
+      rerender();
+      var row = $('.logger .exrow[data-key="' + k.replace(/"/g, '') + '"]');
+      if (row) { row.classList.add('flash'); row.scrollIntoView({ behavior: MOTION ? 'smooth' : 'auto', block: 'nearest' }); }
     }; });
     box.addEventListener('input', function (e) {
       var row = e.target.closest('[data-ex]'); if (!row) return;
@@ -4441,6 +4527,11 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       if (act === 'addset') { var ex = d.exercises[i], lastSet = ex.sets[ex.sets.length - 1] || {}; ex.sets.push({ w: lastSet.w || '', r: '' }); rerender(); }
       if (act === 'delset') { var sr = b.closest('[data-set]'); d.exercises[i].sets.splice(+sr.dataset.set, 1); rerender(); }
       if (act === 'delex') { d.exercises.splice(i, 1); rerender(); }
+      if (act === 'hist') { openExHistory(d.exercises[i].name); }
+      if (act === 'tplall') {
+        templateFor(d.split, d.editId, d.volume).forEach(function (t) { if (!d.exercises.some(function (e) { return exKey(e.name) === exKey(t.name); })) d.exercises.push(t); });
+        rerender();
+      }
       if (act === 'addex') { var n = box.querySelector('#lg_newex').value.trim(); if (!n) return; d.exercises.push({ name: n, sets: [{ w: '', r: '' }] }); rerender(); }
       if (act === 'clear') { S.draft = newDraft(); rerender(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
@@ -4457,8 +4548,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     }).filter(function (e) { return e.sets.length; });
   }
   function bestE1rm(name, excludeId) {
-    var n = C.norm(name), best = 0;
-    S.workouts.forEach(function (w) { if (w.id === excludeId) return; (w.exercises || []).forEach(function (e) { if (C.norm(e.name) !== n) return; (e.sets || []).forEach(function (x) { if (x.weightKg && x.reps) best = Math.max(best, E.e1rm(x.weightKg, x.reps) || 0); }); }); });
+    var n = exKey(name), best = 0;
+    S.workouts.forEach(function (w) { if (w.id === excludeId) return; (w.exercises || []).forEach(function (e) { if (exKey(e.name) !== n) return; (e.sets || []).forEach(function (x) { if (x.weightKg && x.reps) best = Math.max(best, E.e1rm(x.weightKg, x.reps) || 0); }); }); });
     return best;
   }
   async function saveStrength() {
@@ -4491,6 +4582,34 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     toast('La inn ' + n + ' økter' + (merged ? ' (' + merged + ' sammen med Garmin)' : '') + (n < sessions.length ? ' · ' + (sessions.length - n) + ' fantes fra før' : ''));
     var ta = $('#lg_paste'); if (ta) ta.value = '';
     renderTraining();
+  }
+  /* Historikk for én øvelse: sist, beste sett, utvikling og alle øktene. */
+  function openExHistory(name) {
+    var d = loadDraft();
+    openSheet(name, function (body) {
+      var hist = exHistory(name, d.editId);
+      if (!hist.length) { body.innerHTML = '<p class="small muted">Ingen tidligere tall for denne øvelsen.</p>'; return; }
+      var last = hist[0], lt = topSet(last.sets), best = null, bestE = 0;
+      hist.forEach(function (h) { h.top = topSet(h.sets); h.e = h.top && h.top.weightKg && h.top.reps ? E.e1rm(h.top.weightKg, h.top.reps) || 0 : 0; if (h.e > bestE) { bestE = h.e; best = h; } });
+      var pts = hist.slice(0, 10).reverse(), mx = Math.max.apply(null, pts.map(function (h) { return h.e; }).concat([1]));
+      var draftEx = d.exercises.find(function (e) { return exKey(e.name) === exKey(name); });
+      var names = {}; hist.forEach(function (h) { names[h.name] = 1; });
+      body.innerHTML = '<div class="stack">' +
+        '<div class="tiles exhtiles"><div class="tile"><div class="k">Sist</div><div class="v">' + esc(lt ? setTxt(lt) : '–') + '</div><div class="t">' + esc(shortDate(last.date)) + '</div></div>' +
+        '<div class="tile"><div class="k">Beste</div><div class="v">' + esc(best ? setTxt(best.top) : '–') + '</div><div class="t">' + (best ? esc(shortDate(best.date)) : '') + '</div></div>' +
+        '<div class="tile"><div class="k">Est. 1RM</div><div class="v">' + (bestE ? fmt(bestE, 0) + '<small>kg</small>' : '–') + '</div><div class="t">' + hist.length + ' økter</div></div></div>' +
+        (pts.length > 1 ? '<div class="exbars" aria-label="Utvikling, beste sett per økt">' + pts.map(function (h) { return '<div class="exbar"><i style="height:' + Math.max(6, Math.round(h.e / mx * 100)) + '%"></i><span>' + esc(shortDate(h.date).split(' ')[0]) + '</span></div>'; }).join('') + '</div><p class="small faint" style="margin:-4px 2px 0">Estimert 1RM av beste sett per økt</p>' : '') +
+        '<div class="list">' + hist.map(function (h) { return '<button type="button" class="li" data-wid="' + esc(h.id) + '"><div class="grow"><div class="t1">' + esc(cap(dateLabel(h.date))) + ' <span class="faint">· ' + esc(h.title || '') + '</span></div><div class="t2">' + esc(h.sets.map(setTxt).join(', ')) + '</div></div></button>'; }).join('') + '</div>' +
+        (Object.keys(names).length > 1 ? '<p class="small faint">Samlet fra: ' + esc(Object.keys(names).join(', ')) + '</p>' : '') +
+        (draftEx && !draftEx.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }) ? '<button class="btn primary" id="exh_fill">Fyll inn samme som sist</button>' : '') +
+        '</div>';
+      body.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
+      var fb = $('#exh_fill');
+      if (fb) fb.onclick = function () {
+        draftEx.sets = last.sets.map(function (x) { return { w: x.weightKg === null || x.weightKg === undefined ? '' : String(x.weightKg).replace('.', ','), r: x.reps === null || x.reps === undefined ? '' : String(x.reps).replace('.', ',') }; });
+        saveDraft(); closeSheet(); renderTraining(); toast('Fylt inn tallene fra ' + shortDate(last.date) + '. Endre det du gjør i dag.');
+      };
+    });
   }
   function openWorkout(id) {
     var w = S.workouts.find(function (x) { return x.id === id; }); if (!w) return;
@@ -4540,18 +4659,19 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         (plan.cardio ? '<p class="small"><b>Kondisjon:</b> ' + esc(plan.cardio) + '</p>' : '') + '</div>';
     } else html += '<div class="section"><h3>Treningsplan</h3><p class="small muted">Ingen plan lagret. Be coachen i chatten: «Lag et styrkeprogram for 3 dager i uka med 2 mølleøkter».</p></div>';
     var best = {};
-    done.slice().reverse().forEach(function (w) { (w.exercises || []).forEach(function (e) { (e.sets || []).forEach(function (s) { if (s.weightKg !== null && s.reps) { var b = best[e.name]; if (!b || s.weightKg > b.weightKg || (s.weightKg === b.weightKg && s.reps > b.reps)) best[e.name] = { weightKg: s.weightKg, reps: s.reps, date: w.date }; } }); }); });
+    var bestName = {};
+    done.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (w) { (w.exercises || []).forEach(function (e) { var k = exKey(e.name); if (!k) return; bestName[k] = e.name; (e.sets || []).forEach(function (s) { if (s.weightKg !== null && s.reps) { var b = best[k]; if (!b || s.weightKg > b.weightKg || (s.weightKg === b.weightKg && s.reps > b.reps)) best[k] = { weightKg: s.weightKg, reps: s.reps, date: w.date }; } }); }); });
     var bk = Object.keys(best);
     if (plan) {
       var prog = [];
       (plan.days || []).forEach(function (d) { (d.exercises || []).forEach(function (e) {
         var last = null;
-        for (var i = 0; i < done.length && !last; i++) { var ex = (done[i].exercises || []).find(function (x) { return C.norm(x.name) === C.norm(e.name); }); if (ex && ex.sets && ex.sets.length) last = { date: done[i].date, sets: ex.sets }; }
+        for (var i = 0; i < done.length && !last; i++) { var ex = (done[i].exercises || []).find(function (x) { return exKey(x.name) === exKey(e.name); }); if (ex && ex.sets && ex.sets.length) last = { date: done[i].date, sets: ex.sets }; }
         if (last) prog.push({ name: e.name, s: E.progressionSuggestion(last.sets, e.reps || '8-12'), date: last.date });
       }); });
       if (prog.length) html += '<div class="section"><h3>Neste økt</h3><div class="list">' + prog.map(function (x) { return '<div class="li"><div class="grow"><div class="t1">' + esc(x.name) + ' <span class="pill ' + (x.s.action === 'øk vekt' ? 'bekreftet' : '') + '">' + esc(x.s.action) + '</span></div><div class="t2" style="white-space:normal">' + esc(x.s.text) + ' (sist ' + esc(x.date) + ')</div></div></div>'; }).join('') + '</div></div>';
     }
-    if (bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort().map(function (k) { return '<tr><td>' + esc(k) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    if (bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort(function (a, b) { return bestName[a].localeCompare(bestName[b], 'nb'); }).map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
     html += '<div class="section"><h3>Historikk</h3>' + (S.workouts.length ? '<div class="list">' + S.workouts.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).slice(0, 40).map(workoutLine).join('') + '</div>' : '<p class="small muted">Ingen økter registrert ennå.</p>') + '</div>';
     if (!setHTML(v, html)) return;
     v.querySelectorAll('[data-tt]').forEach(function (b) { b.onclick = function () { S.trType = b.dataset.tt; renderTraining(); }; });

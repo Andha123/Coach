@@ -555,6 +555,30 @@ a { color: var(--accent); }
 .exname { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ink); font-weight: 650; font-size: 16px; padding: 4px 0; }
 .exname:focus { outline: none; box-shadow: inset 0 -1px 0 var(--accent); }
 .exlast { font-size: 12.5px; color: var(--ink-3); margin-top: -4px; }
+button.exlast { font: inherit; font-size: 12.5px; text-align: left; display: flex; align-items: flex-start; gap: 8px; background: rgba(244, 162, 97, .07); border: 1px solid rgba(244, 162, 97, .16); border-radius: 12px; padding: 7px 10px; color: var(--ink-2); cursor: pointer; margin-top: -2px; line-height: 1.45; }
+button.exlast > span { flex: 1; min-width: 0; }
+button.exlast b { color: var(--accent); font-weight: 700; }
+button.exlast i { font-style: normal; color: var(--accent); font-weight: 600; white-space: nowrap; }
+button.exlast:active { transform: scale(.985); }
+.expick { display: flex; flex-direction: column; gap: 8px; }
+.exphead { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 650; color: var(--ink-2); padding: 0 2px; }
+.exphead .btn { padding: 4px 8px; }
+.expchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.expchip { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink); border-radius: 14px; padding: 8px 12px; cursor: pointer; max-width: 100%; transition: transform .15s ease, background .2s ease, border-color .2s ease; }
+.expchip b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.expchip span { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.expchip.on { border-color: var(--accent); background: var(--accent-soft); }
+.expchip.on b { color: var(--accent); }
+.expchip:active { transform: scale(.96); }
+.exrow.flash { animation: exflash 1.1s ease; }
+@keyframes exflash { 0% { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(244, 162, 97, .25); } 100% { border-color: var(--glass-edge); box-shadow: none; } }
+.exhtiles { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+.exhtiles .tile .v { font-size: 19px; }
+.exbars { display: flex; align-items: flex-end; gap: 6px; height: 96px; padding: 8px 4px 0; }
+.exbar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; min-width: 0; }
+.exbar i { display: block; width: 100%; max-width: 26px; border-radius: 7px 7px 4px 4px; background: linear-gradient(180deg, #f7b77e, rgba(238, 149, 80, .45)); }
+.exbar:last-child i { background: linear-gradient(180deg, #ffd0a4, #ee9550); box-shadow: 0 4px 14px rgba(244, 162, 97, .35); }
+.exbar span { font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .setrow { display: grid; grid-template-columns: 22px 1fr 14px 1fr 30px; gap: 8px; align-items: center; }
 .setno { font-size: 12px; color: var(--ink-3); text-align: center; font-variant-numeric: tabular-nums; }
 .setrow .unitin .input { padding: 9px 44px 9px 12px; font-size: 16px; font-weight: 650; }

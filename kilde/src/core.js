@@ -19,6 +19,21 @@
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'vare';
   }
   function norm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9æøå ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  /* Felles nøkkel for en øvelse, så ulike skrivemåter blir samme øvelse i historikken:
+   * «Incline bech press» = «incline bench», «Incline smith» = «Incline bench Smith», «Rear delt» = «Rear delts»,
+   * «Stående curls» = «Stående biceps curls». Rekkefølgen på ordene spiller ingen rolle. */
+  var EX_WORD = { flies: 'fly', flyes: 'fly', flys: 'fly', bech: 'bench', benk: 'bench', benkpress: 'bench', cabel: 'cable', kabel: 'cable', dumbell: 'dumbbell', db: 'dumbbell', manual: 'dumbbell', manualer: 'dumbbell', skulderpress: 'shoulder', skråbenk: 'incline' };
+  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1, maskin: 1, machine: 1 };
+  function exKey(name) {
+    var w = norm(name).split(' ').filter(Boolean).map(function (x) { x = EX_WORD[x] || x; if (x.length > 3 && /s$/.test(x) && !/ss$/.test(x)) x = x.slice(0, -1); return EX_WORD[x] || x; });
+    var hasCurl = w.indexOf('curl') >= 0;
+    if (hasCurl && w.indexOf('stående') >= 0 && !w.some(function (x) { return x === 'bicep' || x === 'hammer' || x === 'leg'; })) w.push('bicep');
+    if (w.indexOf('incline') >= 0 && w.indexOf('smith') >= 0 && w.indexOf('bench') < 0) w.push('bench');
+    var core = w.filter(function (x) { return !EX_DROP[x]; });
+    if (!core.length) core = w;
+    var seen = {};
+    return core.filter(function (x) { if (seen[x]) return false; seen[x] = 1; return true; }).sort().join(' ');
+  }
   function localDate(d) {
     var x = d || new Date();
     var m = String(x.getMonth() + 1).padStart(2, '0'), day = String(x.getDate()).padStart(2, '0');
@@ -640,9 +655,9 @@
   /* Siste registrerte arbeidssett for en øvelse. */
   async function lastSetsFor(ctx, name) {
     var list = (await ctx.repo.list('workouts')).filter(function (w) { return !w.planned; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-    var n = norm(name);
+    var n = exKey(name);
     for (var i = 0; i < list.length; i++) {
-      var ex = (list[i].exercises || []).find(function (e) { return norm(e.name) === n; });
+      var ex = (list[i].exercises || []).find(function (e) { return exKey(e.name) === n; });
       if (ex && (ex.sets || []).length) return { date: list[i].date, sets: ex.sets };
     }
     return null;
@@ -838,7 +853,7 @@
 
   var api = {
     MEAL_TYPES: MEAL_TYPES, STATUS_RANK: STATUS_RANK, STATUS_LABEL: STATUS_LABEL,
-    uid: uid, slug: slug, norm: norm, localDate: localDate, addDays: addDays, isDate: isDate, mealType: mealType,
+    uid: uid, slug: slug, norm: norm, exKey: exKey, localDate: localDate, addDays: addDays, isDate: isDate, mealType: mealType,
     findProducts: findProducts, cleanProductInput: cleanProductInput, saveProduct: saveProduct,
     snapshotItem: snapshotItem, findRecipe: findRecipe, recipeItems: recipeItems, previewRecipe: previewRecipe,
     getDay: getDay, mealTotals: mealTotals, compactMeal: compactMeal, logMeal: logMeal, updateMeal: updateMeal, deleteMeal: deleteMeal, restoreMeal: restoreMeal,
