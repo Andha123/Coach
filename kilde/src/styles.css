@@ -430,7 +430,7 @@ button.li:hover { background: var(--surface-2); }
 .action { background: var(--surface-flat); border: 1px solid var(--glass-edge); box-shadow: none; color: var(--ink); }
 
 /* Fanelinje og ark */
-nav.tabs { margin: 0 12px calc(8px + env(safe-area-inset-bottom, 0px)); padding: 5px 6px; border-radius: 30px; background: rgba(28, 22, 18, .72); border: 1px solid var(--glass-edge); box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
+nav.tabs { margin: 0 12px max(8px, calc(env(safe-area-inset-bottom, 0px) - 8px)); padding: 5px 6px; border-radius: 30px; background: rgba(28, 22, 18, .72); border: 1px solid var(--glass-edge); box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
 nav.tabs button { color: var(--ink-3); font-weight: 500; font-size: 10px; padding: 6px 0 4px; border-radius: 24px; }
 nav.tabs button svg { width: 26px; height: 26px; padding: 1px; border-radius: 0; stroke-width: 1.8; background: none; }
 nav.tabs button[aria-current="page"] { color: var(--ink); background: rgba(255, 244, 232, .12); }

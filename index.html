@@ -14,8 +14,10 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
-html, body { margin: 0; height: 100%; }
-#root { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
+html { height: 100%; background: #120e0b; }
+body { margin: 0; height: 100%; min-height: 100dvh; }
+/* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
+#root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
 [hidden] { display: none !important; }
 /* Layout: én kolonne, mobil først, i Apples formspråk: systemfont, grå grupperte flater med hvite kort,
    systemfarger (blå handlinger, grønn energi, indigo protein, oransje karbo, gul fett, turkis fiber), gjennomsiktig fanelinje. */
@@ -449,7 +451,7 @@ button.li:hover { background: var(--surface-2); }
 .action { background: var(--surface-flat); border: 1px solid var(--glass-edge); box-shadow: none; color: var(--ink); }
 
 /* Fanelinje og ark */
-nav.tabs { margin: 0 12px calc(8px + env(safe-area-inset-bottom, 0px)); padding: 5px 6px; border-radius: 30px; background: rgba(28, 22, 18, .72); border: 1px solid var(--glass-edge); box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
+nav.tabs { margin: 0 12px max(8px, calc(env(safe-area-inset-bottom, 0px) - 8px)); padding: 5px 6px; border-radius: 30px; background: rgba(28, 22, 18, .72); border: 1px solid var(--glass-edge); box-shadow: 0 14px 34px rgba(0, 0, 0, .45); }
 nav.tabs button { color: var(--ink-3); font-weight: 500; font-size: 10px; padding: 6px 0 4px; border-radius: 24px; }
 nav.tabs button svg { width: 26px; height: 26px; padding: 1px; border-radius: 0; stroke-width: 1.8; background: none; }
 nav.tabs button[aria-current="page"] { color: var(--ink); background: rgba(255, 244, 232, .12); }
@@ -683,7 +685,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 (function () {
   'use strict';
   var CFG = window.COACH_CONFIG || {};
-  var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+  var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'coach-auth', storage: window.localStorage } });
   window.coachSupabase = sb;
 
   /* ---------- Dokumentlager over tabellen docs (col, id, data) ---------- */

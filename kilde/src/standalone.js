@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var CFG = window.COACH_CONFIG || {};
-  var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+  var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'coach-auth', storage: window.localStorage } });
   window.coachSupabase = sb;
 
   /* ---------- Dokumentlager over tabellen docs (col, id, data) ---------- */
