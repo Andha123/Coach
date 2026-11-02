@@ -810,3 +810,7 @@ select.cnative { position: absolute !important; opacity: 0 !important; pointer-e
   @keyframes onBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 }
 .input.bad { border-color: var(--fat); }
+.rbsearch { display: flex; gap: 8px; }
+.rbsearch .input { flex: 1; }
+.rbscan { flex: none; padding-inline: 14px; gap: 6px; }
+.rbscan svg { width: 18px; height: 18px; }

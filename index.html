@@ -831,6 +831,10 @@ select.cnative { position: absolute !important; opacity: 0 !important; pointer-e
   @keyframes onBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 }
 .input.bad { border-color: var(--fat); }
+.rbsearch { display: flex; gap: 8px; }
+.rbsearch .input { flex: 1; }
+.rbscan { flex: none; padding-inline: 14px; gap: 6px; }
+.rbscan svg { width: 18px; height: 18px; }
 
 </style>
 </head>
@@ -2756,6 +2760,36 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       var encQ = false;
       new MutationObserver(function () { if (encQ) return; encQ = true; requestAnimationFrame(function () { encQ = false; enhanceSelects(document); }); }).observe(document.body, { childList: true, subtree: true });
     } catch (e) { /* eldre nettlesere bruker vanlig velger */ }
+    /* iPhone som app på hjemskjermen: etter at tastaturet har vært oppe, krymper WebKit av og til visningen og lar
+     * en svart stripe stå igjen nederst. Vi husker full høyde og tvinger en ny måling når den har krympet. */
+    (function () {
+      var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      if (!standalone) return;
+      var root = document.getElementById('root');
+      var underStatusBar = (parseFloat(getComputedStyle(root).paddingTop) || 0) > 0;
+      function full() { var portrait = window.innerWidth < window.innerHeight; return Math.max(window.innerHeight, underStatusBar && portrait && window.screen ? window.screen.height : 0); }
+      var maxH = full();
+      function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
+      function fix() {
+        if (typing()) return;
+        maxH = Math.max(maxH, window.innerHeight);
+        if (maxH - window.innerHeight <= 4) { root.style.height = ''; root.style.bottom = ''; return; }
+        var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
+        root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
+        sc.forEach(function (x) { x[0].scrollTop = x[1]; });
+        resetPageScroll();
+        if (maxH - window.innerHeight > 4) { root.style.height = maxH + 'px'; root.style.bottom = 'auto'; }
+      }
+      var t = null;
+      function later(ms) { clearTimeout(t); t = setTimeout(fix, ms || 160); }
+      window.addEventListener('resize', function () { if (!typing()) maxH = Math.max(maxH, window.innerHeight); later(); });
+      document.addEventListener('focusout', function () { later(180); setTimeout(fix, 600); });
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') later(250); });
+      window.addEventListener('pageshow', function () { later(250); });
+      window.addEventListener('orientationchange', function () { maxH = 0; setTimeout(function () { maxH = full(); fix(); }, 400); });
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { later(); });
+      setTimeout(fix, 600);
+    })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
     document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
     window.addEventListener('scroll', function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, { passive: true });
@@ -4238,6 +4272,17 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       else openScanFail(file);
     });
   }
+  /* Skann en strekkode og gi koden tilbake (brukes f.eks. i oppskrifter). */
+  function scanCode(cb) {
+    function byPhoto() {
+      pickPhoto(async function (file) {
+        var code = null; try { code = await decodeBarcode(file); } catch (e) { code = null; }
+        code = code ? String(code).replace(/\D/g, '') : '';
+        if (code && validEan(code)) cb(code); else toast('Fant ingen strekkode på bildet. Prøv igjen i godt lys.');
+      });
+    }
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) openLiveScanner(cb, byPhoto); else byPhoto();
+  }
   function productByBarcode(code) {
     var hit = null;
     S.products.forEach(function (p) { if (!p.archived && p.barcode && String(p.barcode).replace(/\D/g, '') === code) hit = p; });
@@ -4602,7 +4647,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       $('#qp_stk').addEventListener('input', function (e) { $('#qp_stk2').value = e.target.value; });
       $('#qp_stk2').addEventListener('input', function (e) { $('#qp_stk').value = e.target.value; });
       setBasis(basis);
-      $('#qp_cancel').onclick = closeSheet;
+      $('#qp_cancel').onclick = function () { closeSheet(); if (o.onCancel) setTimeout(o.onCancel, 230); };
       $('#qp').onsubmit = async function (e) {
         e.preventDefault();
         function v(id) { return $('#' + id).value.trim(); }
@@ -4632,6 +4677,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           var r = await C.saveProduct(ctx, data, { reason: 'Lagt inn selv', override: true });
           if (perStk) rememberUnit(r.product.id, 'stk', 1);
           closeSheet();
+          if (o.after) { setTimeout(function () { o.after(r.product); }, 230); return; }
           if (o.mode === 'add') { toast('Lagret ' + r.product.name); return; }
           setTimeout(function () { openAddItem(o.date || S.date, r.product.id, o.mealType); }, 230);
         } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
@@ -4758,9 +4804,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
   /* Lag eller endre en oppskrift: navn, antall porsjoner og ingredienser (søk i dine varer og Matvaretabellen).
    * Endringer lagres som ny versjon, så måltider du har logget før beholder tallene sine. */
-  function openRecipeBuilder(existing) {
+  function openRecipeBuilder(existing, resume) {
     var cur = existing ? existing.versions.find(function (x) { return x.version === existing.currentVersion; }) : null;
-    var st = {
+    var st = resume || {
       name: existing ? existing.name : '', portions: cur ? cur.portions : 4, mt: existing ? existing.defaultMealType || '' : '', cooked: cur && cur.cookedWeightG ? cur.cookedWeightG : null,
       items: cur ? cur.items.map(function (it) { return { pid: it.productId, amount: it.amount, unit: it.unit || 'g' }; }) : []
     };
@@ -4794,7 +4840,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
           '<div class="field"><label for="rb_mt">Brukes oftest til</label><select class="input" id="rb_mt"><option value="">Velg</option>' + C.MEAL_TYPES.map(function (t) { return '<option' + (t === st.mt ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div></div>' +
           '<h3 style="margin:4px 0 0">Ingredienser</h3>' +
           '<div id="rb_items" class="rbitems">' + (st.items.length ? st.items.map(itemHtml).join('') : '<p class="small muted" style="margin:0">Ingen ingredienser ennå. Søk under og trykk for å legge til.</p>') + '</div>' +
-          '<div class="rbadd"><input class="input" id="rb_q" type="search" enterkeyhint="search" placeholder="+ Legg til ingrediens, f.eks. kyllingfilet" autocomplete="off"><div id="rb_hits"></div></div>' +
+          '<div class="rbadd"><div class="rbsearch"><input class="input" id="rb_q" type="search" enterkeyhint="search" placeholder="+ Legg til ingrediens" autocomplete="off"><button type="button" class="btn primary rbscan" id="rb_scan" aria-label="Skann strekkode">' + ICON.barcode + 'Skann</button></div><div id="rb_hits"></div></div>' +
           '<div id="rb_tot">' + totHtml() + '</div>' +
           '<details class="cdet"><summary>Ferdig vekt (valgfritt)</summary><div class="field" style="margin-top:8px"><label for="rb_cooked">Hvor mye veier hele retten ferdig laget? (g)</label><input class="input" id="rb_cooked" inputmode="decimal" value="' + esc(numStr(st.cooked)) + '"><p class="small faint" style="margin:4px 0 0">Da kan du senere logge i gram av den ferdige retten.</p></div></details>' +
           '<div id="rb_msg"></div><div class="row"><button type="button" class="btn primary grow" id="rb_save">' + (existing ? 'Lagre ny versjon' : 'Lagre oppskrift') + '</button><button type="button" class="btn ghost" id="rb_cancel">Avbryt</button></div></div>';
@@ -4813,6 +4859,21 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         var rows = body.querySelectorAll('.rbitem'), last = rows[rows.length - 1];
         if (last) { last.classList.add('flash'); var a = last.querySelector('[data-rf="amount"]'); if (a) { a.focus(); a.select(); } }
       }
+      /* Skannet ingrediens: dine varer først, så matbasene. Ukjent vare lages her og legges rett inn i oppskriften. */
+      function reopen(extra) { if (extra) { var du = defaultUnit(extra); st.items.push({ pid: extra.id, amount: du.unit === 'g' || du.unit === 'ml' ? 100 : du.amount, unit: du.unit }); } openRecipeBuilder(existing, st); }
+      async function onScan(code) {
+        var p = productByBarcode(code);
+        if (p) { addProduct(p); toast('La til ' + p.name); return; }
+        toast('Slår opp ' + code + ' …');
+        var off = null;
+        if (window.COACH_STANDALONE) { try { off = await foodLookup(code); } catch (e) { off = null; } }
+        if (off && off.name && off.per100 && off.per100.kcal !== null && off.per100.protein !== null && off.per100.carbs !== null && off.per100.fat !== null) {
+          try { var made = await ensureProduct(off); addProduct(made); toast('La til ' + made.name); return; } catch (e) { /* lag selv under */ }
+        }
+        toast(off && off.name ? 'Fant «' + off.name + '», men tallene mangler. Fyll inn fra etiketten.' : 'Fant ikke varen. Fyll inn fra etiketten.');
+        closeSheet();
+        setTimeout(function () { openQuickProduct(Object.assign({ per100: {} }, off || {}, { barcode: code }), { mode: 'add', after: reopen, onCancel: function () { reopen(null); } }); }, 260);
+      }
       function search() {
         var q = $('#rb_q').value.trim(), box = $('#rb_hits'), my = ++seq;
         if (q.length < 2) { box.innerHTML = ''; return; }
@@ -4822,7 +4883,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
             (!own.length && mvt && !mvt.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff. <button type="button" class="btn ghost sm" id="rb_own">Lag egen vare</button></p>' : '');
           box.querySelectorAll('[data-rp]').forEach(function (b) { b.onclick = function () { addProduct(S.products.get(b.dataset.rp)); }; });
           box.querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = async function () { try { addProduct(await ensureProduct(mvtCache[b.dataset.rm])); } catch (e) { toast(e.message); } }; });
-          var ob = $('#rb_own'); if (ob) ob.onclick = function () { toast('Lagre oppskriften først, eller lag varen under Matvarer → + Matvare.'); };
+          var ob = $('#rb_own'); if (ob) ob.onclick = function () { st.name = $('#rb_name').value; closeSheet(); setTimeout(function () { openQuickProduct({ name: q }, { mode: 'add', after: reopen, onCancel: function () { reopen(null); } }); }, 230); };
         }
         render(window.COACH_STANDALONE ? null : []);
         if (!window.COACH_STANDALONE) return;
@@ -4841,6 +4902,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         $('#rb_mt').onchange = function (e) { st.mt = e.target.value; };
         $('#rb_cooked').addEventListener('input', function (e) { st.cooked = E.num(e.target.value); });
         $('#rb_q').addEventListener('input', search);
+        $('#rb_scan').onclick = function () { st.name = $('#rb_name').value; scanCode(onScan); };
         $('#rb_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
         $('#rb_items').addEventListener('input', function (e) { var row = e.target.closest('[data-ri]'); if (!row || e.target.dataset.rf !== 'amount') return; var i = +row.dataset.ri; st.items[i].amount = E.num(e.target.value); refreshItem(i); refreshTot(); });
         $('#rb_items').addEventListener('change', function (e) {
