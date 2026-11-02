@@ -1,0 +1,104 @@
+// Setter sammen to versjoner av appen av de samme kildefilene:
+//  1) dist/pt-appen.html  – Claude-artefakten (database og AI via Claude)
+//  2) dist/web/           – egen app (Supabase-database og innlogging, ingen AI), klar for GitHub Pages
+const fs = require('fs');
+const path = require('path');
+const src = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
+const out = (...p) => path.join(__dirname, 'dist', ...p);
+
+const artifact = `<title>Coach</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+${src('styles.css')}
+</style>
+<div id="root"></div>
+<script>
+${src('logo.js')}
+</script>
+<script>
+${src('engine.js')}
+</script>
+<script>
+${src('core.js')}
+</script>
+<script>
+${src('app.js')}
+</script>
+`;
+fs.mkdirSync(out(), { recursive: true });
+fs.writeFileSync(out('pt-appen.html'), artifact);
+console.log('dist/pt-appen.html', (artifact.length / 1024).toFixed(1) + ' KB');
+
+// Egen app. Nøkkelen er Supabase sin offentlige «anon»-nøkkel: den er laget for å ligge i nettleseren,
+// og tilgangen styres av radreglene i databasen (hver bruker ser bare sine egne rader).
+const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'web.config.json'), 'utf8'));
+const web = `<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coach</title>
+<meta name="description" content="Coach – mat, trening og fremgang.">
+<meta name="theme-color" content="#120e0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Coach">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+html, body { margin: 0; height: 100%; }
+#root { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
+[hidden] { display: none !important; }
+${src('styles.css')}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script>window.COACH_CONFIG = ${JSON.stringify({ url: cfg.supabaseUrl, key: cfg.supabaseAnonKey })};</script>
+<script>
+${src('logo.js')}
+</script>
+<script>
+${src('standalone.js')}
+</script>
+<script>
+${src('engine.js')}
+</script>
+<script>
+${src('core.js')}
+</script>
+<script>
+${src('app.js')}
+</script>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+</script>
+</body>
+</html>
+`;
+fs.mkdirSync(out('web'), { recursive: true });
+fs.writeFileSync(out('web', 'index.html'), web);
+fs.writeFileSync(out('web', 'manifest.webmanifest'), JSON.stringify({
+  name: 'Coach', short_name: 'Coach', start_url: './', scope: './', display: 'standalone',
+  background_color: '#000000', theme_color: '#120e0b', lang: 'nb',
+  icons: [
+    { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+    { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+  ]
+}, null, 2));
+// Enkel service worker: appen åpner raskt og virker uten nett for selve skallet; data hentes alltid fra Supabase.
+fs.writeFileSync(out('web', 'sw.js'), `const C = 'coach-${Date.now()}';
+self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['./', './index.html', './manifest.webmanifest', './icon-180.png']))); self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k))))); self.clients.claim(); });
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin) return;
+  e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(C).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
+});
+`);
+fs.writeFileSync(out('web', '.nojekyll'), '');
+console.log('dist/web/index.html', (web.length / 1024).toFixed(1) + ' KB');
