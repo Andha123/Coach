@@ -463,7 +463,8 @@
     });
     document.querySelectorAll('#tabs button').forEach(function (b) { if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     try { localStorage.setItem('pt.view', view); } catch (e) {}
-    if (!silent && location.hash.slice(1) !== view) { try { history.replaceState(null, '', '#' + view); } catch (e) {} }
+    /* I appen på hjemskjermen endres ikke adressen: på iPhone nullstiller en endret adresse kameratillatelsen (WebKit-feil 215884). */
+    if (!silent && !window.COACH_STANDALONE && location.hash.slice(1) !== view) { try { history.replaceState(null, '', '#' + view); } catch (e) {} }
     if (view === 'chat') scrollChat(true);
   }
 
@@ -1818,6 +1819,19 @@
   }
   /* Direkte kamera: video i appen, leser strekkoden fortløpende og lukker seg når den finner en kode.
    * Faller tilbake til å ta bilde hvis kameraet ikke er tilgjengelig her. */
+  /* Kameraet holdes varmt et lite øyeblikk etter skanning, så neste skann starter med en gang og uten ny spørsmål om tillatelse. */
+  var camStream = null, camTimer = null;
+  function camLive() { return camStream && camStream.getVideoTracks().some(function (t) { return t.readyState === 'live'; }); }
+  function getCamera() {
+    clearTimeout(camTimer);
+    if (camLive()) return Promise.resolve(camStream);
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }).then(function (st) { camStream = st; return st; });
+  }
+  function releaseCamera(ms) {
+    clearTimeout(camTimer);
+    camTimer = setTimeout(function () { if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; } }, ms === undefined ? 45000 : ms);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') releaseCamera(0); });
   function openLiveScanner(onCode, onFallback) {
     var ov = document.createElement('div');
     ov.className = 'scanner';
@@ -1826,11 +1840,11 @@
       '<div class="scanbot"><div class="scanhint">Hold strekkoden inne i rammen</div><button class="btn" data-photo>Ta bilde i stedet</button></div>';
     document.body.appendChild(ov);
     var video = ov.querySelector('video'), stream = null, alive = true, timer = null;
-    function stop() { alive = false; clearTimeout(timer); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
+    function stop() { alive = false; clearTimeout(timer); try { video.pause(); video.srcObject = null; } catch (e) {} if (stream) releaseCamera(); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
     ov.querySelector('[data-x]').onclick = stop;
     ov.querySelector('[data-photo]').onclick = function () { stop(); onFallback(); };
-    navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }).then(async function (st) {
-      if (!alive) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
+    getCamera().then(async function (st) {
+      if (!alive) { releaseCamera(); return; }
       stream = st; video.srcObject = st;
       try { await video.play(); } catch (e) { /* iOS starter etter brukerhandling */ }
       var det = null, Z = null, reader = null, cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });

@@ -1016,7 +1016,7 @@ em.du { color: #8fe0a8; } em.dd { color: #ffab8f; } em.dz { color: var(--ink-3);
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793683666493';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793704783081';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -3271,7 +3271,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     });
     document.querySelectorAll('#tabs button').forEach(function (b) { if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     try { localStorage.setItem('pt.view', view); } catch (e) {}
-    if (!silent && location.hash.slice(1) !== view) { try { history.replaceState(null, '', '#' + view); } catch (e) {} }
+    /* I appen på hjemskjermen endres ikke adressen: på iPhone nullstiller en endret adresse kameratillatelsen (WebKit-feil 215884). */
+    if (!silent && !window.COACH_STANDALONE && location.hash.slice(1) !== view) { try { history.replaceState(null, '', '#' + view); } catch (e) {} }
     if (view === 'chat') scrollChat(true);
   }
 
@@ -4626,6 +4627,19 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
   /* Direkte kamera: video i appen, leser strekkoden fortløpende og lukker seg når den finner en kode.
    * Faller tilbake til å ta bilde hvis kameraet ikke er tilgjengelig her. */
+  /* Kameraet holdes varmt et lite øyeblikk etter skanning, så neste skann starter med en gang og uten ny spørsmål om tillatelse. */
+  var camStream = null, camTimer = null;
+  function camLive() { return camStream && camStream.getVideoTracks().some(function (t) { return t.readyState === 'live'; }); }
+  function getCamera() {
+    clearTimeout(camTimer);
+    if (camLive()) return Promise.resolve(camStream);
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }).then(function (st) { camStream = st; return st; });
+  }
+  function releaseCamera(ms) {
+    clearTimeout(camTimer);
+    camTimer = setTimeout(function () { if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; } }, ms === undefined ? 45000 : ms);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') releaseCamera(0); });
   function openLiveScanner(onCode, onFallback) {
     var ov = document.createElement('div');
     ov.className = 'scanner';
@@ -4634,11 +4648,11 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       '<div class="scanbot"><div class="scanhint">Hold strekkoden inne i rammen</div><button class="btn" data-photo>Ta bilde i stedet</button></div>';
     document.body.appendChild(ov);
     var video = ov.querySelector('video'), stream = null, alive = true, timer = null;
-    function stop() { alive = false; clearTimeout(timer); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
+    function stop() { alive = false; clearTimeout(timer); try { video.pause(); video.srcObject = null; } catch (e) {} if (stream) releaseCamera(); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
     ov.querySelector('[data-x]').onclick = stop;
     ov.querySelector('[data-photo]').onclick = function () { stop(); onFallback(); };
-    navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }).then(async function (st) {
-      if (!alive) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
+    getCamera().then(async function (st) {
+      if (!alive) { releaseCamera(); return; }
       stream = st; video.srcObject = st;
       try { await video.play(); } catch (e) { /* iOS starter etter brukerhandling */ }
       var det = null, Z = null, reader = null, cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
