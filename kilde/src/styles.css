@@ -854,3 +854,41 @@ nav.tabs { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; }
 .xpgroups button { flex: none; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
 .xpgroups button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .expicker .list .li { padding-block: 10px; }
+
+/* Øvelsesbilder: lyse strektegninger på varm, mørk glassflate + muskelkart */
+.exthumb { width: 56px; height: 44px; flex: none; border-radius: 12px; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(120% 120% at 30% 15%, #4a3222 0%, #2a1d15 55%, #1b140f 100%); border: 1px solid rgba(255, 220, 190, .12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+.exthumb.sm { width: 48px; height: 38px; border-radius: 11px; }
+.exthumb img { width: 100%; height: 100%; object-fit: contain; padding: 2px; box-sizing: border-box; }
+.exthumb.map .bodymap { height: 88%; width: auto; }
+.exthumb.ph svg { width: 22px; height: 22px; stroke: var(--ink-3); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+.thumbbtn { flex: none; padding: 0; border: 0; background: none; border-radius: 12px; cursor: pointer; }
+.exhead { gap: 10px; }
+.exthumbwrap { position: relative; flex: none; }
+.exthumbwrap .exok { position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; font-size: 11px; box-shadow: 0 0 0 2px var(--bg); }
+.bodymap .mb { fill: rgba(255, 244, 232, .13); }
+.bodymap .mh { fill: rgba(255, 244, 232, .07); }
+.bodymap .ms { fill: rgba(244, 162, 97, .42); }
+.bodymap .mp { fill: #f4a261; filter: drop-shadow(0 0 2px rgba(244, 162, 97, .55)); }
+.exart { position: relative; border-radius: 22px; overflow: hidden; min-height: 190px; display: flex; align-items: stretch;
+  background: radial-gradient(110% 90% at 25% 10%, #4d3423 0%, #2b1e16 50%, #18120e 100%); border: 1px solid rgba(255, 220, 190, .14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 18px 40px rgba(0, 0, 0, .35); }
+.exframes { position: relative; flex: 1; min-height: 190px; }
+.exframes img { position: absolute; inset: 14px 10px 14px 14px; width: calc(100% - 24px); height: calc(100% - 28px); object-fit: contain; }
+.exframes img.b { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .exframes img.b { animation: exMove 2.6s cubic-bezier(.45, 0, .55, 1) infinite; }
+  .exframes img:not(.b) { animation: exMove 2.6s cubic-bezier(.45, 0, .55, 1) infinite reverse; }
+  @keyframes exMove { 0%, 30% { opacity: 0; } 50%, 80% { opacity: 1; } 100% { opacity: 0; } }
+}
+@media (prefers-reduced-motion: reduce) { .exframes img:not(.b) { opacity: 1; } }
+.exmapbox { width: 34%; flex: none; display: grid; place-items: center; padding: 12px 12px 12px 0; }
+.exmapbox .bodymap { width: 100%; height: auto; max-height: 170px; }
+.exmapbox.solo { width: 100%; padding: 16px; }
+.exmapbox.solo .bodymap { max-width: 260px; max-height: 210px; }
+.exmus { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-2); padding: 0 2px; }
+.exmus span { display: inline-flex; align-items: center; gap: 6px; }
+.exmus i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.exmus i.mp { background: #f4a261; }
+.exmus i.ms { background: rgba(244, 162, 97, .42); }
+.exthumb.lg { width: 76px; height: 58px; border-radius: 14px; }
+.xprev { flex: none; display: block; border-radius: 14px; }

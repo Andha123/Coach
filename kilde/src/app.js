@@ -324,6 +324,11 @@
       '<nav class="tabs" id="tabs">' + tabs.map(function (t) { return '<button data-view="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>' +
       '</div><div id="sheetHost"></div><div id="toastHost"></div>';
 
+    document.addEventListener('error', function (e) {
+      var t = e.target; if (!t || t.tagName !== 'IMG') return;
+      var th = t.closest('.exthumb'); if (th) { th.className = th.className.replace('art', 'ph'); th.innerHTML = DUMBBELL; return; }
+      var fr = t.closest('.exframes'); if (fr) { var box = fr.parentNode; fr.remove(); var mb = box.querySelector('.exmapbox'); if (mb) mb.classList.add('solo'); }
+    }, true);
     try {
       var encQ = false;
       new MutationObserver(function () { if (encQ) return; encQ = true; requestAnimationFrame(function () { encQ = false; enhanceSelects(document); }); }).observe(document.body, { childList: true, subtree: true });
@@ -2764,10 +2769,10 @@
       if (e.folded) {
         var done = e.sets.filter(function (x) { return String(x.w).trim() || String(x.r).trim(); });
         return '<div class="exrow folded" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><button type="button" class="exfold" data-lg="fold" aria-expanded="false" aria-label="Åpne ' + esc(e.name) + '">' +
-          '<span class="exok" aria-hidden="true">✓</span><span class="exft"><b>' + esc(e.name || 'Øvelse') + '</b><span>' + (done.length ? done.length + ' sett · ' + esc(done.map(function (x) { return (String(x.w).trim().replace('.', ',') || '–') + ' × ' + (String(x.r).trim().replace('.', ',') || '–'); }).join(', ')) : 'Ingen sett') + '</span></span>' +
+          '<span class="exthumbwrap">' + exThumb(e.name, 'sm') + '<span class="exok" aria-hidden="true">✓</span></span><span class="exft"><b>' + esc(e.name || 'Øvelse') + '</b><span>' + (done.length ? done.length + ' sett · ' + esc(done.map(function (x) { return (String(x.w).trim().replace('.', ',') || '–') + ' × ' + (String(x.r).trim().replace('.', ',') || '–'); }).join(', ')) : 'Ingen sett') + '</span></span>' +
           '<span class="exfv">' + (setsVolume(e.sets) ? kgTxt(setsVolume(e.sets)) : '') + '</span>' + CHEV_D + '</button></div>';
       }
-      return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
+      return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {};
@@ -2848,6 +2853,49 @@
   /* ---------- Øvelsesbank ---------- */
   var EXLIB = window.COACH_EXERCISES || { list: [], groups: {}, splitGroups: {} };
   function libKeys(x) { return [x.name].concat(x.aliases).map(exKey); }
+  /* Bilde av øvelsen: finn øvelsen i banken ut fra navnet (også dine egne navn og skrivemåter). */
+  var IMG_BASE = window.COACH_STANDALONE ? 'ex/' : 'https://andha123.github.io/Coach/ex/';
+  /* Muskelkart forfra og bakfra; musklene øvelsen trener lyser i Coach-oransje. */
+  function bodySvg(x, mode) {
+    var pri = {}, sec = {}, B = EXLIB.body || { front: [], back: [] };
+    ((x && x.muscles && x.muscles[0]) || []).forEach(function (m) { pri[m] = 1; });
+    ((x && x.muscles && x.muscles[1]) || []).forEach(function (m) { sec[m] = 1; });
+    function side(arr) { return arr.map(function (m) { var c = pri[m[0]] ? 'mp' : sec[m[0]] ? 'ms' : /HEAD|KNEES|NECK/.test(m[0]) ? 'mh' : 'mb'; return m[1].map(function (pts) { return '<polygon class="' + c + '" points="' + pts + '"/>'; }).join(''); }).join(''); }
+    function score(arr) { return arr.reduce(function (a, m) { return a + (pri[m[0]] ? 2 : sec[m[0]] ? 1 : 0); }, 0); }
+    if (mode === 'one') return '<svg class="bodymap" viewBox="0 0 100 200" aria-hidden="true">' + side(score(B.back) > score(B.front) ? B.back : B.front) + '</svg>';
+    return '<svg class="bodymap" viewBox="0 0 215 200" aria-hidden="true"><g>' + side(B.front) + '</g><g transform="translate(115 0)">' + side(B.back) + '</g></svg>';
+  }
+  function musclesTxt(x) {
+    var N = EXLIB.muscleNames || {};
+    function names(a) { var seen = {}; return (a || []).map(function (m) { return N[m] || m; }).filter(function (n) { if (seen[n]) return false; seen[n] = 1; return true; }).join(', '); }
+    return x && x.muscles ? '<div class="exmus"><span><i class="mp"></i>' + esc(names(x.muscles[0])) + '</span>' + ((x.muscles[1] || []).length ? '<span><i class="ms"></i>' + esc(names(x.muscles[1])) + '</span>' : '') + '</div>' : '';
+  }
+  function exArtCard(x) {
+    if (!x) return '';
+    return '<div class="exart">' + (x.art ? '<div class="exframes"><img src="' + IMG_BASE + 'ek' + x.art + 'a.webp" alt="' + esc(x.name) + ', start"><img class="b" src="' + IMG_BASE + 'ek' + x.art + 'b.webp" alt="' + esc(x.name) + ', slutt"></div>' : '') +
+      '<div class="exmapbox' + (x.art ? '' : ' solo') + '">' + bodySvg(x) + '</div></div>' + musclesTxt(x);
+  }
+  var libByKey = null, libCache = {};
+  function libFor(name) {
+    if (!name) return null;
+    if (libCache.hasOwnProperty(name)) return libCache[name];
+    if (!libByKey) {
+      libByKey = {};
+      EXLIB.list.forEach(function (x) { var k = exKey(x.name); if (k && !libByKey[k]) libByKey[k] = x; });
+      EXLIB.list.forEach(function (x) { x.aliases.forEach(function (a) { var k = exKey(a); if (k && !libByKey[k]) libByKey[k] = x; }); });
+    }
+    var hit = libByKey[exKey(name)] || null;
+    if (!hit) { var r = libSearch(name, ''); hit = r.length ? r[0] : null; }
+    libCache[name] = hit;
+    return hit;
+  }
+  var DUMBBELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>';
+  function exThumb(name, cls) {
+    var x = libFor(name);
+    if (x && x.art) return '<span class="exthumb art ' + (cls || '') + '"><img src="' + IMG_BASE + 'ek' + x.art + 't.webp" alt="" loading="lazy" decoding="async"></span>';
+    if (x) return '<span class="exthumb map ' + (cls || '') + '">' + bodySvg(x, 'one') + '</span>';
+    return '<span class="exthumb ph ' + (cls || '') + '">' + DUMBBELL + '</span>';
+  }
   function ownKeys() { var m = {}; S.workouts.forEach(function (w) { (w.exercises || []).forEach(function (e) { var k = exKey(e.name); if (k) m[k] = 1; }); }); return m; }
   function splitSuggestions(split, cat) {
     var groups = EXLIB.splitGroups[split] || [], have = ownKeys();
@@ -2884,12 +2932,23 @@
     var row = $('.logger .exrow[data-key="' + k.replace(/"/g, '') + '"]');
     if (row) { row.classList.add('flash'); scrollInView(row); }
   }
-  function openExercisePicker(split) {
+  /* Stor visning av en øvelse fra søket: tegning som veksler mellom start og slutt, og musklene den trener. */
+  function openExPreview(name, back) {
+    var x = libFor(name), last = lastFor(name);
+    openSheet(name, function (body) {
+      body.innerHTML = '<div class="stack">' + (x ? exArtCard(x) : '') +
+        (last ? '<div class="small muted">Sist: ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + '</div>' : '') +
+        '<div class="row"><button class="btn primary grow" id="xv_add">Legg til i økta</button><button class="btn ghost" id="xv_back">Tilbake</button></div></div>';
+      $('#xv_add').onclick = function () { closeSheet(); setTimeout(function () { addExercise(name.charAt(0).toUpperCase() + name.slice(1)); }, 230); };
+      $('#xv_back').onclick = function () { closeSheet(); if (back) setTimeout(back, 230); };
+    });
+  }
+  function openExercisePicker(split, initialQ) {
     var group = '', groups = Object.keys(EXLIB.groups);
     openSheet('Legg til øvelse', function (body) {
       body.innerHTML = '<div class="stack expicker"><input class="input" id="xp_q" type="search" enterkeyhint="search" placeholder="Søk, f.eks. knebøy, roing eller curl" autocomplete="off">' +
         '<div class="xpgroups" role="group">' + ['<button type="button" data-g="" aria-pressed="true">Alle</button>'].concat(groups.map(function (g) { return '<button type="button" data-g="' + g + '" aria-pressed="false">' + esc(EXLIB.groups[g]) + '</button>'; })).join('') + '</div>' +
-        '<div id="xp_res"></div></div>';
+        '<div id="xp_res"></div><p class="small faint" style="margin:6px 2px 0">Tegninger: <a href="https://github.com/everkinetic/data" target="_blank" rel="noopener">Everkinetic</a> (CC BY-SA 4.0), fargelagt for Coach. Muskelkart: react-body-highlighter (MIT).</p></div>';
       var res = $('#xp_res'), d = loadDraft(), inDraft = {};
       d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
       function run() {
@@ -2907,16 +2966,17 @@
         var exact = ownList.concat(lib.map(function (x) { return x.name; })).some(function (n) { return C.norm(n) === nq; });
         res.innerHTML = (ownList.length ? '<div class="fhead">Dine øvelser</div><div class="list">' + ownList.slice(0, 30).map(function (n) {
             var l = lastFor(n), t = l ? topSet(l.sets) : null, on = inDraft[exKey(n)];
-            return '<button type="button" class="li" data-xn="' + esc(n) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(n) + '</div><div class="t2">' + (t ? 'Sist ' + esc(setTxt(t)) + ' · ' + esc(shortDate(l.date)) : 'Ingen tall ennå') + '</div></div></button>';
+            return '<button type="button" class="li" data-xn="' + esc(n) + '"><span class="xprev" data-xprev="' + esc(n) + '">' + exThumb(n, 'lg') + '</span><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(n) + '</div><div class="t2">' + (t ? 'Sist ' + esc(setTxt(t)) + ' · ' + esc(shortDate(l.date)) : 'Ingen tall ennå') + '</div></div></button>';
           }).join('') + '</div>' : '') +
           (lib.length ? '<div class="fhead">Øvelsesbanken</div><div class="list">' + lib.slice(0, 60).map(function (x) {
             var on = inDraft[exKey(x.name)];
-            return '<button type="button" class="li" data-xn="' + esc(x.name) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(x.name) + '</div><div class="t2">' + esc(EXLIB.groups[x.group] + (x.aliases[0] ? ' · ' + x.aliases[0] : '')) + '</div></div></button>';
+            return '<button type="button" class="li" data-xn="' + esc(x.name) + '"><span class="xprev" data-xprev="' + esc(x.name) + '">' + exThumb(x.name, 'lg') + '</span><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(x.name) + '</div><div class="t2">' + esc(EXLIB.groups[x.group] + (x.aliases[0] ? ' · ' + x.aliases[0] : '')) + '</div></div></button>';
           }).join('') + '</div>' : '') +
           (q && !exact ? '<button type="button" class="btn ownbtn" data-xn="' + esc(q) + '">Legg til <b>«' + esc(q) + '»</b> som egen øvelse</button>' : '') +
           (!q && !ownList.length && !lib.length ? '<p class="small muted">Ingen øvelser i denne gruppen.</p>' : '');
-        res.querySelectorAll('[data-xn]').forEach(function (b) { b.onclick = function () {
+        res.querySelectorAll('[data-xn]').forEach(function (b) { b.onclick = function (ev) {
           var n = b.dataset.xn;
+          if (ev.target.closest('[data-xprev]')) { var qv = $('#xp_q').value; closeSheet(); setTimeout(function () { openExPreview(n, function () { openExercisePicker(split, qv); }); }, 230); return; }
           if (inDraft[exKey(n)]) { toast(n + ' er allerede med i økta'); return; }
           closeSheet(); setTimeout(function () { addExercise(n.charAt(0).toUpperCase() + n.slice(1)); }, 230);
         }; });
@@ -2924,6 +2984,7 @@
       body.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function () { group = b.dataset.g; body.querySelectorAll('[data-g]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); run(); }; });
       ['input', 'search'].forEach(function (ev) { $('#xp_q').addEventListener(ev, run); });
       $('#xp_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+      if (initialQ) $('#xp_q').value = initialQ;
       if (split && EXLIB.splitGroups[split]) { var first = EXLIB.splitGroups[split][0]; var fb = body.querySelector('[data-g="' + first + '"]'); if (fb && !knownExercises().length) fb.click(); }
       run();
     });
@@ -2975,14 +3036,15 @@
   function openExHistory(name) {
     var d = loadDraft();
     openSheet(name, function (body) {
-      var hist = exHistory(name, d.editId);
-      if (!hist.length) { body.innerHTML = '<p class="small muted">Ingen tidligere tall for denne øvelsen.</p>'; return; }
+      var hist = exHistory(name, d.editId), lx = libFor(name);
+      var pics = lx ? exArtCard(lx) + (C.norm(lx.name) !== C.norm(name) ? '<p class="small faint" style="margin:-6px 2px 0">Vist som ' + esc(lx.name) + '</p>' : '') : '';
+      if (!hist.length) { body.innerHTML = '<div class="stack">' + pics + '<p class="small muted">Ingen tidligere tall for denne øvelsen.</p></div>'; return; }
       var last = hist[0], lt = topSet(last.sets), best = null, bestE = 0;
       hist.forEach(function (h) { h.top = topSet(h.sets); h.e = h.top && h.top.weightKg && h.top.reps ? E.e1rm(h.top.weightKg, h.top.reps) || 0 : 0; if (h.e > bestE) { bestE = h.e; best = h; } });
       var pts = hist.slice(0, 10).reverse(), mx = Math.max.apply(null, pts.map(function (h) { return h.e; }).concat([1]));
       var draftEx = d.exercises.find(function (e) { return exKey(e.name) === exKey(name); });
       var names = {}; hist.forEach(function (h) { names[h.name] = 1; });
-      body.innerHTML = '<div class="stack">' +
+      body.innerHTML = '<div class="stack">' + pics +
         '<div class="tiles exhtiles"><div class="tile"><div class="k">Sist</div><div class="v">' + esc(lt ? setTxt(lt) : '–') + '</div><div class="t">' + esc(shortDate(last.date)) + '</div></div>' +
         '<div class="tile"><div class="k">Beste</div><div class="v">' + esc(best ? setTxt(best.top) : '–') + '</div><div class="t">' + (best ? esc(shortDate(best.date)) : '') + '</div></div>' +
         '<div class="tile"><div class="k">Est. 1RM</div><div class="v">' + (bestE ? fmt(bestE, 0) + '<small>kg</small>' : '–') + '</div><div class="t">' + hist.length + ' økter</div></div></div>' +
