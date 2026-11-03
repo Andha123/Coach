@@ -343,19 +343,23 @@
       function full() { var portrait = window.innerWidth < window.innerHeight; return Math.max(window.innerHeight, underStatusBar && portrait && window.screen ? window.screen.height : 0); }
       var maxH = full();
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
+      function rootH() { return root.getBoundingClientRect().height; }
       function fix() {
         if (typing()) return;
         maxH = Math.max(maxH, full());
-        /* iOS 26.0 regner av og til faste flater for lave; vi setter høyden selv, så appen alltid går helt ned. */
-        var want = Math.round(maxH) + 'px';
-        if (window.innerHeight < maxH - 4) {
+        /* Appen skal alltid dekke hele skjermen. Er den lavere (WebKit-feil etter tastaturet), tvinger vi en ny
+         * måling, og hjelper ikke det, setter vi høyden selv. */
+        if (rootH() < maxH - 4 || window.innerHeight < maxH - 4) {
           var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
-          root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
+          root.style.display = 'none'; document.body.style.display = 'none'; void document.body.offsetHeight;
+          document.body.style.display = ''; root.style.display = ''; void root.offsetHeight;
           sc.forEach(function (x) { x[0].scrollTop = x[1]; });
           resetPageScroll();
+          if (rootH() < maxH - 4) { root.style.height = Math.round(maxH) + 'px'; root.style.bottom = 'auto'; }
         }
-        if (root.style.height !== want) { root.style.height = want; root.style.bottom = 'auto'; }
       }
+      window.coachViewport = function () { return { inner: window.innerHeight, screen: window.screen && window.screen.height, root: Math.round(rootH()), max: Math.round(maxH), vv: window.visualViewport ? Math.round(window.visualViewport.height) : null }; };
+      setInterval(function () { if (document.visibilityState === 'visible' && !typing() && rootH() < maxH - 4) fix(); }, 1500);
       var t = null;
       function later(ms) { clearTimeout(t); t = setTimeout(fix, ms || 160); }
       window.addEventListener('resize', function () { if (!typing()) maxH = Math.max(maxH, window.innerHeight); later(); });
@@ -3283,9 +3287,9 @@
       '<div class="small muted">Prikker: enkeltveiinger. Linje: 7-dagers snitt (nå ' + fmt(last.avg, 1) + ' kg).</div></div>';
   }
   function weekRows() {
-    var rows = [], end = today();
+    var rows = [];
     for (var w = 0; w < 6; w++) {
-      var to = C.addDays(end, -7 * w), from = C.addDays(to, -6);
+      var pr0 = periodRange('uke', w), from = pr0.from, to = pr0.to < today() ? pr0.to : today();
       var kc = [], pr = [], est = 0;
       for (var i = 0; i < 7; i++) { var ds = C.addDays(from, i), d = S.days.get(ds); if (d && d.meals && d.meals.length) { var t = E.dayTotals(d); kc.push(t.values.kcal); pr.push(t.values.protein); est += t.estimated; } }
       var ws = S.weights.filter(function (x) { return x.date >= from && x.date <= to; });
@@ -3295,37 +3299,128 @@
     }
     return rows;
   }
+  /* ---------- Fremgang ----------
+   * Rolig og lett å lese: vekttrend øverst, denne uka mot målene, uke for uke som korte kort, og målene dine. */
+  function trendKgPerWeek(ra, days) {
+    if (ra.length < 2) return null;
+    var end = Date.parse(ra[ra.length - 1].date), pts = ra.filter(function (p) { return end - Date.parse(p.date) <= days * 864e5; });
+    if (pts.length < 2) return null;
+    var xs = pts.map(function (p) { return (Date.parse(p.date) - end) / 6048e5; }), ys = pts.map(function (p) { return p.avg; });
+    var mx = xs.reduce(function (a, b) { return a + b; }, 0) / xs.length, my = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+    var num = 0, den = 0; xs.forEach(function (x, i) { num += (x - mx) * (ys[i] - my); den += (x - mx) * (x - mx); });
+    return den ? num / den : null;
+  }
+  function weightCard() {
+    var range = S.wRange || 90, all = S.weights.slice();
+    var p = S.profile || {};
+    var head = '<div class="row"><h3 class="grow" style="margin:0">Vekt</h3><button type="button" class="btn sm primary" id="pg_addw">+ Registrer vekt</button></div>';
+    if (!all.length) return '<div class="section">' + head + '<div class="gcard pgempty"><p class="small muted" style="margin:0">Veie deg et par ganger i uka, gjerne om morgenen, så ser du trenden her. Ett snitt over flere dager sier mer enn én veiing.</p></div></div>';
+    var cut = range ? C.addDays(today(), -range) : '0000-00-00';
+    var pts = all.filter(function (w) { return w.date >= cut; }); if (pts.length < 2) pts = all.slice(-2);
+    var ra = E.rollingAvg(pts, 7), last = ra[ra.length - 1], first = ra[0];
+    var change = last.avg - first.avg, rate = trendKgPerWeek(E.rollingAvg(all, 7), 28);
+    var goalDir = p.goalType === 'fettreduksjon' ? -1 : p.goalType === 'muskelvekst' ? 1 : 0;
+    var good = goalDir === 0 ? Math.abs(change) < 0.6 : change * goalDir > 0;
+    /* Graf */
+    var W = 340, H = 150, pl = 6, pr = 6, pt = 14, pb = 18;
+    var t0 = Date.parse(ra[0].date), t1 = Math.max(t0 + 864e5, Date.parse(last.date));
+    var ys = ra.map(function (q) { return q.kg; }).concat(ra.map(function (q) { return q.avg; }));
+    var lo = Math.min.apply(null, ys) - 0.4, hi = Math.max.apply(null, ys) + 0.4;
+    function X(d) { return pl + (Date.parse(d) - t0) / (t1 - t0) * (W - pl - pr); }
+    function Y(v) { return pt + (hi - v) / (hi - lo) * (H - pt - pb); }
+    var line = ra.map(function (q, i) { return (i ? 'L' : 'M') + X(q.date).toFixed(1) + ' ' + Y(q.avg).toFixed(1); }).join(' ');
+    var area = line + ' L' + X(last.date).toFixed(1) + ' ' + (H - pb) + ' L' + X(ra[0].date).toFixed(1) + ' ' + (H - pb) + ' Z';
+    var dots = ra.map(function (q) { return '<circle cx="' + X(q.date).toFixed(1) + '" cy="' + Y(q.kg).toFixed(1) + '" r="2.2" class="wdot"/>'; }).join('');
+    var lbl = function (d) { return shortDate(d); };
+    var chart = ra.length > 1 ? '<svg class="wchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Vekt, 7-dagers snitt"><defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4a261" stop-opacity=".35"/><stop offset="1" stop-color="#f4a261" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + area + '" fill="url(#wg)"/>' + dots + '<path d="' + line + '" fill="none" stroke="#f4a261" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="' + X(last.date).toFixed(1) + '" cy="' + Y(last.avg).toFixed(1) + '" r="5" fill="#f4a261" stroke="#1b140f" stroke-width="2"/>' +
+      '<text x="' + pl + '" y="' + (H - 3) + '" class="wlbl">' + lbl(ra[0].date) + '</text><text x="' + (W - pr) + '" y="' + (H - 3) + '" class="wlbl" text-anchor="end">' + lbl(last.date) + '</text>' +
+      '<text x="' + (W - pr) + '" y="10" class="wlbl" text-anchor="end">' + fmt(hi - 0.4, 1) + '</text></svg>' : '';
+    return '<div class="section">' + head +
+      '<div class="gcard pgweight"><div class="pgw-top"><div><span class="pgk">Snitt siste 7 dager</span><div class="pgbig">' + fmt(last.avg, 1) + '<small>kg</small></div></div>' +
+      '<div class="pgw-side"><span class="pgchip ' + (Math.abs(change) < 0.05 ? '' : good ? 'ok' : 'warn') + '">' + (change > 0 ? '+' : change < 0 ? '−' : '±') + fmt(Math.abs(change), 1) + ' kg</span><span class="pgk">' + (range ? 'siste ' + (range >= 60 ? Math.round(range / 30) + ' mnd' : range + ' dager') : 'totalt') + '</span>' +
+      (rate !== null ? '<span class="pgk">' + (rate > 0 ? '+' : rate < 0 ? '−' : '') + fmt(Math.abs(rate), 2) + ' kg per uke</span>' : '') + '</div></div>' + chart +
+      '<div class="seg pgrange" role="group" aria-label="Periode">' + [[30, '1 mnd'], [90, '3 mnd'], [180, '6 mnd'], [0, 'Alt']].map(function (x) { return '<button type="button" data-wr="' + x[0] + '" aria-pressed="' + (range === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<p class="small faint" style="margin:0">Linjen er snittet av de siste 7 dagene, prikkene er hver veiing. Sist veid ' + esc(shortDate(all[all.length - 1].date)) + ': ' + fmt(all[all.length - 1].kg, 1) + ' kg.</p></div></div>';
+  }
+  function weekSummary() {
+    var r = periodRange('uke', 0), tg = targets(), p = S.profile || {};
+    var kc = [], pr = [];
+    for (var ds = r.from; ds <= r.to && ds <= today(); ds = C.addDays(ds, 1)) { var d = S.days.get(ds); if (d && d.meals && d.meals.length) { var t = E.dayTotals(d); kc.push(t.values.kcal); pr.push(t.values.protein); } }
+    function avg(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; }
+    var ak = avg(kc), ap = avg(pr), ss = sessionStats(strengthSessions(r));
+    function bar(label, val, target, unit) {
+      var pct = val !== null && target ? Math.min(100, val / target * 100) : 0, diff = val !== null && target ? val - target : null;
+      return '<div class="pgbar"><div class="pgbl"><span>' + label + '</span><b>' + (val !== null ? fmt(val) : '–') + '<small> / ' + (target ? fmt(target) : '–') + ' ' + unit + '</small></b></div><div class="pgbt"><i style="width:' + pct + '%"></i></div>' +
+        (diff !== null ? '<div class="pgbn">' + (Math.abs(diff) < target * 0.05 ? 'Treffer målet' : (diff > 0 ? fmt(diff) + ' ' + unit + ' over i snitt' : fmt(-diff) + ' ' + unit + ' under i snitt')) + '</div>' : '') + '</div>';
+    }
+    return '<div class="section"><h3>Denne uka</h3><div class="gcard pgweek">' +
+      bar('Kalorier per dag', ak, tg.kcal, 'kcal') + bar('Protein per dag', ap, tg.protein, 'g') +
+      '<div class="pgmini"><div><b>' + kc.length + '<small>/7</small></b><span>dager logget</span></div><div><b>' + ss.n + '</b><span>styrkeøkter</span></div><div><b>' + (ss.vol ? kgTxt(ss.vol) : '–') + '</b><span>løftet</span></div></div></div></div>';
+  }
+  function weeksList() {
+    var rows = weekRows(), gt = (S.profile || {}).goalType, goalDir = gt === 'fettreduksjon' ? -1 : gt === 'muskelvekst' ? 1 : 0;
+    return '<div class="section"><h3>Uke for uke</h3><div class="pgweeks">' + rows.map(function (r, i) {
+      var prev = rows[i + 1], dw = r.weight && prev && prev.weight ? r.weight - prev.weight : null;
+      return '<div class="pgwk"><div class="pgwk-h"><b>' + (i === 0 ? 'Denne uka' : i === 1 ? 'Forrige uke' : 'Uke ' + C.isoWeek(r.to).split('-U')[1]) + '</b><span>' + esc(shortDate(r.from) + '–' + shortDate(r.to)) + '</span></div>' +
+        '<div class="pgwk-g"><div><span>Vekt</span><b>' + (r.weight ? fmt(r.weight, 1) : '–') + '</b>' + (dw !== null ? '<em class="' + (Math.abs(dw) < 0.05 || !goalDir ? '' : dw * goalDir > 0 ? 'down' : 'up') + '">' + (dw > 0 ? '+' : dw < 0 ? '−' : '±') + fmt(Math.abs(dw), 1) + '</em>' : '') + '</div>' +
+        '<div><span>Kcal</span><b>' + (r.kcal ? fmt(r.kcal) : '–') + '</b><em>' + r.days + '/7 dager</em></div>' +
+        '<div><span>Protein</span><b>' + (r.protein ? fmt(r.protein) + '<small>g</small>' : '–') + '</b></div>' +
+        '<div><span>Økter</span><b>' + r.workouts + '</b></div></div></div>';
+    }).join('') + '</div></div>';
+  }
+  function goalsCard() {
+    var p = S.profile || {}, plan = S.plan, t = plan && plan.ok ? plan.targets : null, rec = plan && plan.ok ? plan.recommendation : null;
+    var G = { fettreduksjon: 'Gå ned i vekt og behold musklene', vedlikehold: 'Holde vekten', muskelvekst: 'Gå opp i vekt og bygg muskler' };
+    function chip(k, v, u, cls) { return '<div class="pggoal ' + (cls || '') + '"><span>' + k + '</span><b>' + (v ? fmt(v) : '–') + '<small>' + u + '</small></b></div>'; }
+    var differs = t && p.kcalTarget && Math.abs(t.kcal - p.kcalTarget) >= 50;
+    return '<div class="section"><div class="row"><h3 class="grow" style="margin:0">Dine mål</h3><button type="button" class="btn sm" data-calc="1">Endre</button></div>' +
+      '<div class="gcard pggoals"><div class="small muted" style="margin:0 0 10px">' + esc(p.goal || G[p.goalType] || 'Ingen mål satt ennå') + '</div><div class="pggoalgrid">' +
+      chip('Kalorier', p.kcalTarget, '', 'kcal') + chip('Protein', p.proteinTarget, 'g', 'prot') + chip('Karbo', p.carbTarget, 'g', 'carb') + chip('Fett', p.fatTarget, 'g', 'fat') + chip('Fiber', p.fiberTarget, 'g', 'fib') + '</div>' +
+      (rec && (rec.action === 'øk' || rec.action === 'reduser') ? '<div class="notice small" style="margin-top:10px">Vekttrenden de siste ukene tilsier ' + (rec.deltaKcal > 0 ? '+' : '') + rec.deltaKcal + ' kcal per dag. Trykk «Endre» hvis du vil justere.</div>' :
+        differs ? '<div class="small faint" style="margin-top:10px">Kalkulatoren regner nå ut ' + fmt(t.kcal) + ' kcal ut fra vekten og aktiviteten din. Trykk «Endre» for å se.</div>' : '') +
+      (!p.kcalTarget ? '<button type="button" class="btn primary" data-calc="1" style="width:100%;margin-top:10px">Regn ut mine mål</button>' : '') + '</div></div>';
+  }
+  function waistCard() {
+    if (!S.measures.length) return '';
+    var last = S.measures[S.measures.length - 1], first = S.measures[0], d = last.waistCm - first.waistCm;
+    return '<div class="section"><h3>Midjemål</h3><div class="gcard pgwaist"><div><span class="pgk">Sist målt ' + esc(shortDate(last.date)) + '</span><div class="pgbig sm">' + fmt(last.waistCm, 1) + '<small>cm</small></div></div>' +
+      (S.measures.length > 1 ? '<span class="pgchip">' + (d > 0 ? '+' : d < 0 ? '−' : '±') + fmt(Math.abs(d), 1) + ' cm siden ' + esc(shortDate(first.date)) + '</span>' : '') + '</div></div>';
+  }
+  function openWeightSheet() {
+    var lastW = S.weights.length ? S.weights[S.weights.length - 1].kg : ((S.profile || {}).weightKg || 75), kg = lastW, date = today();
+    openSheet('Registrer vekt', function (body) {
+      body.innerHTML = '<div class="stack">' +
+        '<div class="onnum" style="margin-top:4px"><button type="button" class="onstep" data-d="-0.1" aria-label="Mindre">−</button><label class="onin"><input id="ws_kg" inputmode="decimal" value="' + esc(numStr(kg)) + '"><span>kg</span></label><button type="button" class="onstep" data-d="0.1" aria-label="Mer">+</button></div>' +
+        '<div class="seg afmt" role="group" aria-label="Dag">' + [[today(), 'I dag'], [C.addDays(today(), -1), 'I går']].map(function (x) { return '<button type="button" data-wd="' + x[0] + '" aria-pressed="' + (x[0] === date) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+        '<details class="cdet"><summary>Midjemål (valgfritt)</summary><div class="field" style="margin-top:8px"><label for="ws_waist">Midje i cm, målt i navlehøyde</label><input class="input" id="ws_waist" inputmode="decimal"></div></details>' +
+        '<p class="small faint" style="margin:0">Best: veie deg om morgenen, etter toalettbesøk og før frokost.</p>' +
+        '<div id="ws_msg"></div><button type="button" class="btn primary" id="ws_go" style="min-height:52px">Lagre</button></div>';
+      var inp = $('#ws_kg');
+      inp.addEventListener('input', function () { kg = E.num(inp.value); });
+      body.querySelectorAll('.onstep').forEach(function (b) { b.onclick = function () { kg = Math.round(((kg || lastW) + +b.dataset.d) * 10) / 10; inp.value = numStr(kg); }; });
+      body.querySelectorAll('[data-wd]').forEach(function (b) { b.onclick = function () { date = b.dataset.wd; body.querySelectorAll('[data-wd]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
+      $('#ws_go').onclick = async function () {
+        var waist = E.num($('#ws_waist').value);
+        if (!(kg > 25 && kg < 350)) { $('#ws_msg').innerHTML = '<div class="notice bad">Skriv inn vekten i kg.</div>'; return; }
+        try {
+          await C.logWeight(ctx, { date: date, kg: kg });
+          if (waist) await C.logMeasurement(ctx, { date: date, waist_cm: waist });
+          closeSheet(); toast('Lagret ' + fmt(kg, 1) + ' kg'); S.plan = null;
+        } catch (er) { $('#ws_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
+      };
+    });
+  }
   function renderProgress() {
     var v = $('#v-fremgang');
-    var rows = weekRows();
-    var lastWaist = S.measures.length ? S.measures[S.measures.length - 1] : null;
-    var firstWaist = S.measures.length > 1 ? S.measures[0] : null;
-    var html = '<div class="section"><h2 class="vh">Fremgang</h2>' +
-      '<form id="wf" class="card stack" novalidate style="gap:10px"><div class="wfgrid">' +
-      '<div class="field"><label for="wf_kg">Vekt (kg)</label><input class="input" id="wf_kg" inputmode="decimal" placeholder="kg"></div>' +
-      '<div class="field"><label for="wf_waist">Midje (cm)</label><input class="input" id="wf_waist" inputmode="decimal" placeholder="valgfritt"></div>' +
-      '<div class="field"><label for="wf_date">Dato</label><input class="input" id="wf_date" type="date" value="' + today() + '"></div></div>' +
-      '<button class="btn primary" type="submit">Lagre måling</button></form><div id="wf_msg"></div></div>' +
-      '<div class="section" id="planBox">' + planBoxHtml(S.plan) + '</div>' +
-      '<div class="section"><h3>Kroppsvekt</h3>' + weightChart(S.weights.slice(-90)) +
-      (lastWaist ? '<div class="small muted">Midjemål: <b>' + fmt(lastWaist.waistCm, 1) + ' cm</b> (' + esc(lastWaist.date) + ')' + (firstWaist ? ', endring ' + (lastWaist.waistCm - firstWaist.waistCm >= 0 ? '+' : '') + fmt(lastWaist.waistCm - firstWaist.waistCm, 1) + ' cm siden ' + esc(firstWaist.date) : '') + '</div>' : '') + '</div>' +
-      '<div class="section"><h3>Uke for uke</h3><div class="tbl"><table><thead><tr><th>Uke</th><th class="r">Dager logget</th><th class="r">Snitt kcal</th><th class="r">Snitt protein</th><th class="r">Vekt (snitt)</th><th class="r">Økter</th></tr></thead><tbody>' +
-      rows.map(function (r) { return '<tr><td>' + esc(new Date(r.from + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }) + '–' + new Date(r.to + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })) + '</td><td class="r">' + r.days + '/7</td><td class="r">' + fmt(r.kcal) + '</td><td class="r">' + fmt(r.protein) + '</td><td class="r">' + (r.weight ? fmt(r.weight, 1) : '–') + '</td><td class="r">' + r.workouts + '</td></tr>'; }).join('') +
-      '</tbody></table></div></div>';
+    var html = '<div class="section"><h2 class="vh">Fremgang</h2></div>' + weightCard() + weekSummary() + goalsCard() + waistCard() + weeksList();
     var changedP = setHTML(v, html);
     if (!S.plan && !S.planLoading) refreshPlan();
     if (!changedP) return;
-    bindPlanBox();
-    $('#wf').onsubmit = async function (e) {
-      e.preventDefault();
-      var kg = $('#wf_kg').value.trim(), waist = $('#wf_waist').value.trim(), date = $('#wf_date').value || today();
-      if (!kg && !waist) { $('#wf_msg').innerHTML = '<div class="notice bad">Fyll inn vekt eller midjemål.</div>'; return; }
-      try {
-        if (kg) await C.logWeight(ctx, { date: date, kg: E.num(kg) });
-        if (waist) await C.logMeasurement(ctx, { date: date, waist_cm: E.num(waist) });
-        toast('Lagret'); S.plan = null; renderProgress();
-      } catch (er) { $('#wf_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
-    };
+    v.querySelectorAll('[data-calc]').forEach(function (b) { b.onclick = openCalculator; });
+    v.querySelectorAll('[data-wr]').forEach(function (b) { b.onclick = function () { S.wRange = +b.dataset.wr; renderProgress(); }; });
+    var aw = $('#pg_addw'); if (aw) aw.onclick = openWeightSheet;
   }
 
   async function refreshPlan() {
@@ -3333,8 +3428,7 @@
     S.planLoading = true;
     try { S.plan = await C.targetPlan(ctx); } catch (e) { S.plan = { ok: false, error: e.message }; }
     S.planLoading = false;
-    var box = $('#planBox');
-    if (box) { box.innerHTML = planBoxHtml(S.plan); bindPlanBox(); }
+    if (S.view === 'fremgang') renderProgress();
   }
 
   function planBoxHtml(plan) {
@@ -3650,7 +3744,7 @@
         '<div id="sf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre profil</button></div></form>' +
         ((p.notes || []).length ? '<div class="section"><h3>Notater coachen tar hensyn til</h3><ul class="small">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="section"><h3>Garmin</h3>' + garminCard() + '</div>' +
-        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</p>' : '') + '</div>' : '') +
+        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (window.coachViewport ? (function () { var q = window.coachViewport(); return ' · skjerm ' + q.screen + ' / app ' + q.root + ' / vindu ' + q.inner; })() : '') + '</p>' : '') + '</div>' : '') +
         '<div class="section"><h3>Data og personvern</h3><p class="small muted">Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.</p>' +
         '<div class="row"><button class="btn" id="s_export">Eksporter alt (JSON)</button><button class="btn danger" id="s_wipe">Slett data …</button></div><div id="s_wipebox"></div></div>' +
         '<div class="section"><h3>Status</h3><dl class="kv small"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd><dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' + (S.toolsOk && S.toolMode !== 'json' ? ', med verktøy' : ', registrering via appen') : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + (S.assets ? ', lagres' : '') + '</dd><dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd><dt>Nettsøk</dt><dd>' + (S.browserAvail ? 'tilgjengelig via nettleseren i Claude-skrivebordsappen' : 'ikke tilgjengelig her. Åpne appen i Claude-skrivebordsappen for nettsøk; ellers brukes lagrede data, og ukjente varer merkes som estimat.') + '</dd></dl></div>' +

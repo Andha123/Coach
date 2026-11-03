@@ -51,11 +51,15 @@ const web = `<!doctype html>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<script>if (navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) document.documentElement.classList.add('standalone');</script>
 <style>
 html { height: 100%; background: #120e0b; overflow: hidden; overscroll-behavior: none; }
 body { margin: 0; height: 100%; min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 /* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
 #root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
+/* Som app på hjemskjermen: bruk største skjermhøyde, så en krympet visning (WebKit-feil) ikke gir stripe nederst */
+html.standalone #root { bottom: auto; height: 100vh; height: 100lvh; }
+html.standalone, html.standalone body { background: #120e0b; }
 [hidden] { display: none !important; }
 ${src('styles.css')}
 </style>
@@ -92,7 +96,7 @@ fs.mkdirSync(out('web'), { recursive: true });
 fs.writeFileSync(out('web', 'index.html'), web);
 fs.writeFileSync(out('web', 'manifest.webmanifest'), JSON.stringify({
   name: 'Coach', short_name: 'Coach', start_url: './', scope: './', display: 'standalone',
-  background_color: '#000000', theme_color: '#120e0b', lang: 'nb',
+  background_color: '#120e0b', theme_color: '#120e0b', lang: 'nb',
   icons: [
     { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
     { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
