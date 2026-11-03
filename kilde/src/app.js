@@ -1643,7 +1643,7 @@
   }
   function workoutLine(w) {
     var det = w.cardio ? [w.cardio.durationMin ? fmt(w.cardio.durationMin) + ' min' : '', w.cardio.distanceKm ? fmt(w.cardio.distanceKm, 2) + ' km' : '', w.cardio.speedKmh ? fmt(w.cardio.speedKmh, 1) + ' km/t' : '', w.cardio.inclinePct ? w.cardio.inclinePct + ' % stigning' : '', w.cardio.avgHr ? 'puls ' + fmt(w.cardio.avgHr) : '', w.cardio.rpe ? 'RPE ' + w.cardio.rpe : ''].filter(Boolean).join(' · ')
-      : [(w.exercises || []).length ? w.exercises.length + ' øvelser' : 'ingen øvelser ennå', w.durationMin ? fmt(w.durationMin) + ' min' : '', w.avgHr ? 'puls ' + fmt(w.avgHr) : ''].filter(Boolean).join(' · ');
+      : [(w.exercises || []).length ? w.exercises.length + ' øvelser' : 'ingen øvelser ennå', workoutVolume(w) ? kgTxt(workoutVolume(w)) + ' løftet' : '', w.durationMin ? fmt(w.durationMin) + ' min' : '', w.avgHr ? 'puls ' + fmt(w.avgHr) : ''].filter(Boolean).join(' · ');
     return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><div class="grow"><div class="t1">' + esc(w.title) + ' ' + (w.planned ? '<span class="pill foreslått">planlagt</span>' : '') + (w.source === 'garmin' ? ' <span class="pill garmin">Garmin</span>' : '') + '</div><div class="t2">' + esc(w.date + ' · ' + w.type + (det ? ' · ' + det : '')) + '</div></div></button>';
   }
 
@@ -2701,6 +2701,13 @@
     var w = cands.find(function (x) { return /volum/i.test(x.title || '') === !!volume; }) || cands[0];
     return w ? w.exercises.map(function (e) { return { name: e.name, sets: (e.sets && e.sets.length ? e.sets : [{}]).map(function () { return { w: '', r: '' }; }) }; }) : [];
   }
+  /* Total vekt løftet = summen av kg × reps for alle sett. */
+  function setsVolume(sets) { return (sets || []).reduce(function (a, x) { var w = E.num(x.weightKg !== undefined ? x.weightKg : x.w), r = E.num(x.reps !== undefined ? x.reps : x.r); return a + (w && r ? w * r : 0); }, 0); }
+  function workoutVolume(w) { return (w.exercises || []).reduce(function (a, e) { return a + setsVolume(e.sets); }, 0); }
+  function draftVolume(d) { return d.exercises.reduce(function (a, e) { return a + setsVolume(e.sets); }, 0); }
+  function draftSetCount(d) { return d.exercises.reduce(function (a, e) { return a + e.sets.filter(function (x) { return E.num(x.w) !== null || E.num(x.r) !== null; }).length; }, 0); }
+  function kgTxt(v) { return v >= 10000 ? fmt(v / 1000, 1) + ' tonn' : fmt(v) + ' kg'; }
+  var CHEV_D = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
   function draftHasValues(d) { return d.exercises.some(function (e) { return e.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }); }); }
 
   function strengthLoggerHtml() {
@@ -2721,7 +2728,13 @@
     } else if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økter ennå. Legg til øvelser under.' : 'Velg økt, så ser du øvelsene du har gjort før og hva du tok sist.') + '</p>';
     html += '<div class="exlist">' + d.exercises.map(function (e, i) {
       var hist = exHistory(e.name, d.editId), last = hist[0], prev = hist[1];
-      return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
+      if (e.folded) {
+        var done = e.sets.filter(function (x) { return String(x.w).trim() || String(x.r).trim(); });
+        return '<div class="exrow folded" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><button type="button" class="exfold" data-lg="fold" aria-expanded="false" aria-label="Åpne ' + esc(e.name) + '">' +
+          '<span class="exok" aria-hidden="true">✓</span><span class="exft"><b>' + esc(e.name || 'Øvelse') + '</b><span>' + (done.length ? done.length + ' sett · ' + esc(done.map(function (x) { return (String(x.w).trim().replace('.', ',') || '–') + ' × ' + (String(x.r).trim().replace('.', ',') || '–'); }).join(', ')) : 'Ingen sett') + '</span></span>' +
+          '<span class="exfv">' + (setsVolume(e.sets) ? kgTxt(setsVolume(e.sets)) : '') + '</span>' + CHEV_D + '</button></div>';
+      }
+      return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {};
@@ -2736,7 +2749,8 @@
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<div class="row"><input class="input grow" id="lg_newex" placeholder="Legg til øvelse" list="lg_known"><button type="button" class="btn" data-lg="addex">Legg til</button></div>' +
       '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
-      (draftHasValues(d) ? '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
+      (draftHasValues(d) ? '<div class="lgtot"><div><span>Totalt løftet</span><b id="lg_vol">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
+        '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
   }
@@ -2768,6 +2782,8 @@
       if (f === 'name') ex.name = e.target.value;
       else { var sr = e.target.closest('[data-set]'); if (sr) ex.sets[+sr.dataset.set][f] = e.target.value; }
       saveDraft();
+      var vb = box.querySelector('#lg_vol'), sb2 = box.querySelector('#lg_sets');
+      if (vb) vb.textContent = kgTxt(draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
     });
     box.addEventListener('click', async function (e) {
       var b = e.target.closest('[data-lg]'); if (!b) return;
@@ -2775,6 +2791,10 @@
       if (act === 'addset') { var ex = d.exercises[i], lastSet = ex.sets[ex.sets.length - 1] || {}; ex.sets.push({ w: lastSet.w || '', r: '' }); rerender(); }
       if (act === 'delset') { var sr = b.closest('[data-set]'); d.exercises[i].sets.splice(+sr.dataset.set, 1); rerender(); }
       if (act === 'delex') { d.exercises.splice(i, 1); rerender(); }
+      if (act === 'fold') {
+        var fx = d.exercises[i]; fx.folded = !fx.folded; rerender();
+        if (!fx.folded) { var orow = $('.logger .exrow[data-ex="' + i + '"]'); if (orow) scrollInView(orow); }
+      }
       if (act === 'hist') { openExHistory(d.exercises[i].name); }
       if (act === 'tplall') {
         templateFor(d.split, d.editId, d.volume).forEach(function (t) { if (!d.exercises.some(function (e) { return exKey(e.name) === exKey(t.name); })) d.exercises.push(t); });
@@ -2808,7 +2828,8 @@
     try {
       var w = await C.logStrength(ctx, { date: d.date, title: draftTitle(d), exercises: exercises, edit_id: d.editId || undefined });
       S.draft = newDraft(); saveDraft(true);
-      toast((d.editId ? 'Økten er oppdatert' : w.merged ? 'Lagret sammen med Garmin-økten' : 'Økt lagret') + (prs.length ? ' · Ny rekord: ' + prs.slice(0, 2).join(', ') : ''));
+      var vol = setsVolume([].concat.apply([], exercises.map(function (e) { return e.sets.map(function (x) { return { weightKg: x.weight_kg, reps: x.reps }; }); })));
+      toast((d.editId ? 'Økten er oppdatert' : w.merged ? 'Lagret sammen med Garmin-økten' : 'Økt lagret') + (vol ? ' · ' + kgTxt(vol) + ' løftet' : '') + (prs.length ? ' · Ny rekord: ' + prs.slice(0, 2).join(', ') : ''));
       renderTraining();
     } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
   }
@@ -2863,8 +2884,10 @@
     var w = S.workouts.find(function (x) { return x.id === id; }); if (!w) return;
     openSheet(w.title, function (body) {
       var hasEx = (w.exercises || []).length;
+      var wv = workoutVolume(w), ns = (w.exercises || []).reduce(function (a, e) { return a + (e.sets || []).length; }, 0);
       body.innerHTML = '<div class="stack"><div class="small muted">' + esc(cap(dateLabel(w.date))) + (w.durationMin ? ' · ' + fmt(w.durationMin) + ' min' : '') + (w.avgHr ? ' · puls ' + fmt(w.avgHr) : '') + (w.source === 'garmin' ? ' · Garmin' : '') + '</div>' +
-        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { return '<tr><td>' + esc(e.name) + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="small muted">Ingen øvelser registrert på denne økten.</p>') +
+        (wv ? '<div class="lgtot"><div><span>Totalt løftet</span><b>' + kgTxt(wv) + '</b></div><div><span>Sett</span><b>' + ns + '</b></div><div><span>Øvelser</span><b>' + w.exercises.length + '</b></div></div>' : '') +
+        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="small muted">Ingen øvelser registrert på denne økten.</p>') +
         (w.type === 'styrke' ? '<div class="row"><button class="btn primary" id="wo_edit">' + (hasEx ? 'Endre' : 'Legg inn øvelser') + '</button>' + (hasEx ? '<button class="btn" id="wo_tpl">Bruk som mal i dag</button>' : '') + '</div>' : '') + '</div>';
       var eb = $('#wo_edit');
       if (eb) eb.onclick = function () {

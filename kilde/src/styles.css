@@ -826,3 +826,20 @@ nav.tabs { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; }
 .view { padding-bottom: calc(108px + max(0px, env(safe-area-inset-bottom, 0px) - 8px)); -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px); mask-image: linear-gradient(to bottom, transparent 0, #000 22px); }
 .view.chatview { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 .topbar { position: relative; z-index: 2; }
+
+/* Ferdige øvelser kan lukkes */
+.exdone { flex: none; padding: 5px 12px; font-size: 13.5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(244, 162, 97, .3); }
+.exrow.folded { padding: 0; }
+.exfold { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; color: var(--ink); text-align: left; font: inherit; padding: 12px 14px; cursor: pointer; }
+.exok { width: 26px; height: 26px; border-radius: 50%; flex: none; display: grid; place-items: center; font-size: 14px; font-weight: 800; color: var(--accent-ink); background: linear-gradient(150deg, #f7b77e, #ee9550); }
+.exft { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.exft b { font-size: 16px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exft span { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.exfv { flex: none; font-size: 13px; font-weight: 650; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.exfold svg { width: 18px; height: 18px; flex: none; stroke: var(--ink-3); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-reduced-motion: no-preference) { .exrow.folded { animation: rise .22s ease-out; } }
+.lgtot { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.lgtot > div { background: var(--surface-2); border: 1px solid var(--glass-edge); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
+.lgtot > div:first-child { background: linear-gradient(155deg, rgba(247, 183, 126, .4), rgba(170, 98, 46, .25)); border-color: rgba(255, 210, 170, .3); }
+.lgtot span { font-size: 12px; color: var(--ink-2); }
+.lgtot b { font-size: 22px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
