@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#120e0b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Coach">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -19,9 +19,10 @@ html { height: 100%; background: #120e0b; overflow: hidden; overscroll-behavior:
 body { margin: 0; height: 100%; min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 /* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
 #root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
-/* Som app på hjemskjermen: bruk største skjermhøyde, så en krympet visning (WebKit-feil) ikke gir stripe nederst */
-html.standalone #root { bottom: auto; height: 100vh; height: 100lvh; }
+/* Som app på hjemskjermen. Statuslinjen er nå heldekkende («black»): da går visningen helt ned på iOS 26 (WebKit bug 301108).
+   Apper som ble lagt til med gammel innstilling, får i tillegg en litt høyere side, som får iOS til å bruke hele høyden. */
 html.standalone, html.standalone body { background: #120e0b; }
+@media (display-mode: standalone) { html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); } }
 [hidden] { display: none !important; }
 /* Layout: én kolonne, mobil først, i Apples formspråk: systemfont, grå grupperte flater med hvite kort,
    systemfarger (blå handlinger, grønn energi, indigo protein, oransje karbo, gul fett, turkis fiber), gjennomsiktig fanelinje. */
@@ -1015,7 +1016,7 @@ em.du { color: #8fe0a8; } em.dd { color: #ffab8f; } em.dz { color: var(--ink-3);
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793683488605';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793683666493';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -3146,27 +3147,25 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
       if (!standalone) return;
       var root = document.getElementById('root');
-      var underStatusBar = (parseFloat(getComputedStyle(root).paddingTop) || 0) > 0;
-      function full() { var portrait = window.innerWidth < window.innerHeight; return Math.max(window.innerHeight, underStatusBar && portrait && window.screen ? window.screen.height : 0); }
+      /* Kjent WebKit-feil i iOS 26.0 (bug 301108): med gjennomsiktig statuslinje blir visningen like mye kortere enn
+       * skjermen som statuslinjen er høy, og WebKit maler ikke under den kanten. Vi kan ikke tegne der, så vi lar appen
+       * passe inn i det synlige området, og retter krymping etter tastaturet med en ny måling (se også build.js). */
+      function full() { return window.innerHeight; }
       var maxH = full();
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
       function rootH() { return root.getBoundingClientRect().height; }
       function fix() {
         if (typing()) return;
-        maxH = Math.max(maxH, full());
-        /* Appen skal alltid dekke hele skjermen. Er den lavere (WebKit-feil etter tastaturet), tvinger vi en ny
-         * måling, og hjelper ikke det, setter vi høyden selv. */
-        if (rootH() < maxH - 4 || window.innerHeight < maxH - 4) {
+        if (window.innerHeight < maxH - 4) {
           var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
-          root.style.display = 'none'; document.body.style.display = 'none'; void document.body.offsetHeight;
-          document.body.style.display = ''; root.style.display = ''; void root.offsetHeight;
+          root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
           sc.forEach(function (x) { x[0].scrollTop = x[1]; });
           resetPageScroll();
-          if (rootH() < maxH - 4) { root.style.height = Math.round(maxH) + 'px'; root.style.bottom = 'auto'; }
         }
+        maxH = Math.max(maxH, window.innerHeight);
       }
-      window.coachViewport = function () { return { inner: window.innerHeight, screen: window.screen && window.screen.height, root: Math.round(rootH()), max: Math.round(maxH), vv: window.visualViewport ? Math.round(window.visualViewport.height) : null }; };
-      setInterval(function () { if (document.visibilityState === 'visible' && !typing() && rootH() < maxH - 4) fix(); }, 1500);
+      window.coachViewport = function () { return { inner: window.innerHeight, screen: window.screen && window.screen.height, root: Math.round(rootH()), top: Math.round(parseFloat(getComputedStyle(root).paddingTop) || 0), vv: window.visualViewport ? Math.round(window.visualViewport.height) : null }; };
+      [300, 1200].forEach(function (ms) { setTimeout(fix, ms); });
       var t = null;
       function later(ms) { clearTimeout(t); t = setTimeout(fix, ms || 160); }
       window.addEventListener('resize', function () { if (!typing()) maxH = Math.max(maxH, window.innerHeight); later(); });

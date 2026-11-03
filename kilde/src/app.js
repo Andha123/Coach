@@ -339,27 +339,25 @@
       var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
       if (!standalone) return;
       var root = document.getElementById('root');
-      var underStatusBar = (parseFloat(getComputedStyle(root).paddingTop) || 0) > 0;
-      function full() { var portrait = window.innerWidth < window.innerHeight; return Math.max(window.innerHeight, underStatusBar && portrait && window.screen ? window.screen.height : 0); }
+      /* Kjent WebKit-feil i iOS 26.0 (bug 301108): med gjennomsiktig statuslinje blir visningen like mye kortere enn
+       * skjermen som statuslinjen er høy, og WebKit maler ikke under den kanten. Vi kan ikke tegne der, så vi lar appen
+       * passe inn i det synlige området, og retter krymping etter tastaturet med en ny måling (se også build.js). */
+      function full() { return window.innerHeight; }
       var maxH = full();
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
       function rootH() { return root.getBoundingClientRect().height; }
       function fix() {
         if (typing()) return;
-        maxH = Math.max(maxH, full());
-        /* Appen skal alltid dekke hele skjermen. Er den lavere (WebKit-feil etter tastaturet), tvinger vi en ny
-         * måling, og hjelper ikke det, setter vi høyden selv. */
-        if (rootH() < maxH - 4 || window.innerHeight < maxH - 4) {
+        if (window.innerHeight < maxH - 4) {
           var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
-          root.style.display = 'none'; document.body.style.display = 'none'; void document.body.offsetHeight;
-          document.body.style.display = ''; root.style.display = ''; void root.offsetHeight;
+          root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
           sc.forEach(function (x) { x[0].scrollTop = x[1]; });
           resetPageScroll();
-          if (rootH() < maxH - 4) { root.style.height = Math.round(maxH) + 'px'; root.style.bottom = 'auto'; }
         }
+        maxH = Math.max(maxH, window.innerHeight);
       }
-      window.coachViewport = function () { return { inner: window.innerHeight, screen: window.screen && window.screen.height, root: Math.round(rootH()), max: Math.round(maxH), vv: window.visualViewport ? Math.round(window.visualViewport.height) : null }; };
-      setInterval(function () { if (document.visibilityState === 'visible' && !typing() && rootH() < maxH - 4) fix(); }, 1500);
+      window.coachViewport = function () { return { inner: window.innerHeight, screen: window.screen && window.screen.height, root: Math.round(rootH()), top: Math.round(parseFloat(getComputedStyle(root).paddingTop) || 0), vv: window.visualViewport ? Math.round(window.visualViewport.height) : null }; };
+      [300, 1200].forEach(function (ms) { setTimeout(fix, ms); });
       var t = null;
       function later(ms) { clearTimeout(t); t = setTimeout(fix, ms || 160); }
       window.addEventListener('resize', function () { if (!typing()) maxH = Math.max(maxH, window.innerHeight); later(); });

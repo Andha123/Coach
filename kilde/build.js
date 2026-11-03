@@ -46,7 +46,7 @@ const web = `<!doctype html>
 <meta name="theme-color" content="#120e0b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Coach">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -57,9 +57,10 @@ html { height: 100%; background: #120e0b; overflow: hidden; overscroll-behavior:
 body { margin: 0; height: 100%; min-height: 100dvh; overflow: hidden; overscroll-behavior: none; }
 /* Hele skjermen, også under statuslinjen og hjem-streken på iPhone */
 #root { position: fixed; inset: 0; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); }
-/* Som app på hjemskjermen: bruk største skjermhøyde, så en krympet visning (WebKit-feil) ikke gir stripe nederst */
-html.standalone #root { bottom: auto; height: 100vh; height: 100lvh; }
+/* Som app på hjemskjermen. Statuslinjen er nå heldekkende («black»): da går visningen helt ned på iOS 26 (WebKit bug 301108).
+   Apper som ble lagt til med gammel innstilling, får i tillegg en litt høyere side, som får iOS til å bruke hele høyden. */
 html.standalone, html.standalone body { background: #120e0b; }
+@media (display-mode: standalone) { html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px))); } }
 [hidden] { display: none !important; }
 ${src('styles.css')}
 </style>
