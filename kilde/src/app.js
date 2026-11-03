@@ -339,13 +339,16 @@
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
       function fix() {
         if (typing()) return;
-        maxH = Math.max(maxH, window.innerHeight);
-        if (maxH - window.innerHeight <= 4) { root.style.height = ''; root.style.bottom = ''; return; }
-        var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
-        root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
-        sc.forEach(function (x) { x[0].scrollTop = x[1]; });
-        resetPageScroll();
-        if (maxH - window.innerHeight > 4) { root.style.height = maxH + 'px'; root.style.bottom = 'auto'; }
+        maxH = Math.max(maxH, full());
+        /* iOS 26.0 regner av og til faste flater for lave; vi setter høyden selv, så appen alltid går helt ned. */
+        var want = Math.round(maxH) + 'px';
+        if (window.innerHeight < maxH - 4) {
+          var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
+          root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
+          sc.forEach(function (x) { x[0].scrollTop = x[1]; });
+          resetPageScroll();
+        }
+        if (root.style.height !== want) { root.style.height = want; root.style.bottom = 'auto'; }
       }
       var t = null;
       function later(ms) { clearTimeout(t); t = setTimeout(fix, ms || 160); }
@@ -1674,7 +1677,7 @@
     var el = $('#prodList');
     if (S.status === 'connecting') { setHTML(el, '<p class="small faint">Henter matvarer …</p>'); return; }
     var list = S.prodQuery.trim() ? C.findProducts(ctx, S.prodQuery, 60) : Array.from(S.products.values()).filter(function (p) { return !p.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'nb'); });
-    if (!S.products.size) { setHTML(el, '<div class="empty"><h3>Ingen matvarer ennå</h3><p class="small">Send et bilde av en næringsdeklarasjon i chatten, eller trykk «Ny matvare».</p></div>'); return; }
+    if (!S.products.size) { setHTML(el, '<div class="empty"><h3>Ingen matvarer ennå</h3><p class="small">Trykk «+ Matvare» for å skanne, søke eller lage din egen.</p></div>'); return; }
     if (!list.length) { setHTML(el, '<p class="small muted">Ingen treff på «' + esc(S.prodQuery) + '».</p>'); return; }
     if (!setHTML(el, '<div class="list">' + list.map(function (p) {
       return '<button class="li" data-pid="' + esc(p.id) + '"><span class="av ' + esc(avClass(p)) + '" aria-hidden="true">' + esc((p.name || '?').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + esc([p.brand, p.state].filter(Boolean).join(' · ')) + ' ' + '</div><div style="margin-top:3px">' + statusPill(p) + '</div></div>' +
@@ -2868,7 +2871,7 @@
       html += '<div class="section"><h3>Aktiv plan: ' + esc(plan.name) + '</h3>' + (plan.goal ? '<p class="small muted">' + esc(plan.goal) + '</p>' : '') +
         (plan.days || []).map(function (d) { return '<details><summary>' + esc(d.name) + (d.focus ? ' <span class="faint small">· ' + esc(d.focus) + '</span>' : '') + '</summary><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Sett</th><th class="r">Reps</th><th class="r">RIR</th></tr></thead><tbody>' + (d.exercises || []).map(function (e) { return '<tr><td>' + esc(e.name) + (e.notes ? '<div class="small faint">' + esc(e.notes) + '</div>' : '') + '</td><td class="r">' + esc(e.sets || '') + '</td><td class="r">' + esc(e.reps) + '</td><td class="r">' + esc(e.rir) + '</td></tr>'; }).join('') + '</tbody></table></div></details>'; }).join('') +
         (plan.cardio ? '<p class="small"><b>Kondisjon:</b> ' + esc(plan.cardio) + '</p>' : '') + '</div>';
-    } else html += '<div class="section"><h3>Treningsplan</h3><p class="small muted">Ingen plan lagret. Be coachen i chatten: «Lag et styrkeprogram for 3 dager i uka med 2 mølleøkter».</p></div>';
+    }
     var best = {};
     var bestName = {};
     done.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (w) { (w.exercises || []).forEach(function (e) { var k = exKey(e.name); if (!k) return; bestName[k] = e.name; (e.sets || []).forEach(function (s) { if (s.weightKg !== null && s.reps) { var b = best[k]; if (!b || s.weightKg > b.weightKg || (s.weightKg === b.weightKg && s.reps > b.reps)) best[k] = { weightKg: s.weightKg, reps: s.reps, date: w.date }; } }); }); });
