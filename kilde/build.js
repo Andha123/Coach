@@ -31,6 +31,7 @@ console.log('dist/pt-appen.html', (artifact.length / 1024).toFixed(1) + ' KB');
 
 // Egen app. Nøkkelen er Supabase sin offentlige «anon»-nøkkel: den er laget for å ligge i nettleseren,
 // og tilgangen styres av radreglene i databasen (hver bruker ser bare sine egne rader).
+const BUILD = String(Date.now());
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'web.config.json'), 'utf8'));
 const web = `<!doctype html>
 <html lang="nb">
@@ -59,7 +60,7 @@ ${src('styles.css')}
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = ${JSON.stringify({ url: cfg.supabaseUrl, key: cfg.supabaseAnonKey })};</script>
+<script>window.COACH_CONFIG = ${JSON.stringify({ url: cfg.supabaseUrl, key: cfg.supabaseAnonKey })}; window.COACH_BUILD = '${BUILD}';</script>
 <script>
 ${src('logo.js')}
 </script>
@@ -76,7 +77,7 @@ ${src('core.js')}
 ${src('app.js')}
 </script>
 <script>
-if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {}); });
 </script>
 </body>
 </html>
@@ -93,13 +94,17 @@ fs.writeFileSync(out('web', 'manifest.webmanifest'), JSON.stringify({
   ]
 }, null, 2));
 // Enkel service worker: appen åpner raskt og virker uten nett for selve skallet; data hentes alltid fra Supabase.
-fs.writeFileSync(out('web', 'sw.js'), `const C = 'coach-${Date.now()}';
+fs.writeFileSync(out('web', 'version.json'), JSON.stringify({ build: BUILD }));
+fs.writeFileSync(out('web', 'sw.js'), `const C = 'coach-${BUILD}';
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['./', './index.html', './manifest.webmanifest', './icon-180.png']))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k))))); self.clients.claim(); });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(C).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
+  if (u.pathname.endsWith('version.json')) return;
+  // Selve appen hentes alltid fersk fra nettet (ikke fra nettleserens mellomlager); lagret kopi brukes bare uten nett.
+  const html = e.request.mode === 'navigate' || u.pathname.endsWith('/') || u.pathname.endsWith('.html');
+  e.respondWith(fetch(html ? new Request(u.href, { cache: 'no-store', credentials: 'same-origin' }) : e.request).then(r => { const cp = r.clone(); caches.open(C).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
 });
 `);
 fs.writeFileSync(out('web', '.nojekyll'), '');

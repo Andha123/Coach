@@ -864,13 +864,15 @@ nav.tabs { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; }
 .lgtot > div:first-child { background: linear-gradient(155deg, rgba(247, 183, 126, .4), rgba(170, 98, 46, .25)); border-color: rgba(255, 210, 170, .3); }
 .lgtot span { font-size: 12px; color: var(--ink-2); }
 .lgtot b { font-size: 22px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.updbar { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 95; border: 1px solid rgba(255, 210, 170, .35); background: rgba(42, 30, 22, .92); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: var(--ink); border-radius: 999px; padding: 10px 16px; font: inherit; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); white-space: nowrap; }
+.updbar b { color: var(--accent); }
 
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"};</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793681605592';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -2822,6 +2824,35 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       window.addEventListener('orientationchange', function () { maxH = 0; setTimeout(function () { maxH = full(); fix(); }, 400); });
       if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { later(); });
       setTimeout(fix, 600);
+    })();
+    /* Oppdateringer: appen sjekker om det finnes en nyere versjon når den åpnes eller kommer tilbake i forgrunnen,
+     * og laster den inn med en gang hvis du ikke er midt i noe (utkast til økta er lagret uansett). */
+    (function () {
+      if (!window.COACH_STANDALONE || !window.COACH_BUILD || !window.fetch) return;
+      var pending = false;
+      function busy() { return typing() || $('#sheetBg') || document.querySelector('.onb, .scanner, .cpick-bg'); }
+      function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
+      function apply() {
+        if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} }
+        var go2 = function () { location.reload(); };
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function (r) { if (r) return r.update(); }).then(go2, go2); else go2();
+      }
+      function banner() {
+        if ($('#updBar')) return;
+        var b = document.createElement('button'); b.id = 'updBar'; b.className = 'updbar'; b.type = 'button';
+        b.innerHTML = 'Ny versjon av Coach er klar · <b>Oppdater</b>';
+        b.onclick = apply; document.body.appendChild(b);
+      }
+      function check() {
+        fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+          if (!v || !v.build || v.build === window.COACH_BUILD) return;
+          pending = true;
+          if (!busy()) apply(); else banner();
+        }).catch(function () {});
+      }
+      setTimeout(check, 1500);
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') setTimeout(check, 300); });
+      setInterval(function () { if (pending && !busy()) apply(); else if (!pending) check(); }, 5 * 60 * 1000);
     })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
     document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
@@ -5811,13 +5842,14 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<div id="sf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre profil</button></div></form>' +
         ((p.notes || []).length ? '<div class="section"><h3>Notater coachen tar hensyn til</h3><ul class="small">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="section"><h3>Garmin</h3>' + garminCard() + '</div>' +
-        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><button class="btn" id="s_logout">Logg ut</button></div>' : '') +
+        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</p>' : '') + '</div>' : '') +
         '<div class="section"><h3>Data og personvern</h3><p class="small muted">Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.</p>' +
         '<div class="row"><button class="btn" id="s_export">Eksporter alt (JSON)</button><button class="btn danger" id="s_wipe">Slett data …</button></div><div id="s_wipebox"></div></div>' +
         '<div class="section"><h3>Status</h3><dl class="kv small"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd><dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' + (S.toolsOk && S.toolMode !== 'json' ? ', med verktøy' : ', registrering via appen') : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + (S.assets ? ', lagres' : '') + '</dd><dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd><dt>Nettsøk</dt><dd>' + (S.browserAvail ? 'tilgjengelig via nettleseren i Claude-skrivebordsappen' : 'ikke tilgjengelig her. Åpne appen i Claude-skrivebordsappen for nettsøk; ellers brukes lagrede data, og ukjente varer merkes som estimat.') + '</dd></dl></div>' +
         '</div>';
       fillSuggestion();
       $('#s_calc').onclick = function () { closeSheet(); setTimeout(openCalculator, 230); };
+      if ($('#s_reload')) $('#s_reload').onclick = function () { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } location.reload(); };
       if ($('#s_logout')) $('#s_logout').onclick = function () { if (window.coachSignOut) window.coachSignOut(); };
       $('#sf').onsubmit = async function (e) {
         e.preventDefault();
@@ -5876,7 +5908,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
 
 </script>
 <script>
-if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {}); });
 </script>
 </body>
 </html>

@@ -361,6 +361,35 @@
       if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { later(); });
       setTimeout(fix, 600);
     })();
+    /* Oppdateringer: appen sjekker om det finnes en nyere versjon når den åpnes eller kommer tilbake i forgrunnen,
+     * og laster den inn med en gang hvis du ikke er midt i noe (utkast til økta er lagret uansett). */
+    (function () {
+      if (!window.COACH_STANDALONE || !window.COACH_BUILD || !window.fetch) return;
+      var pending = false;
+      function busy() { return typing() || $('#sheetBg') || document.querySelector('.onb, .scanner, .cpick-bg'); }
+      function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
+      function apply() {
+        if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} }
+        var go2 = function () { location.reload(); };
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function (r) { if (r) return r.update(); }).then(go2, go2); else go2();
+      }
+      function banner() {
+        if ($('#updBar')) return;
+        var b = document.createElement('button'); b.id = 'updBar'; b.className = 'updbar'; b.type = 'button';
+        b.innerHTML = 'Ny versjon av Coach er klar · <b>Oppdater</b>';
+        b.onclick = apply; document.body.appendChild(b);
+      }
+      function check() {
+        fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+          if (!v || !v.build || v.build === window.COACH_BUILD) return;
+          pending = true;
+          if (!busy()) apply(); else banner();
+        }).catch(function () {});
+      }
+      setTimeout(check, 1500);
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') setTimeout(check, 300); });
+      setInterval(function () { if (pending && !busy()) apply(); else if (!pending) check(); }, 5 * 60 * 1000);
+    })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
     document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
     window.addEventListener('scroll', function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, { passive: true });
@@ -3349,13 +3378,14 @@
         '<div id="sf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre profil</button></div></form>' +
         ((p.notes || []).length ? '<div class="section"><h3>Notater coachen tar hensyn til</h3><ul class="small">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<div class="section"><h3>Garmin</h3>' + garminCard() + '</div>' +
-        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><button class="btn" id="s_logout">Logg ut</button></div>' : '') +
+        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</p>' : '') + '</div>' : '') +
         '<div class="section"><h3>Data og personvern</h3><p class="small muted">Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.</p>' +
         '<div class="row"><button class="btn" id="s_export">Eksporter alt (JSON)</button><button class="btn danger" id="s_wipe">Slett data …</button></div><div id="s_wipebox"></div></div>' +
         '<div class="section"><h3>Status</h3><dl class="kv small"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd><dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' + (S.toolsOk && S.toolMode !== 'json' ? ', med verktøy' : ', registrering via appen') : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + (S.assets ? ', lagres' : '') + '</dd><dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd><dt>Nettsøk</dt><dd>' + (S.browserAvail ? 'tilgjengelig via nettleseren i Claude-skrivebordsappen' : 'ikke tilgjengelig her. Åpne appen i Claude-skrivebordsappen for nettsøk; ellers brukes lagrede data, og ukjente varer merkes som estimat.') + '</dd></dl></div>' +
         '</div>';
       fillSuggestion();
       $('#s_calc').onclick = function () { closeSheet(); setTimeout(openCalculator, 230); };
+      if ($('#s_reload')) $('#s_reload').onclick = function () { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } location.reload(); };
       if ($('#s_logout')) $('#s_logout').onclick = function () { if (window.coachSignOut) window.coachSignOut(); };
       $('#sf').onsubmit = async function (e) {
         e.preventDefault();
