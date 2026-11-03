@@ -23,7 +23,7 @@
    * «Incline bech press» = «incline bench», «Incline smith» = «Incline bench Smith», «Rear delt» = «Rear delts»,
    * «Stående curls» = «Stående biceps curls». Rekkefølgen på ordene spiller ingen rolle. */
   var EX_WORD = { flies: 'fly', flyes: 'fly', flys: 'fly', bech: 'bench', benk: 'bench', benkpress: 'bench', cabel: 'cable', kabel: 'cable', dumbell: 'dumbbell', db: 'dumbbell', manual: 'dumbbell', manualer: 'dumbbell', skulderpress: 'shoulder', skråbenk: 'incline' };
-  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1, maskin: 1, machine: 1 };
+  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1 };
   function exKey(name) {
     var w = norm(name).split(' ').filter(Boolean).map(function (x) { x = EX_WORD[x] || x; if (x.length > 3 && /s$/.test(x) && !/ss$/.test(x)) x = x.slice(0, -1); return EX_WORD[x] || x; });
     var hasCurl = w.indexOf('curl') >= 0;

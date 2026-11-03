@@ -16,6 +16,9 @@ ${src('styles.css')}
 ${src('logo.js')}
 </script>
 <script>
+${src('exercises.js')}
+</script>
+<script>
 ${src('engine.js')}
 </script>
 <script>
@@ -66,6 +69,9 @@ ${src('logo.js')}
 </script>
 <script>
 ${src('standalone.js')}
+</script>
+<script>
+${src('exercises.js')}
 </script>
 <script>
 ${src('engine.js')}

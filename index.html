@@ -866,13 +866,22 @@ nav.tabs { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; }
 .lgtot b { font-size: 22px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .updbar { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 8px); z-index: 95; border: 1px solid rgba(255, 210, 170, .35); background: rgba(42, 30, 22, .92); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: var(--ink); border-radius: 999px; padding: 10px 16px; font: inherit; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); white-space: nowrap; }
 .updbar b { color: var(--accent); }
+.expchip.sugg { border-style: dashed; }
+.expchip.more { background: transparent; border-style: dashed; border-color: rgba(244, 162, 97, .45); }
+.expchip.more b { color: var(--accent); }
+.addexbtn { width: 100%; min-height: 48px; justify-content: center; border-style: dashed; color: var(--accent); }
+.xpgroups { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px; padding: 2px; }
+.xpgroups::-webkit-scrollbar { display: none; }
+.xpgroups button { flex: none; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.xpgroups button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.expicker .list .li { padding-block: 10px; }
 
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793681605592';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1793681874317';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -1098,6 +1107,178 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     }
   };
 })();
+
+</script>
+<script>
+/* Øvelsesbank: vanlige styrkeøvelser med navnet de fleste bruker på treningssenteret (engelsk), norske navn og
+ * andre skrivemåter som søkeord, og muskelgruppe. «*» = vanlig grunnøvelse som foreslås når du velger økt. */
+(function (root) {
+  'use strict';
+  var G = {
+    bryst: 'Bryst', rygg: 'Rygg', skuldre: 'Skuldre', biceps: 'Biceps', triceps: 'Triceps', forside: 'Forside lår',
+    bakside: 'Bakside og sete', legger: 'Legger', mage: 'Mage og kjerne', trapes: 'Trapes og underarm', hel: 'Helkropp'
+  };
+  var L = [
+    // Bryst
+    ['*Bench press', 'benkpress, flat benk, bench, stangbenk', 'bryst'],
+    ['*Incline bench press', 'skråbenk, skråbenkpress, incline bench, incline bech', 'bryst'],
+    ['Decline bench press', 'nedoverskrå benkpress, decline bench', 'bryst'],
+    ['*Dumbbell bench press', 'benkpress manualer, manualpress, db bench, dumbell press', 'bryst'],
+    ['*Incline dumbbell press', 'skrå manualpress, incline db press, incline dumbell press', 'bryst'],
+    ['Decline dumbbell press', 'nedoverskrå manualpress', 'bryst'],
+    ['Smith machine bench press', 'smith benk, smith bench', 'bryst'],
+    ['*Smith machine incline press', 'incline smith, skrå smith, incline bench smith', 'bryst'],
+    ['Machine chest press', 'brystpress maskin, chest press', 'bryst'],
+    ['Incline machine press', 'skrå brystpress maskin', 'bryst'],
+    ['*Cable fly', 'kabelflyes, cable flyes, cabel fly, crossover', 'bryst'],
+    ['Low-to-high cable fly', 'incline cable fly, incline cabel fly, kabelflyes nedenfra', 'bryst'],
+    ['High-to-low cable fly', 'decline cable fly, decline cabel fly, kabelflyes ovenfra', 'bryst'],
+    ['Dumbbell fly', 'flyes manualer, dumbell fly', 'bryst'],
+    ['Incline dumbbell fly', 'skrå flyes', 'bryst'],
+    ['Pec deck', 'butterfly, pec fly, brystmaskin', 'bryst'],
+    ['Push-up', 'armhevinger, pushups', 'bryst'],
+    ['Weighted push-up', 'armhevinger med vekt', 'bryst'],
+    ['Chest dips', 'dips bryst', 'bryst'],
+    ['Floor press', 'gulvpress', 'bryst'],
+    ['Landmine press', 'landmine', 'bryst'],
+    ['Svend press', 'plate press', 'bryst'],
+    // Skuldre
+    ['*Overhead press', 'militærpress, skulderpress stang, ohp, military press, stående skulderpress', 'skuldre'],
+    ['*Seated dumbbell shoulder press', 'skulderpress manualer, shoulder press, db shoulder press', 'skuldre'],
+    ['Arnold press', 'arnoldpress', 'skuldre'],
+    ['Machine shoulder press', 'skulderpress maskin', 'skuldre'],
+    ['Smith machine shoulder press', 'smith skulderpress', 'skuldre'],
+    ['Push press', 'pushpress', 'skuldre'],
+    ['*Lateral raise', 'sidehev, side delts, side raise, lateral raises', 'skuldre'],
+    ['Cable lateral raise', 'sidehev kabel', 'skuldre'],
+    ['Machine lateral raise', 'sidehev maskin', 'skuldre'],
+    ['Front raise', 'fronthev', 'skuldre'],
+    ['*Rear delt fly', 'omvendt flyes, rear delts, bakre skulder, reverse fly', 'skuldre'],
+    ['Reverse pec deck', 'omvendt butterfly, rear delt machine', 'skuldre'],
+    ['*Face pull', 'facepull, face pulls', 'skuldre'],
+    ['Upright row', 'stående roing, opptrekk stående', 'skuldre'],
+    ['Cable Y-raise', 'y raise', 'skuldre'],
+    // Triceps
+    ['*Triceps pushdown', 'tricepspress kabel, pushdown, triceps nedpress, tricep pushdown', 'triceps'],
+    ['Rope pushdown', 'tau pushdown, rope triceps', 'triceps'],
+    ['*Overhead cable triceps extension', 'triceps over hodet kabel, overhead extension', 'triceps'],
+    ['Skull crusher', 'fransk press, french press, liggende triceps', 'triceps'],
+    ['Overhead dumbbell extension', 'triceps over hodet manual', 'triceps'],
+    ['Close-grip bench press', 'smal benkpress, smalbenk, cgbp', 'triceps'],
+    ['*Dips', 'dips, parallell dips, tricep dips', 'triceps'],
+    ['Bench dips', 'benkdips', 'triceps'],
+    ['Triceps kickback', 'kickback', 'triceps'],
+    ['JM press', 'jm', 'triceps'],
+    ['Machine dips', 'dips maskin, assisted dips', 'triceps'],
+    // Rygg
+    ['*Deadlift', 'markløft, mark, konvensjonell markløft', 'rygg'],
+    ['*Pull-up', 'pullups, pull ups, chins, opptrekk', 'rygg'],
+    ['Chin-up', 'chinups, underhåndsgrep opptrekk', 'rygg'],
+    ['*Lat pulldown', 'nedtrekk, pulldown, lat pull', 'rygg'],
+    ['Close-grip lat pulldown', 'smal nedtrekk, pulldown biceps, v grip pulldown', 'rygg'],
+    ['Single-arm lat pulldown', 'enarms nedtrekk', 'rygg'],
+    ['Straight-arm pulldown', 'strak arm nedtrekk, pullover kabel', 'rygg'],
+    ['*Barbell row', 'roing stang, bent over row, foroverbøyd roing', 'rygg'],
+    ['Pendlay row', 'pendlay', 'rygg'],
+    ['*Dumbbell row', 'enarms roing, manualroing, one arm row, db row', 'rygg'],
+    ['*Seated cable row', 'sittende roing, cable row, rows, roing kabel', 'rygg'],
+    ['Chest-supported row', 'brystsupportert roing, supported rows, incline row', 'rygg'],
+    ['T-bar row', 't bar', 'rygg'],
+    ['Machine row', 'roing maskin, hammer row', 'rygg'],
+    ['Seal row', 'seal', 'rygg'],
+    ['Rack pull', 'rackpull', 'rygg'],
+    ['Back extension', 'rygghev, hyperextension, hyperextensions', 'rygg'],
+    ['Good morning', 'good mornings', 'rygg'],
+    ['Inverted row', 'australske pullups, kroppsroing', 'rygg'],
+    // Biceps
+    ['*Barbell curl', 'bicepscurl stang, stangcurl, biceps curl', 'biceps'],
+    ['*Dumbbell curl', 'bicepscurl manualer, manualcurl, biceps curls', 'biceps'],
+    ['EZ-bar curl', 'ez curl, ez stang', 'biceps'],
+    ['*Hammer curl', 'hammercurl, hammer curls', 'biceps'],
+    ['Incline dumbbell curl', 'skrå curl, incline curl', 'biceps'],
+    ['Preacher curl', 'scottcurl, scott curl', 'biceps'],
+    ['Cable curl', 'curl kabel', 'biceps'],
+    ['Bayesian cable curl', 'bayesian curl', 'biceps'],
+    ['Concentration curl', 'konsentrasjonscurl', 'biceps'],
+    ['Spider curl', 'spidercurl', 'biceps'],
+    ['Machine curl', 'curl maskin', 'biceps'],
+    ['Standing dumbbell curl', 'stående biceps curls, stående curls', 'biceps'],
+    // Forside lår
+    ['*Back squat', 'knebøy, squat, stangknebøy', 'forside'],
+    ['Front squat', 'frontbøy, front knebøy', 'forside'],
+    ['Goblet squat', 'goblet', 'forside'],
+    ['*Hack squat', 'hacksquat, hack knebøy', 'forside'],
+    ['Smith machine squat', 'smith knebøy', 'forside'],
+    ['*Leg press', 'beinpress, benpress', 'forside'],
+    ['*Bulgarian split squat', 'bulgarsk utfall, bss, bulgarian', 'forside'],
+    ['Walking lunge', 'gående utfall, utfall, lunges', 'forside'],
+    ['Reverse lunge', 'utfall bakover', 'forside'],
+    ['Step-up', 'stepup, steg opp', 'forside'],
+    ['*Leg extension', 'beinspark, leg extensions, lårspark', 'forside'],
+    ['Pendulum squat', 'pendulum', 'forside'],
+    ['Belt squat', 'beltsquat', 'forside'],
+    ['Sissy squat', 'sissy', 'forside'],
+    // Bakside og sete
+    ['*Romanian deadlift', 'rumensk markløft, rdl, strak markløft', 'bakside'],
+    ['Stiff-leg deadlift', 'stivbeint markløft, sldl', 'bakside'],
+    ['Sumo deadlift', 'sumo markløft, sumo', 'bakside'],
+    ['Trap bar deadlift', 'hexbar markløft, trap bar', 'bakside'],
+    ['*Lying leg curl', 'liggende lårcurl, leg curl, hamstring curl', 'bakside'],
+    ['*Seated leg curl', 'sittende lårcurl', 'bakside'],
+    ['Nordic curl', 'nordic hamstring, nordics', 'bakside'],
+    ['*Hip thrust', 'hoftehev, hip thrusts, glute thrust', 'bakside'],
+    ['Glute bridge', 'setehev, glute bridge', 'bakside'],
+    ['Cable kickback', 'setekick kabel, glute kickback', 'bakside'],
+    ['Hip abduction', 'abduktor, abduction maskin', 'bakside'],
+    ['Hip adduction', 'adduktor, adduction maskin', 'bakside'],
+    ['Single-leg Romanian deadlift', 'ettbeins markløft, single leg rdl', 'bakside'],
+    ['Kettlebell swing', 'kettlebell sving, kb swing', 'bakside'],
+    // Legger
+    ['*Standing calf raise', 'tåhev stående, calf raise, leggløft', 'legger'],
+    ['Seated calf raise', 'tåhev sittende', 'legger'],
+    ['Leg press calf raise', 'tåhev beinpress', 'legger'],
+    // Mage og kjerne
+    ['*Plank', 'planke', 'mage'],
+    ['*Hanging leg raise', 'hengende beinhev, leg raise', 'mage'],
+    ['*Cable crunch', 'kabelcrunch, crunch kabel', 'mage'],
+    ['Ab wheel rollout', 'magehjul, ab wheel, rollout', 'mage'],
+    ['Crunch', 'situps, sit ups, magebøy', 'mage'],
+    ['Russian twist', 'russisk vri', 'mage'],
+    ['Pallof press', 'pallof', 'mage'],
+    ['Decline sit-up', 'skrå situps', 'mage'],
+    ['Dead bug', 'deadbug', 'mage'],
+    ['Side plank', 'sideplanke', 'mage'],
+    ['Captain\'s chair leg raise', 'beinhev stol, knee raise', 'mage'],
+    // Trapes og underarm
+    ['Barbell shrug', 'skuldertrekk stang, shrugs', 'trapes'],
+    ['Dumbbell shrug', 'skuldertrekk manualer', 'trapes'],
+    ['Wrist curl', 'håndleddscurl', 'trapes'],
+    ['Reverse wrist curl', 'omvendt håndleddscurl', 'trapes'],
+    ['Reverse curl', 'omvendt curl, overhåndscurl', 'trapes'],
+    ['Farmer\'s walk', 'bondegange, farmers walk, farmers carry', 'trapes'],
+    // Helkropp
+    ['Power clean', 'frivending, clean', 'hel'],
+    ['Clean and jerk', 'støt', 'hel'],
+    ['Snatch', 'rykk', 'hel'],
+    ['Thruster', 'thrusters', 'hel'],
+    ['Burpee', 'burpees', 'hel'],
+    ['Sled push', 'slede, prowler', 'hel'],
+    ['Turkish get-up', 'get up', 'hel']
+  ];
+  var list = L.map(function (x) {
+    var core = x[0].charAt(0) === '*', name = core ? x[0].slice(1) : x[0];
+    return { name: name, aliases: x[1].split(',').map(function (a) { return a.trim(); }).filter(Boolean), group: x[2], core: core };
+  });
+  var SPLIT_GROUPS = {
+    Push: ['bryst', 'skuldre', 'triceps'],
+    Pull: ['rygg', 'biceps', 'skuldre', 'trapes'],
+    Bein: ['forside', 'bakside', 'legger', 'mage'],
+    Overkropp: ['bryst', 'rygg', 'skuldre', 'biceps', 'triceps'],
+    Fullkropp: ['forside', 'bakside', 'bryst', 'rygg', 'skuldre', 'mage']
+  };
+  root.COACH_EXERCISES = { list: list, groups: G, splitGroups: SPLIT_GROUPS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = root.COACH_EXERCISES;
+})(typeof window !== 'undefined' ? window : this);
 
 </script>
 <script>
@@ -1618,7 +1799,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
    * «Incline bech press» = «incline bench», «Incline smith» = «Incline bench Smith», «Rear delt» = «Rear delts»,
    * «Stående curls» = «Stående biceps curls». Rekkefølgen på ordene spiller ingen rolle. */
   var EX_WORD = { flies: 'fly', flyes: 'fly', flys: 'fly', bech: 'bench', benk: 'bench', benkpress: 'bench', cabel: 'cable', kabel: 'cable', dumbell: 'dumbbell', db: 'dumbbell', manual: 'dumbbell', manualer: 'dumbbell', skulderpress: 'shoulder', skråbenk: 'incline' };
-  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1, maskin: 1, machine: 1 };
+  var EX_DROP = { press: 1, pres: 1, the: 1, med: 1 };
   function exKey(name) {
     var w = norm(name).split(' ').filter(Boolean).map(function (x) { x = EX_WORD[x] || x; if (x.length > 3 && /s$/.test(x) && !/ss$/.test(x)) x = x.slice(0, -1); return EX_WORD[x] || x; });
     var hasCurl = w.indexOf('curl') >= 0;
@@ -5211,13 +5392,17 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
     var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
     d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
-    if (d.split && cat.length) {
+    if (d.split) {
+      var sugg = cat.length >= 6 ? [] : splitSuggestions(d.split, cat).slice(0, 10 - cat.length);
       html += '<div class="expick"><div class="exphead"><span>Velg øvelse · ' + esc(d.split.toLowerCase()) + '</span>' +
         (cat.some(function (c) { return !inDraft[c.key]; }) ? '<button type="button" class="btn ghost sm" data-lg="tplall">Hent forrige økt</button>' : '') + '</div>' +
         '<div class="expchips">' + cat.map(function (c) {
           var t = c.last ? topSet(c.last.sets) : null, on = inDraft[c.key];
           return '<button type="button" class="expchip' + (on ? ' on' : '') + '" data-pick="' + esc(c.key) + '"><b>' + (on ? '✓ ' : '') + esc(c.name) + '</b><span>' + (t ? esc(setTxt(t)) + ' · ' + esc(shortDate(c.last.date)) : 'ingen tall') + '</span></button>';
-        }).join('') + '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
+        }).join('') +
+        sugg.map(function (x) { var on = inDraft[exKey(x.name)]; return '<button type="button" class="expchip sugg' + (on ? ' on' : '') + '" data-sugg="' + esc(x.name) + '"><b>' + (on ? '✓ ' : '') + esc(x.name) + '</b><span>' + esc(EXLIB.groups[x.group] || '') + '</span></button>'; }).join('') +
+        '<button type="button" class="expchip more" data-lg="picker"><b>+ Flere øvelser</b><span>Søk blant ' + EXLIB.list.length + '</span></button>' +
+        '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
     } else if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økter ennå. Legg til øvelser under.' : 'Velg økt, så ser du øvelsene du har gjort før og hva du tok sist.') + '</p>';
     html += '<div class="exlist">' + d.exercises.map(function (e, i) {
       var hist = exHistory(e.name, d.editId), last = hist[0], prev = hist[1];
@@ -5240,7 +5425,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         '<button type="button" class="btn ghost sm addset" data-lg="addset">+ Sett</button></div>';
     }).join('') + '</div>' +
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
-      '<div class="row"><input class="input grow" id="lg_newex" placeholder="Legg til øvelse" list="lg_known"><button type="button" class="btn" data-lg="addex">Legg til</button></div>' +
+      '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
       '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
       (draftHasValues(d) ? '<div class="lgtot"><div><span>Totalt løftet</span><b id="lg_vol">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
@@ -5293,14 +5478,100 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
         templateFor(d.split, d.editId, d.volume).forEach(function (t) { if (!d.exercises.some(function (e) { return exKey(e.name) === exKey(t.name); })) d.exercises.push(t); });
         rerender();
       }
-      if (act === 'addex') { var n = box.querySelector('#lg_newex').value.trim(); if (!n) return; d.exercises.push({ name: n, sets: [{ w: '', r: '' }] }); rerender(); }
+      if (act === 'picker') { openExercisePicker(d.split); }
       if (act === 'clear') { S.draft = newDraft(); saveDraft(true); renderTraining(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
       if (act === 'paste') { await importNotes(box.querySelector('#lg_paste').value); }
       if (act === 'save') { await saveStrength(); }
     });
-    var ne = box.querySelector('#lg_newex');
-    ne.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); box.querySelector('[data-lg="addex"]').click(); } });
+    box.querySelectorAll('[data-sugg]').forEach(function (b) { b.onclick = function () {
+      var have = d.exercises.find(function (e) { return exKey(e.name) === exKey(b.dataset.sugg); });
+      if (have) { openExHistory(have.name); return; }
+      addExercise(b.dataset.sugg);
+    }; });
+  }
+  /* ---------- Øvelsesbank ---------- */
+  var EXLIB = window.COACH_EXERCISES || { list: [], groups: {}, splitGroups: {} };
+  function libKeys(x) { return [x.name].concat(x.aliases).map(exKey); }
+  function ownKeys() { var m = {}; S.workouts.forEach(function (w) { (w.exercises || []).forEach(function (e) { var k = exKey(e.name); if (k) m[k] = 1; }); }); return m; }
+  function splitSuggestions(split, cat) {
+    var groups = EXLIB.splitGroups[split] || [], have = ownKeys();
+    (cat || []).forEach(function (c) { have[c.key] = 1; });
+    var pullShoulder = { 'Rear delt fly': 1, 'Face pull': 1 };
+    return EXLIB.list.filter(function (x) {
+      if (!x.core || groups.indexOf(x.group) < 0) return false;
+      if (split === 'Pull' && x.group === 'skuldre' && !pullShoulder[x.name]) return false;
+      if (split === 'Push' && x.group === 'skuldre' && pullShoulder[x.name]) return false;
+      return !libKeys(x).some(function (k) { return have[k]; });
+    }).sort(function (a, b) { return groups.indexOf(a.group) - groups.indexOf(b.group); });
+  }
+  function libSearch(q, group) {
+    var words = C.norm(q).split(' ').filter(Boolean);
+    return EXLIB.list.map(function (x) {
+      if (group && x.group !== group) return null;
+      var hay = C.norm([x.name].concat(x.aliases).join(' | '));
+      if (!words.length) return { x: x, s: x.core ? 2 : 1 };
+      var sc = 0; words.forEach(function (w) { if (hay.indexOf(w) >= 0) sc += 10; });
+      if (!sc || sc < words.length * 10) return null;
+      if (C.norm(x.name).indexOf(words[0]) === 0) sc += 5;
+      if (x.core) sc += 1;
+      return { x: x, s: sc };
+    }).filter(Boolean).sort(function (a, b) { return b.s - a.s || a.x.name.localeCompare(b.x.name); }).map(function (o) { return o.x; });
+  }
+  function addExercise(name) {
+    var d = loadDraft(), k = exKey(name);
+    var have = d.exercises.find(function (e) { return exKey(e.name) === k; });
+    if (have) { toast(have.name + ' er allerede med i økta'); return; }
+    var last = lastFor(name, d.editId), n = last ? Math.max(1, Math.min(last.sets.length, 6)) : 1, sets = [];
+    for (var j = 0; j < n; j++) sets.push({ w: '', r: '' });
+    d.exercises.push({ name: name, sets: sets });
+    saveDraft(); renderTraining();
+    var row = $('.logger .exrow[data-key="' + k.replace(/"/g, '') + '"]');
+    if (row) { row.classList.add('flash'); scrollInView(row); }
+  }
+  function openExercisePicker(split) {
+    var group = '', groups = Object.keys(EXLIB.groups);
+    openSheet('Legg til øvelse', function (body) {
+      body.innerHTML = '<div class="stack expicker"><input class="input" id="xp_q" type="search" enterkeyhint="search" placeholder="Søk, f.eks. knebøy, roing eller curl" autocomplete="off">' +
+        '<div class="xpgroups" role="group">' + ['<button type="button" data-g="" aria-pressed="true">Alle</button>'].concat(groups.map(function (g) { return '<button type="button" data-g="' + g + '" aria-pressed="false">' + esc(EXLIB.groups[g]) + '</button>'; })).join('') + '</div>' +
+        '<div id="xp_res"></div></div>';
+      var res = $('#xp_res'), d = loadDraft(), inDraft = {};
+      d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
+      function run() {
+        var q = $('#xp_q').value.trim(), nq = C.norm(q), own = {}, ownList = [];
+        var libHits = q ? libSearch(q, '') : [];
+        knownExercises().forEach(function (n) {
+          var k = exKey(n); own[k] = 1;
+          var direct = nq.split(' ').every(function (w) { return C.norm(n).indexOf(w) >= 0; });
+          var viaLib = libHits.some(function (x) { return libKeys(x).indexOf(k) >= 0; });
+          if (nq && !direct && !viaLib) return;
+          if (group) { var lx = EXLIB.list.find(function (x) { return libKeys(x).indexOf(k) >= 0; }); if (!lx || lx.group !== group) return; }
+          ownList.push(n);
+        });
+        var lib = libSearch(q, group).filter(function (x) { return !own[exKey(x.name)]; });
+        var exact = ownList.concat(lib.map(function (x) { return x.name; })).some(function (n) { return C.norm(n) === nq; });
+        res.innerHTML = (ownList.length ? '<div class="fhead">Dine øvelser</div><div class="list">' + ownList.slice(0, 30).map(function (n) {
+            var l = lastFor(n), t = l ? topSet(l.sets) : null, on = inDraft[exKey(n)];
+            return '<button type="button" class="li" data-xn="' + esc(n) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(n) + '</div><div class="t2">' + (t ? 'Sist ' + esc(setTxt(t)) + ' · ' + esc(shortDate(l.date)) : 'Ingen tall ennå') + '</div></div></button>';
+          }).join('') + '</div>' : '') +
+          (lib.length ? '<div class="fhead">Øvelsesbanken</div><div class="list">' + lib.slice(0, 60).map(function (x) {
+            var on = inDraft[exKey(x.name)];
+            return '<button type="button" class="li" data-xn="' + esc(x.name) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(x.name) + '</div><div class="t2">' + esc(EXLIB.groups[x.group] + (x.aliases[0] ? ' · ' + x.aliases[0] : '')) + '</div></div></button>';
+          }).join('') + '</div>' : '') +
+          (q && !exact ? '<button type="button" class="btn ownbtn" data-xn="' + esc(q) + '">Legg til <b>«' + esc(q) + '»</b> som egen øvelse</button>' : '') +
+          (!q && !ownList.length && !lib.length ? '<p class="small muted">Ingen øvelser i denne gruppen.</p>' : '');
+        res.querySelectorAll('[data-xn]').forEach(function (b) { b.onclick = function () {
+          var n = b.dataset.xn;
+          if (inDraft[exKey(n)]) { toast(n + ' er allerede med i økta'); return; }
+          closeSheet(); setTimeout(function () { addExercise(n.charAt(0).toUpperCase() + n.slice(1)); }, 230);
+        }; });
+      }
+      body.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function () { group = b.dataset.g; body.querySelectorAll('[data-g]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); run(); }; });
+      ['input', 'search'].forEach(function (ev) { $('#xp_q').addEventListener(ev, run); });
+      $('#xp_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+      if (split && EXLIB.splitGroups[split]) { var first = EXLIB.splitGroups[split][0]; var fb = body.querySelector('[data-g="' + first + '"]'); if (fb && !knownExercises().length) fb.click(); }
+      run();
+    });
   }
 
   function draftToExercises(d) {

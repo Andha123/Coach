@@ -2747,13 +2747,17 @@
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
     var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
     d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
-    if (d.split && cat.length) {
+    if (d.split) {
+      var sugg = cat.length >= 6 ? [] : splitSuggestions(d.split, cat).slice(0, 10 - cat.length);
       html += '<div class="expick"><div class="exphead"><span>Velg øvelse · ' + esc(d.split.toLowerCase()) + '</span>' +
         (cat.some(function (c) { return !inDraft[c.key]; }) ? '<button type="button" class="btn ghost sm" data-lg="tplall">Hent forrige økt</button>' : '') + '</div>' +
         '<div class="expchips">' + cat.map(function (c) {
           var t = c.last ? topSet(c.last.sets) : null, on = inDraft[c.key];
           return '<button type="button" class="expchip' + (on ? ' on' : '') + '" data-pick="' + esc(c.key) + '"><b>' + (on ? '✓ ' : '') + esc(c.name) + '</b><span>' + (t ? esc(setTxt(t)) + ' · ' + esc(shortDate(c.last.date)) : 'ingen tall') + '</span></button>';
-        }).join('') + '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
+        }).join('') +
+        sugg.map(function (x) { var on = inDraft[exKey(x.name)]; return '<button type="button" class="expchip sugg' + (on ? ' on' : '') + '" data-sugg="' + esc(x.name) + '"><b>' + (on ? '✓ ' : '') + esc(x.name) + '</b><span>' + esc(EXLIB.groups[x.group] || '') + '</span></button>'; }).join('') +
+        '<button type="button" class="expchip more" data-lg="picker"><b>+ Flere øvelser</b><span>Søk blant ' + EXLIB.list.length + '</span></button>' +
+        '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
     } else if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økter ennå. Legg til øvelser under.' : 'Velg økt, så ser du øvelsene du har gjort før og hva du tok sist.') + '</p>';
     html += '<div class="exlist">' + d.exercises.map(function (e, i) {
       var hist = exHistory(e.name, d.editId), last = hist[0], prev = hist[1];
@@ -2776,7 +2780,7 @@
         '<button type="button" class="btn ghost sm addset" data-lg="addset">+ Sett</button></div>';
     }).join('') + '</div>' +
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
-      '<div class="row"><input class="input grow" id="lg_newex" placeholder="Legg til øvelse" list="lg_known"><button type="button" class="btn" data-lg="addex">Legg til</button></div>' +
+      '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
       '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
       (draftHasValues(d) ? '<div class="lgtot"><div><span>Totalt løftet</span><b id="lg_vol">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
@@ -2829,14 +2833,100 @@
         templateFor(d.split, d.editId, d.volume).forEach(function (t) { if (!d.exercises.some(function (e) { return exKey(e.name) === exKey(t.name); })) d.exercises.push(t); });
         rerender();
       }
-      if (act === 'addex') { var n = box.querySelector('#lg_newex').value.trim(); if (!n) return; d.exercises.push({ name: n, sets: [{ w: '', r: '' }] }); rerender(); }
+      if (act === 'picker') { openExercisePicker(d.split); }
       if (act === 'clear') { S.draft = newDraft(); saveDraft(true); renderTraining(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
       if (act === 'paste') { await importNotes(box.querySelector('#lg_paste').value); }
       if (act === 'save') { await saveStrength(); }
     });
-    var ne = box.querySelector('#lg_newex');
-    ne.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); box.querySelector('[data-lg="addex"]').click(); } });
+    box.querySelectorAll('[data-sugg]').forEach(function (b) { b.onclick = function () {
+      var have = d.exercises.find(function (e) { return exKey(e.name) === exKey(b.dataset.sugg); });
+      if (have) { openExHistory(have.name); return; }
+      addExercise(b.dataset.sugg);
+    }; });
+  }
+  /* ---------- Øvelsesbank ---------- */
+  var EXLIB = window.COACH_EXERCISES || { list: [], groups: {}, splitGroups: {} };
+  function libKeys(x) { return [x.name].concat(x.aliases).map(exKey); }
+  function ownKeys() { var m = {}; S.workouts.forEach(function (w) { (w.exercises || []).forEach(function (e) { var k = exKey(e.name); if (k) m[k] = 1; }); }); return m; }
+  function splitSuggestions(split, cat) {
+    var groups = EXLIB.splitGroups[split] || [], have = ownKeys();
+    (cat || []).forEach(function (c) { have[c.key] = 1; });
+    var pullShoulder = { 'Rear delt fly': 1, 'Face pull': 1 };
+    return EXLIB.list.filter(function (x) {
+      if (!x.core || groups.indexOf(x.group) < 0) return false;
+      if (split === 'Pull' && x.group === 'skuldre' && !pullShoulder[x.name]) return false;
+      if (split === 'Push' && x.group === 'skuldre' && pullShoulder[x.name]) return false;
+      return !libKeys(x).some(function (k) { return have[k]; });
+    }).sort(function (a, b) { return groups.indexOf(a.group) - groups.indexOf(b.group); });
+  }
+  function libSearch(q, group) {
+    var words = C.norm(q).split(' ').filter(Boolean);
+    return EXLIB.list.map(function (x) {
+      if (group && x.group !== group) return null;
+      var hay = C.norm([x.name].concat(x.aliases).join(' | '));
+      if (!words.length) return { x: x, s: x.core ? 2 : 1 };
+      var sc = 0; words.forEach(function (w) { if (hay.indexOf(w) >= 0) sc += 10; });
+      if (!sc || sc < words.length * 10) return null;
+      if (C.norm(x.name).indexOf(words[0]) === 0) sc += 5;
+      if (x.core) sc += 1;
+      return { x: x, s: sc };
+    }).filter(Boolean).sort(function (a, b) { return b.s - a.s || a.x.name.localeCompare(b.x.name); }).map(function (o) { return o.x; });
+  }
+  function addExercise(name) {
+    var d = loadDraft(), k = exKey(name);
+    var have = d.exercises.find(function (e) { return exKey(e.name) === k; });
+    if (have) { toast(have.name + ' er allerede med i økta'); return; }
+    var last = lastFor(name, d.editId), n = last ? Math.max(1, Math.min(last.sets.length, 6)) : 1, sets = [];
+    for (var j = 0; j < n; j++) sets.push({ w: '', r: '' });
+    d.exercises.push({ name: name, sets: sets });
+    saveDraft(); renderTraining();
+    var row = $('.logger .exrow[data-key="' + k.replace(/"/g, '') + '"]');
+    if (row) { row.classList.add('flash'); scrollInView(row); }
+  }
+  function openExercisePicker(split) {
+    var group = '', groups = Object.keys(EXLIB.groups);
+    openSheet('Legg til øvelse', function (body) {
+      body.innerHTML = '<div class="stack expicker"><input class="input" id="xp_q" type="search" enterkeyhint="search" placeholder="Søk, f.eks. knebøy, roing eller curl" autocomplete="off">' +
+        '<div class="xpgroups" role="group">' + ['<button type="button" data-g="" aria-pressed="true">Alle</button>'].concat(groups.map(function (g) { return '<button type="button" data-g="' + g + '" aria-pressed="false">' + esc(EXLIB.groups[g]) + '</button>'; })).join('') + '</div>' +
+        '<div id="xp_res"></div></div>';
+      var res = $('#xp_res'), d = loadDraft(), inDraft = {};
+      d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
+      function run() {
+        var q = $('#xp_q').value.trim(), nq = C.norm(q), own = {}, ownList = [];
+        var libHits = q ? libSearch(q, '') : [];
+        knownExercises().forEach(function (n) {
+          var k = exKey(n); own[k] = 1;
+          var direct = nq.split(' ').every(function (w) { return C.norm(n).indexOf(w) >= 0; });
+          var viaLib = libHits.some(function (x) { return libKeys(x).indexOf(k) >= 0; });
+          if (nq && !direct && !viaLib) return;
+          if (group) { var lx = EXLIB.list.find(function (x) { return libKeys(x).indexOf(k) >= 0; }); if (!lx || lx.group !== group) return; }
+          ownList.push(n);
+        });
+        var lib = libSearch(q, group).filter(function (x) { return !own[exKey(x.name)]; });
+        var exact = ownList.concat(lib.map(function (x) { return x.name; })).some(function (n) { return C.norm(n) === nq; });
+        res.innerHTML = (ownList.length ? '<div class="fhead">Dine øvelser</div><div class="list">' + ownList.slice(0, 30).map(function (n) {
+            var l = lastFor(n), t = l ? topSet(l.sets) : null, on = inDraft[exKey(n)];
+            return '<button type="button" class="li" data-xn="' + esc(n) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(n) + '</div><div class="t2">' + (t ? 'Sist ' + esc(setTxt(t)) + ' · ' + esc(shortDate(l.date)) : 'Ingen tall ennå') + '</div></div></button>';
+          }).join('') + '</div>' : '') +
+          (lib.length ? '<div class="fhead">Øvelsesbanken</div><div class="list">' + lib.slice(0, 60).map(function (x) {
+            var on = inDraft[exKey(x.name)];
+            return '<button type="button" class="li" data-xn="' + esc(x.name) + '"><div class="grow"><div class="t1">' + (on ? '✓ ' : '') + esc(x.name) + '</div><div class="t2">' + esc(EXLIB.groups[x.group] + (x.aliases[0] ? ' · ' + x.aliases[0] : '')) + '</div></div></button>';
+          }).join('') + '</div>' : '') +
+          (q && !exact ? '<button type="button" class="btn ownbtn" data-xn="' + esc(q) + '">Legg til <b>«' + esc(q) + '»</b> som egen øvelse</button>' : '') +
+          (!q && !ownList.length && !lib.length ? '<p class="small muted">Ingen øvelser i denne gruppen.</p>' : '');
+        res.querySelectorAll('[data-xn]').forEach(function (b) { b.onclick = function () {
+          var n = b.dataset.xn;
+          if (inDraft[exKey(n)]) { toast(n + ' er allerede med i økta'); return; }
+          closeSheet(); setTimeout(function () { addExercise(n.charAt(0).toUpperCase() + n.slice(1)); }, 230);
+        }; });
+      }
+      body.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function () { group = b.dataset.g; body.querySelectorAll('[data-g]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); run(); }; });
+      ['input', 'search'].forEach(function (ev) { $('#xp_q').addEventListener(ev, run); });
+      $('#xp_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+      if (split && EXLIB.splitGroups[split]) { var first = EXLIB.splitGroups[split][0]; var fb = body.querySelector('[data-g="' + first + '"]'); if (fb && !knownExercises().length) fb.click(); }
+      run();
+    });
   }
 
   function draftToExercises(d) {
