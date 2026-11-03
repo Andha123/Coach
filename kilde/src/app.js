@@ -254,6 +254,7 @@
     }, err('recipes'));
     db.doc('meta/garminSync').onSnapshot(function (d) { S.garminMeta = d.exists ? clone(d.data()) : null; scheduleRender(); }, function () {});
     db.doc('meta/profile').onSnapshot(function (d) { S.profile = d.exists ? clone(d.data()) : null; mark('profile'); }, err('profile'));
+    setTimeout(restoreDraft, 300);
     db.collection('days').orderBy('date', 'desc').limit(120).onSnapshot(function (snap) {
       S.days = new Map(); snap.docs.forEach(function (d) { S.days.set(d.id, clone(d.data())); }); mark('days');
     }, err('days'));
@@ -2622,7 +2623,39 @@
     try { var d = JSON.parse(localStorage.getItem('coach.draft') || 'null'); if (d && d.exercises) S.draft = d; } catch (e) {}
     return S.draft || (S.draft = newDraft());
   }
-  function saveDraft() { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} }
+  /* Utkastet lagres på telefonen ved hvert tastetrykk, og i databasen et par sekunder etter (og med en gang når du
+   * går ut av appen). Da mister du ingenting om appen lukkes midt i økta, eller om telefonen rydder i lagringen. */
+  var draftTimer = null, draftDirty = false;
+  function saveDraft(now) {
+    if (!S.draft) return;
+    S.draft.updatedAt = Date.now();
+    try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {}
+    draftDirty = true;
+    clearTimeout(draftTimer);
+    if (now === true) pushDraft(); else draftTimer = setTimeout(pushDraft, 2500);
+  }
+  function pushDraft() {
+    clearTimeout(draftTimer);
+    if (!draftDirty || !S.db || !S.draft) return;
+    draftDirty = false;
+    try { S.db.doc('meta/draft').set({ draft: clone(S.draft), savedAt: new Date().toISOString() }).catch(function () { draftDirty = true; }); } catch (e) { draftDirty = true; }
+  }
+  /* Ved oppstart: bruk det nyeste utkastet, enten det ligger på telefonen eller i databasen. */
+  async function restoreDraft() {
+    if (!S.db) return;
+    try {
+      var snap = await S.db.doc('meta/draft').get();
+      var remote = snap.exists ? (snap.data() || {}).draft : null;
+      var local = loadDraft();
+      if (remote && remote.exercises && (remote.updatedAt || 0) > (local.updatedAt || 0)) {
+        S.draft = remote;
+        try { localStorage.setItem('coach.draft', JSON.stringify(remote)); } catch (e) {}
+        if (S.view === 'trening' && !editingInside($('#v-trening'))) renderTraining();
+      } else if (local && (local.updatedAt || 0) > ((remote && remote.updatedAt) || 0) && draftHasValues(local)) { draftDirty = true; pushDraft(); }
+    } catch (e) { /* telefonens kopi brukes */ }
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } pushDraft(); } });
+  window.addEventListener('pagehide', function () { pushDraft(); });
   function draftTitle(d) { return d.title || (d.split ? d.split + (d.volume ? ' (volum)' : '') : 'Styrketrening'); }
   function doneWorkouts(excludeId) { return S.workouts.filter(function (w) { return !w.planned && w.id !== excludeId && (w.exercises || []).length; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }); }
   function exKey(n) { return C.exKey(n); }
@@ -2703,6 +2736,7 @@
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<div class="row"><input class="input grow" id="lg_newex" placeholder="Legg til øvelse" list="lg_known"><button type="button" class="btn" data-lg="addex">Legg til</button></div>' +
       '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
+      (draftHasValues(d) ? '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
   }
@@ -2747,7 +2781,7 @@
         rerender();
       }
       if (act === 'addex') { var n = box.querySelector('#lg_newex').value.trim(); if (!n) return; d.exercises.push({ name: n, sets: [{ w: '', r: '' }] }); rerender(); }
-      if (act === 'clear') { S.draft = newDraft(); rerender(); }
+      if (act === 'clear') { S.draft = newDraft(); saveDraft(true); renderTraining(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
       if (act === 'paste') { await importNotes(box.querySelector('#lg_paste').value); }
       if (act === 'save') { await saveStrength(); }
@@ -2773,7 +2807,7 @@
     var prs = exercises.filter(function (e) { var prev = bestE1rm(e.name, d.editId); return prev > 0 && e.sets.some(function (x) { return x.weight_kg && x.reps && E.e1rm(x.weight_kg, x.reps) > prev + 0.01; }); }).map(function (e) { return e.name; });
     try {
       var w = await C.logStrength(ctx, { date: d.date, title: draftTitle(d), exercises: exercises, edit_id: d.editId || undefined });
-      S.draft = newDraft(); saveDraft();
+      S.draft = newDraft(); saveDraft(true);
       toast((d.editId ? 'Økten er oppdatert' : w.merged ? 'Lagret sammen med Garmin-økten' : 'Økt lagret') + (prs.length ? ' · Ny rekord: ' + prs.slice(0, 2).join(', ') : ''));
       renderTraining();
     } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
