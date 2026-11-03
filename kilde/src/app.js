@@ -3086,6 +3086,113 @@
     });
   }
 
+  /* ---------- Historikk og tall (bare dine styrkeøkter med øvelser, ikke gåturer o.l. fra Garmin) ---------- */
+  var PERIODS = [['dag', 'I dag'], ['uke', 'Uke'], ['maned', 'Måned'], ['ar', 'År'], ['alt', 'Alt']];
+  var MONTHS = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'];
+  function periodRange(per, offset) {
+    var t = new Date(today() + 'T12:00:00'), a, b, iso = function (d) { return C.localDate(d); };
+    if (per === 'dag') { a = new Date(t); a.setDate(a.getDate() - (offset || 0)); return { from: iso(a), to: iso(a) }; }
+    if (per === 'uke') { a = new Date(t); a.setDate(a.getDate() - ((a.getDay() + 6) % 7) - 7 * (offset || 0)); b = new Date(a); b.setDate(b.getDate() + 6); return { from: iso(a), to: iso(b) }; }
+    if (per === 'maned') { a = new Date(t.getFullYear(), t.getMonth() - (offset || 0), 1, 12); b = new Date(a.getFullYear(), a.getMonth() + 1, 0, 12); return { from: iso(a), to: iso(b) }; }
+    if (per === 'ar') { a = new Date(t.getFullYear() - (offset || 0), 0, 1, 12); b = new Date(a.getFullYear(), 11, 31, 12); return { from: iso(a), to: iso(b) }; }
+    return { from: '0000-00-00', to: '9999-12-31' };
+  }
+  function strengthSessions(r) { return doneWorkouts().filter(function (w) { return w.type !== 'kondisjon' && (!r || (w.date >= r.from && w.date <= r.to)) && w.exercises.some(function (e) { return (e.sets || []).some(hasVal); }); }); }
+  function sessionStats(list) {
+    var o = { n: list.length, vol: 0, sets: 0, reps: 0, min: 0, ex: {} };
+    list.forEach(function (w) {
+      o.vol += workoutVolume(w); if (w.durationMin) o.min += w.durationMin;
+      w.exercises.forEach(function (e) { var vs = (e.sets || []).filter(hasVal); o.sets += vs.length; vs.forEach(function (x) { o.reps += x.reps || 0; }); if (vs.length) o.ex[exKey(e.name)] = 1; });
+    });
+    o.exN = Object.keys(o.ex).length;
+    return o;
+  }
+  function deltaTxt(cur, prev) {
+    if (!prev) return cur ? '' : '';
+    var d = Math.round((cur - prev) / prev * 100);
+    return d === 0 ? '<em class="dz">som forrige</em>' : '<em class="' + (d > 0 ? 'du' : 'dd') + '">' + (d > 0 ? '↑ ' : '↓ ') + Math.abs(d) + ' %</em>';
+  }
+  function e1(x) { return x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; }
+  function trainingStatsHtml() {
+    var per = S.trPeriod || 'uke', r = periodRange(per, 0), rp = per === 'alt' ? null : periodRange(per, 1);
+    var cur = strengthSessions(per === 'alt' ? null : r), prev = rp ? strengthSessions(rp) : [];
+    var a = sessionStats(cur), b = sessionStats(prev);
+    var prevLbl = { dag: 'i går', uke: 'forrige uke', maned: 'forrige måned', ar: 'i fjor' }[per];
+    var html = '<div class="seg trper" role="group" aria-label="Periode">' + PERIODS.map(function (p) { return '<button type="button" data-per="' + p[0] + '" aria-pressed="' + (per === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>';
+    var title = per === 'dag' ? cap(dateLabel(r.from)) : per === 'uke' ? 'Uke ' + C.isoWeek(r.from).split('-U')[1] + ' · ' + shortDate(r.from) + '–' + shortDate(r.to) : per === 'maned' ? cap(new Date(r.from + 'T12:00:00').toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })) : per === 'ar' ? r.from.slice(0, 4) : 'All trening';
+    html += '<div class="tshead"><b>' + esc(title) + '</b>' + (rp ? '<span>Sammenlignet med ' + prevLbl + '</span>' : '') + '</div>';
+    html += '<div class="tsbig"><span>Totalt løftet</span><b>' + kgTxt(a.vol) + '</b>' + (rp ? deltaTxt(a.vol, b.vol) : '') + '</div>';
+    function tile(k, v, d) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="t">' + (d || '') + '</div></div>'; }
+    html += '<div class="tiles tstiles">' + tile('Økter', fmt(a.n), rp ? deltaTxt(a.n, b.n) : '') + tile('Sett', fmt(a.sets), rp ? deltaTxt(a.sets, b.sets) : '') + tile('Reps', fmt(a.reps), rp ? deltaTxt(a.reps, b.reps) : '') +
+      tile('Tid', a.min ? (a.min >= 120 ? fmt(a.min / 60, 1) + '<small>t</small>' : fmt(a.min) + '<small>min</small>') : '–', a.n && a.min ? 'snitt ' + fmt(a.min / a.n) + ' min' : '') + '</div>';
+    if (!a.n) {
+      html += '<div class="gcard ts-empty"><p class="small muted" style="margin:0">Ingen styrkeøkter ' + (per === 'dag' ? 'i dag' : per === 'uke' ? 'denne uka' : per === 'maned' ? 'denne måneden' : per === 'ar' ? 'i år' : 'ennå') + '. Økter du lagrer under «Logg økt» vises her.</p></div>';
+    } else {
+      html += '<div class="small muted" style="margin:2px 2px 0">Snitt ' + kgTxt(a.vol / a.n) + ' per økt · ' + a.exN + ' ulike øvelser' + (per === 'maned' || per === 'ar' || per === 'alt' ? (function () {
+        var all = strengthSessions(null), first = all.length ? all[all.length - 1].date : r.from, start = per === 'alt' || first > r.from ? first : r.from, end = today() < r.to ? today() : r.to;
+        var weeks = Math.max(1, (Date.parse(end) - Date.parse(start)) / 6048e5 + 1 / 7);
+        return ' · ' + fmt(a.n / weeks, 1) + ' økter per uke';
+      })() : '') + '</div>';
+      /* Søyler: volum per dag (uke/måned) eller per måned (år/alt) */
+      var buckets = [];
+      if (per === 'uke' || per === 'maned') {
+        var d0 = new Date(r.from + 'T12:00:00'), d1 = new Date(r.to + 'T12:00:00');
+        for (var d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) { var ds = C.localDate(d); buckets.push({ k: ds, l: per === 'uke' ? ['ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø'][(d.getDay() + 6) % 7] : String(d.getDate()), v: 0, today: ds === today() }); }
+        cur.forEach(function (w) { var bk = buckets.find(function (x) { return x.k === w.date; }); if (bk) bk.v += workoutVolume(w); });
+      } else if (per === 'ar' || per === 'alt') {
+        var y0 = per === 'ar' ? +r.from.slice(0, 4) : +cur[cur.length - 1].date.slice(0, 4), m0 = per === 'ar' ? 0 : +cur[cur.length - 1].date.slice(5, 7) - 1;
+        var y1 = +today().slice(0, 4), m1 = per === 'ar' ? 11 : +today().slice(5, 7) - 1;
+        var yy = y0, mm = m0, guard = 0;
+        while ((yy < y1 || (yy === y1 && mm <= m1)) && guard++ < 240) {
+          var key = yy + '-' + String(mm + 1).padStart(2, '0');
+          buckets.push({ k: key, l: MONTHS[mm] + (per === 'alt' && mm === 0 ? ' ' + String(yy).slice(2) : ''), v: 0, today: key === today().slice(0, 7) });
+          mm++; if (mm > 11) { mm = 0; yy++; }
+        }
+        cur.forEach(function (w) { var bk = buckets.find(function (x) { return x.k === w.date.slice(0, 7); }); if (bk) bk.v += workoutVolume(w); });
+        if (buckets.length > 24) buckets = buckets.slice(-24);
+      }
+      if (buckets.length) {
+        var mx = Math.max.apply(null, buckets.map(function (x) { return x.v; }).concat([1]));
+        html += '<div class="gcard tschart"><div class="small muted" style="margin-bottom:8px">Volum per ' + (per === 'uke' || per === 'maned' ? 'dag' : 'måned') + '</div><div class="tsbars' + (buckets.length > 14 ? ' dense' : '') + '">' + buckets.map(function (x) {
+          return '<div class="tsbar' + (x.today ? ' now' : '') + '" title="' + esc(x.k + ': ' + kgTxt(x.v)) + '"><i style="height:' + (x.v ? Math.max(4, Math.round(x.v / mx * 100)) : 0) + '%"></i><span>' + esc(x.l) + '</span></div>';
+        }).join('') + '</div></div>';
+      }
+      /* Muskelgrupper: antall sett */
+      var grp = {};
+      cur.forEach(function (w) { w.exercises.forEach(function (e) { var n = (e.sets || []).filter(hasVal).length; if (!n) return; var lx = libFor(e.name), g = lx ? lx.group : 'annet'; grp[g] = (grp[g] || 0) + n; }); });
+      var gk = Object.keys(grp).sort(function (x, y) { return grp[y] - grp[x]; }), gmax = Math.max.apply(null, gk.map(function (k) { return grp[k]; }).concat([1]));
+      html += '<div class="section"><h3>Sett per muskelgruppe</h3><div class="gcard tsgroups">' + gk.map(function (k) {
+        return '<div class="tsg"><span>' + esc((EXLIB.groups || {})[k] || 'Annet') + '</span><div class="tsgb"><i style="width:' + Math.round(grp[k] / gmax * 100) + '%"></i></div><b>' + grp[k] + '</b></div>';
+      }).join('') + '</div></div>';
+      /* Øvelser med mest volum */
+      var exs = {};
+      cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
+      var top = Object.keys(exs).map(function (k) { return exs[k]; }).sort(function (x, y) { return y.vol - x.vol; });
+      html += '<div class="section"><h3>Øvelser</h3><div class="list">' + top.slice(0, 8).map(function (o) {
+        return '<button type="button" class="li" data-exh="' + esc(o.name) + '">' + exThumb(o.name) + '<div class="grow"><div class="t1">' + esc(o.name) + '</div><div class="t2">' + o.sets + ' sett' + (o.best ? ' · beste ' + esc(setTxt(o.best)) : '') + '</div></div><div class="kc">' + kgTxt(o.vol) + '<span class="faint small">løftet</span></div></button>';
+      }).join('') + '</div></div>';
+      /* Nye rekorder i perioden */
+      if (per !== 'alt') {
+        var before = {}, prs = [];
+        strengthSessions({ from: '0000-00-00', to: C.addDays(r.from, -1) }).forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); (e.sets || []).forEach(function (x) { before[k] = Math.max(before[k] || 0, e1(x)); }); }); });
+        Object.keys(exs).forEach(function (k) { var o = exs[k]; if (o.best && before[k] && e1(o.best) > before[k] + 0.01) prs.push(o); });
+        if (prs.length) html += '<div class="section"><h3>Nye rekorder</h3><div class="list">' + prs.map(function (o) { return '<button type="button" class="li" data-exh="' + esc(o.name) + '"><span class="prbadge">PR</span><div class="grow"><div class="t1">' + esc(o.name) + '</div><div class="t2">' + esc(setTxt(o.best)) + ' · ca. ' + fmt(e1(o.best)) + ' kg 1RM (før ' + fmt(before[exKey(o.name)]) + ')</div></div></button>'; }).join('') + '</div></div>';
+      }
+    }
+    /* Øktene */
+    var list = per === 'alt' ? cur : cur;
+    var showAll = S.trShowAll || list.length <= 12;
+    html += '<div class="section"><h3>Økter' + (list.length ? ' <span class="faint small">· ' + list.length + '</span>' : '') + '</h3>' + (list.length ? '<div class="list">' + (showAll ? list : list.slice(0, 12)).map(function (w) {
+      var ns = w.exercises.reduce(function (s2, e) { return s2 + (e.sets || []).filter(hasVal).length; }, 0);
+      return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><div class="tsdate"><b>' + new Date(w.date + 'T12:00:00').getDate() + '</b><span>' + MONTHS[+w.date.slice(5, 7) - 1] + '</span></div><div class="grow"><div class="t1">' + esc(w.title || 'Styrkeøkt') + '</div><div class="t2">' + esc([w.exercises.length + ' øvelser', ns + ' sett', w.durationMin ? fmt(w.durationMin) + ' min' : ''].filter(Boolean).join(' · ')) + '</div></div><div class="kc">' + kgTxt(workoutVolume(w)) + '</div></button>';
+    }).join('') + '</div>' + (!showAll ? '<button type="button" class="btn ghost" id="ts_more" style="width:100%;margin-top:8px">Vis alle ' + list.length + ' økter</button>' : '') : '<p class="small muted">Ingen økter i perioden.</p>') + '</div>';
+    /* Beste sett gjennom tidene */
+    var best = {}, bestName = {};
+    strengthSessions(null).slice().reverse().forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; bestName[k] = e.name; (e.sets || []).forEach(function (x) { if (e1(x) && (!best[k] || e1(x) > e1(best[k]))) best[k] = Object.assign({ date: w.date }, x); }); }); });
+    var bk = Object.keys(best).sort(function (x, y) { return bestName[x].localeCompare(bestName[y], 'nb'); });
+    if (bk.length) html += '<details class="section tsbest"><summary>Beste sett gjennom tidene</summary><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Sett</th><th class="r">1RM ca.</th><th class="r">Dato</th></tr></thead><tbody>' + bk.map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + esc(setTxt(best[k])) + '</td><td class="r">' + fmt(e1(best[k])) + ' kg</td><td class="r">' + esc(shortDate(best[k].date)) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
+    return html;
+  }
   function renderTraining() {
     var v = $('#v-trening');
     var done = S.workouts.filter(function (w) { return !w.planned; });
@@ -3093,7 +3200,19 @@
     var wk = done.filter(function (w) { return C.isoWeek(w.date) === thisWeek; });
     var plan = S.plans.find(function (p) { return p.active; });
     var t = S.trType || 'styrke';
-    var html = '<div class="section"><h2 class="vh">Trening</h2><div class="small muted">Denne uka: <b>' + wk.filter(function (w) { return w.type === 'styrke'; }).length + '</b> styrke · <b>' + wk.filter(function (w) { return w.type === 'kondisjon'; }).length + '</b> kondisjon</div></div>';
+    var tab = S.trTab || 'logg';
+    var html = '<div class="section"><h2 class="vh">Trening</h2><div class="seg trtabs" role="group" aria-label="Visning"><button type="button" data-trtab="logg" aria-pressed="' + (tab === 'logg') + '">Logg økt</button><button type="button" data-trtab="stats" aria-pressed="' + (tab === 'stats') + '">Historikk og tall</button></div></div>';
+    if (tab === 'stats') {
+      html += trainingStatsHtml();
+      if (!setHTML(v, html)) return;
+      v.querySelectorAll('[data-trtab]').forEach(function (b) { b.onclick = function () { S.trTab = b.dataset.trtab; renderTraining(); v.scrollTop = 0; }; });
+      v.querySelectorAll('[data-per]').forEach(function (b) { b.onclick = function () { S.trPeriod = b.dataset.per; renderTraining(); }; });
+      v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
+      v.querySelectorAll('[data-exh]').forEach(function (b) { b.onclick = function () { openExHistory(b.dataset.exh); }; });
+      var more = $('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; renderTraining(); };
+      return;
+    }
+    html += '<div class="small muted" style="margin:-4px 2px 10px">Denne uka: <b>' + wk.filter(function (w) { return w.type === 'styrke'; }).length + '</b> styrke · <b>' + wk.filter(function (w) { return w.type === 'kondisjon'; }).length + '</b> kondisjon</div>';
     html += garminCard();
     if (t === 'styrke') html += '<div class="section"><div class="row"><h3 class="grow">Logg styrkeøkt</h3><div class="seg" role="group" aria-label="Type"><button type="button" data-tt="styrke" aria-pressed="true">Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="false">Kondisjon</button></div></div>' + strengthLoggerHtml() + '</div>';
     else html += '<div class="section"><h3>Registrer økt</h3><form id="tf" class="stack" novalidate>' +
@@ -3123,9 +3242,10 @@
       }); });
       if (prog.length) html += '<div class="section"><h3>Neste økt</h3><div class="list">' + prog.map(function (x) { return '<div class="li"><div class="grow"><div class="t1">' + esc(x.name) + ' <span class="pill ' + (x.s.action === 'øk vekt' ? 'bekreftet' : '') + '">' + esc(x.s.action) + '</span></div><div class="t2" style="white-space:normal">' + esc(x.s.text) + ' (sist ' + esc(x.date) + ')</div></div></div>'; }).join('') + '</div></div>';
     }
-    if (bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort(function (a, b) { return bestName[a].localeCompare(bestName[b], 'nb'); }).map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
-    html += '<div class="section"><h3>Historikk</h3>' + (S.workouts.length ? '<div class="list">' + S.workouts.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).slice(0, 40).map(workoutLine).join('') + '</div>' : '<p class="small muted">Ingen økter registrert ennå.</p>') + '</div>';
+    if (false && bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort(function (a, b) { return bestName[a].localeCompare(bestName[b], 'nb'); }).map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    html += '<button type="button" class="btn ghost tsjump" data-trtab="stats">Se historikk og tall for treningen din ›</button>';
     if (!setHTML(v, html)) return;
+    v.querySelectorAll('[data-trtab]').forEach(function (b) { b.onclick = function () { S.trTab = b.dataset.trtab; renderTraining(); v.scrollTop = 0; }; });
     v.querySelectorAll('[data-tt]').forEach(function (b) { b.onclick = function () { S.trType = b.dataset.tt; renderTraining(); }; });
     bindGarminCard(v);
     if (t === 'styrke') bindStrengthLogger(v);
