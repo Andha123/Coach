@@ -3236,11 +3236,16 @@
       }).join('');
     }
     var ranked = keys.sort(function (a, b) { return M[b].score - M[a].score; });
-    var html = '<div class="gcard musmap' + (o.compact ? ' compact' : '') + '"><div class="mmfig"><svg viewBox="0 0 215 200" aria-label="Muskelkart"><g>' + side(B.front) + '</g><g transform="translate(115 0)">' + side(B.back) + '</g></svg>' +
+    var ORDER = ['CHEST', 'FRONT_DELTOIDS', 'BACK_DELTOIDS', 'TRICEPS', 'BICEPS', 'FOREARM', 'UPPER_BACK', 'TRAPEZIUS', 'LOWER_BACK', 'ABS', 'OBLIQUES', 'GLUTEAL', 'QUADRICEPS', 'HAMSTRING', 'ABDUCTORS', 'ABDUCTOR', 'CALVES'];
+    var html = '<div class="gcard musmap' + (o.compact ? ' compact' : '') + '">' +
+      (o.picker ? '<div class="mmscope mmmus">' + ORDER.map(function (k) { var d = M[k]; return '<button type="button" class="mmpill' + (sel === k ? ' on' : '') + (d ? '' : ' cold') + '" data-msel="' + (sel === k ? '' : k) + '"><i style="background:' + (d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : '#fff') + '"></i>' + esc(N[k] || k) + '</button>'; }).join('') + '</div>' : '') +
+      '<div class="mmfig"><svg viewBox="0 0 215 200" aria-label="Muskelkart"><g>' + side(B.front) + '</g><g transform="translate(115 0)">' + side(B.back) + '</g></svg>' +
       '<div class="mmlbl"><span>Forfra</span><span>Bakfra</span></div></div>' +
       '<div class="mmscale"><span>Ikke trent</span><i></i><span>Mye</span></div>';
     if (!o.compact) {
-      if (sel && M[sel]) {
+      if (sel && !M[sel]) {
+        html += '<div class="mmsel"><div class="mmselh"><span class="mmdot" style="background:#fff"></span><b>' + esc(N[sel] || sel) + '</b><button type="button" class="btn ghost sm" data-msel="">Alle muskler</button></div><p class="small muted" style="margin:0">Ikke trent i det du har valgt. Velg en annen periode eller økt over.</p></div>';
+      } else if (sel && M[sel]) {
         var d = M[sel], exs = Object.keys(d.ex).map(function (k) { return d.ex[k]; }).sort(function (a, b) { return (b.prim - a.prim) || b.sets - a.sets; });
         html += '<div class="mmsel"><div class="mmselh"><span class="mmdot" style="background:' + heatColor(Math.min(1, .12 + .88 * d.score / mx)) + '"></span><b>' + esc(N[sel] || sel) + '</b><button type="button" class="btn ghost sm" data-msel="">Alle muskler</button></div>' +
           '<div class="mmstats"><div><b>' + d.direct + '</b><span>sett direkte</span></div><div><b>' + d.help + '</b><span>som hjelpemuskel</span></div><div><b>' + kgTxt(d.vol) + '</b><span>belastning</span></div></div>' +
@@ -3253,6 +3258,15 @@
       html += '<div class="mmchips">' + ranked.slice(0, 8).map(function (k) { return '<span><i style="background:' + heatColor(Math.min(1, .12 + .88 * M[k].score / mx)) + '"></i>' + esc(N[k] || k) + ' ' + M[k].direct + (M[k].help ? '<small>+' + M[k].help + '</small>' : '') + '</span>'; }).join('') + '</div>';
     }
     return html + '</div>';
+  }
+  function bindStats(v, rerender) {
+    v.querySelectorAll('[data-per]').forEach(function (b) { b.onclick = function () { S.trPeriod = b.dataset.per; rerender(); }; });
+    v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
+    v.querySelectorAll('[data-exh]').forEach(function (b) { b.onclick = function () { openExHistory(b.dataset.exh); }; });
+    var more = v.querySelector('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; rerender(); };
+    v.querySelectorAll('[data-mscope]').forEach(function (b) { b.onclick = function () { S.musScope = b.dataset.mscope; S.musSel = null; rerender(); }; });
+    v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; rerender(); }; });
+    v.querySelectorAll('.musmap polygon[data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }); });
   }
   function trainingStatsHtml() {
     var per = S.trPeriod || 'uke', r = periodRange(per, 0), rp = per === 'alt' ? null : periodRange(per, 1);
@@ -3299,11 +3313,20 @@
         }).join('') + '</div></div>';
       }
       /* Muskler: hele perioden eller én økt */
-      var scope = S.musScope && cur.some(function (w) { return w.id === S.musScope; }) ? S.musScope : 'all';
-      var scoped = scope === 'all' ? cur : cur.filter(function (w) { return w.id === scope; });
-      html += '<div class="section"><h3>Muskler</h3><div class="mmscope">' + '<button type="button" class="expchip' + (scope === 'all' ? ' on' : '') + '" data-mscope="all"><b>Hele perioden</b><span>' + cur.length + ' økter</span></button>' +
-        cur.slice(0, 12).map(function (w) { return '<button type="button" class="expchip' + (scope === w.id ? ' on' : '') + '" data-mscope="' + esc(w.id) + '"><b>' + esc(w.title || 'Økt') + '</b><span>' + esc(shortDate(w.date)) + '</span></button>'; }).join('') + '</div>' +
-        muscleMapCard(muscleLoad(scoped), { sel: S.musSel }) + '</div>';
+      /* Velg: hele perioden, alle økter av én type (Push, Pull …) eller én bestemt økt */
+      var types = [];
+      cur.forEach(function (w) { var sp = splitOf(w.title) || 'Annet'; var v2 = isVol(w.title); var k = sp + (v2 ? ' (volum)' : ''); if (types.indexOf(k) < 0) types.push(k); });
+      function typeOf(w) { return (splitOf(w.title) || 'Annet') + (isVol(w.title) ? ' (volum)' : ''); }
+      var scope = S.musScope || 'all';
+      if (scope !== 'all' && scope.indexOf('type:') !== 0 && !cur.some(function (w) { return w.id === scope; })) scope = 'all';
+      if (scope.indexOf('type:') === 0 && types.indexOf(scope.slice(5)) < 0) scope = 'all';
+      var scoped = scope === 'all' ? cur : scope.indexOf('type:') === 0 ? cur.filter(function (w) { return typeOf(w) === scope.slice(5); }) : cur.filter(function (w) { return w.id === scope; });
+      function chip(val, t1, t2) { return '<button type="button" class="expchip' + (scope === val ? ' on' : '') + '" data-mscope="' + esc(val) + '"><b>' + esc(t1) + '</b><span>' + esc(t2) + '</span></button>'; }
+      html += '<div class="section"><h3>Muskler</h3>' +
+        '<div class="mmlabel">Vis for</div><div class="mmscope">' + chip('all', 'Hele perioden', cur.length + ' økter') +
+        types.map(function (k) { var n = cur.filter(function (w) { return typeOf(w) === k; }).length; return chip('type:' + k, 'Alle ' + k.toLowerCase(), n + ' økt' + (n === 1 ? '' : 'er')); }).join('') + '</div>' +
+        '<div class="mmlabel">Eller én økt</div><div class="mmscope">' + cur.slice(0, 30).map(function (w) { return chip(w.id, w.title || 'Økt', shortDate(w.date)); }).join('') + '</div>' +
+        muscleMapCard(muscleLoad(scoped), { sel: S.musSel, picker: true }) + '</div>';
       /* Øvelser med mest volum */
       var exs = {};
       cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
@@ -3342,12 +3365,23 @@
   }
   /* ---------- Kondisjon ---------- */
   var CARDIO_TYPES = [['gåtur', 'Gåtur'], ['løping', 'Løping'], ['tredemølle', 'Tredemølle'], ['sykkel', 'Sykkel'], ['spinning', 'Spinning'], ['roing', 'Roing'], ['ellipse', 'Ellipse'], ['svømming', 'Svømming'], ['annet', 'Annet']];
-  var CARDIO_ICON = { 'gåtur': '🚶', 'løping': '🏃', 'tredemølle': '🏃', 'sykkel': '🚴', 'spinning': '🚴', 'roing': '🚣', 'ellipse': '⛰', 'svømming': '🏊', 'annet': '❤' };
+  function svgI(d) { return '<svg class="ci" viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>'; }
+  var CI = {
+    run: svgI('<circle cx="15.5" cy="4.5" r="2"/><path d="M7 21l3.2-5.6 3.3 2.4V22M8.5 12.5l2.2-4.3 4.3 1.1 2.6 3.2M5 10.5l3.5-2.3"/>'),
+    walk: svgI('<circle cx="12.5" cy="4.5" r="2"/><path d="M10 21.5l2.2-7.2 2.8 3V21.5M12.2 14.3l-.9-5.3 3 1.2 2 3M9 10.5l-2 3.3"/>'),
+    bike: svgI('<circle cx="6" cy="16" r="3.6"/><circle cx="18" cy="16" r="3.6"/><path d="M6 16l3.8-7h5.4L18 16M9.8 9l2.4 7h2.8M13.5 5.5h3"/>'),
+    row: svgI('<path d="M2.5 17.5c3 2 6 2 9.5 0s6.5-2 9.5 0M4.5 13.5l14-8.5M15.5 3.5l4 3.2"/>'),
+    ellipse: svgI('<ellipse cx="12" cy="13" rx="8.5" ry="4.5"/><path d="M12 8.5V3.5M9 3.5h6"/>'),
+    swim: svgI('<path d="M2 18.5c2.5 1.6 5 1.6 7.5 0s5-1.6 7.5 0 3.5 1.1 5 0M6.5 14.5l4.2-4.2 3 2 3.3-3.3"/><circle cx="17.5" cy="6" r="2"/>'),
+    heart: svgI('<path d="M12 20s-7.5-4.6-7.5-10.4A4.1 4.1 0 0 1 12 7.2a4.1 4.1 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z"/>'),
+    lift: svgI('<path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/>')
+  };
+  var CARDIO_ICON = { 'gåtur': CI.walk, 'løping': CI.run, 'tredemølle': CI.run, 'sykkel': CI.bike, 'spinning': CI.bike, 'roing': CI.row, 'ellipse': CI.ellipse, 'svømming': CI.swim, 'annet': CI.heart };
   function cardioSessions(r) { return S.workouts.filter(function (w) { return !w.planned && w.type === 'kondisjon' && (!r || (w.date >= r.from && w.date <= r.to)); }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt || '') < (b.createdAt || '') ? 1 : -1; }); }
   function cardioLine(w) {
     var c = w.cardio || {}, mod = (c.modality || 'annet').toLowerCase();
     var det = [c.durationMin ? fmt(c.durationMin) + ' min' : '', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '', c.avgHr ? 'puls ' + fmt(c.avgHr) : '', c.kcal ? fmt(c.kcal) + ' kcal' : ''].filter(Boolean).join(' · ');
-    return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><span class="cdico" aria-hidden="true">' + (CARDIO_ICON[mod] || '❤') + '</span><div class="grow"><div class="t1">' + esc(w.title || cap(mod)) + (w.source === 'garmin' ? ' <span class="pill garmin">Garmin</span>' : '') + '</div><div class="t2">' + esc(cap(dateLabel(w.date)) + (det ? ' · ' + det : '')) + '</div></div></button>';
+    return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><span class="cdico" aria-hidden="true">' + (CARDIO_ICON[mod] || CI.heart) + '</span><div class="grow"><div class="t1">' + esc(w.title || cap(mod)) + (w.source === 'garmin' ? ' <span class="pill garmin">Garmin</span>' : '') + '</div><div class="t2">' + esc(cap(dateLabel(w.date)) + (det ? ' · ' + det : '')) + '</div></div></button>';
   }
   function cardioLoggerHtml() {
     if (!S.cardioDraft) { try { S.cardioDraft = JSON.parse(localStorage.getItem('coach.cardioDraft') || 'null'); } catch (e) {} }
@@ -3412,16 +3446,10 @@
       html += trainingStatsHtml();
       if (!setHTML(v, html)) return;
       v.querySelectorAll('[data-trtab]').forEach(function (b) { b.onclick = function () { S.trTab = b.dataset.trtab; renderTraining(); v.scrollTop = 0; }; });
-      v.querySelectorAll('[data-per]').forEach(function (b) { b.onclick = function () { S.trPeriod = b.dataset.per; renderTraining(); }; });
-      v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
-      v.querySelectorAll('[data-exh]').forEach(function (b) { b.onclick = function () { openExHistory(b.dataset.exh); }; });
-      var more = $('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; renderTraining(); };
-      v.querySelectorAll('[data-mscope]').forEach(function (b) { b.onclick = function () { S.musScope = b.dataset.mscope; S.musSel = null; renderTraining(); }; });
-      v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; renderTraining(); }; });
-      v.querySelectorAll('.musmap polygon[data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; renderTraining(); }); });
+      bindStats(v, renderTraining);
       return;
     }
-    html += '<div class="seg trtype" role="group" aria-label="Type økt"><button type="button" data-tt="styrke" aria-pressed="' + (t === 'styrke') + '"><b>🏋️</b> Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="' + (t === 'kondisjon') + '"><b>🏃</b> Kondisjon og løping</button></div>';
+    html += '<div class="seg trtype" role="group" aria-label="Type økt"><button type="button" data-tt="styrke" aria-pressed="' + (t === 'styrke') + '">' + CI.lift + ' Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="' + (t === 'kondisjon') + '">' + CI.run + ' Kondisjon og løping</button></div>';
     if (t === 'styrke') html += strengthLoggerHtml();
     else html += cardioLoggerHtml();
     if (plan) {
@@ -3604,11 +3632,14 @@
   }
   function renderProgress() {
     var v = $('#v-fremgang');
-    var html = '<div class="section"><h2 class="vh">Fremgang</h2></div>' + weightCard() + weekSummary() + goalsCard() + waistCard() + weeksList();
+    var html = '<div class="section"><h2 class="vh">Fremgang</h2></div>' + weightCard() + weekSummary() +
+      '<div class="section pgstats"><h3>Trening: historikk og tall</h3>' + trainingStatsHtml() + '</div>' +
+      goalsCard() + waistCard() + weeksList();
     var changedP = setHTML(v, html);
     if (!S.plan && !S.planLoading) refreshPlan();
     if (!changedP) return;
     v.querySelectorAll('[data-calc]').forEach(function (b) { b.onclick = openCalculator; });
+    bindStats(v, renderProgress);
     v.querySelectorAll('[data-wr]').forEach(function (b) { b.onclick = function () { S.wRange = +b.dataset.wr; renderProgress(); }; });
     var aw = $('#pg_addw'); if (aw) aw.onclick = openWeightSheet;
   }
