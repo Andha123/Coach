@@ -1529,17 +1529,19 @@
   /* ---------- I dag ---------- */
   /* Glass-søyler: kcal siste 7 dager, valgt dag fremhevet med verdi over. */
   function weekChartHtml(date, tg) {
+    /* Vinduet står stille når du trykker deg bakover i uka, så søylene ikke hopper. */
+    var end = date >= C.addDays(today(), -6) && date <= today() ? today() : date;
     var days = [];
-    for (var i = 6; i >= 0; i--) { var d = C.addDays(date, -i); days.push({ date: d, kcal: dayTotalsFor(d).values.kcal || 0 }); }
+    for (var i = 6; i >= 0; i--) { var d = C.addDays(end, -i); days.push({ date: d, kcal: dayTotalsFor(d).values.kcal || 0 }); }
     var max = Math.max(tg.kcal || 0, Math.max.apply(null, days.map(function (x) { return x.kcal; }))) || 1;
     var logged = days.filter(function (x) { return x.kcal > 0; });
     var avg = logged.length ? logged.reduce(function (a, x) { return a + x.kcal; }, 0) / logged.length : null;
     var line = tg.kcal ? (100 - tg.kcal / max * 100) : null;
-    return '<div class="gcard chartcard"><div class="gch"><div><div class="gt">Kalorier</div><div class="gs">Siste 7 dager' + (avg !== null ? ' · snitt ' + fmt(avg) + ' kcal' : '') + '</div></div><button class="corner" data-goto="fremgang" aria-label="Fremgang">' + ICON.arrowUR + '</button></div>' +
+    return '<div class="gcard chartcard"><div class="gch"><div><div class="gt">Kalorier</div><div class="gs">Trykk på en dag for å se den' + (avg !== null ? ' · snitt ' + fmt(avg) + ' kcal' : '') + '</div></div><button class="corner" data-goto="fremgang" aria-label="Fremgang">' + ICON.arrowUR + '</button></div>' +
       '<div class="gbars">' + (line !== null ? '<div class="gline" style="top:' + line.toFixed(1) + '%"><span>' + fmt(tg.kcal) + '</span></div>' : '') +
       days.map(function (x) {
         var h = Math.max(3, x.kcal / max * 100), on = x.date === date;
-        return '<div class="gcol' + (on ? ' on' : '') + '">' + (on && x.kcal ? '<div class="gtip">' + fmt(x.kcal) + '</div>' : '') + '<div class="gbar" style="height:' + h.toFixed(1) + '%"></div><div class="glab">' + esc(new Date(x.date + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short' }).replace('.', '')) + '</div></div>';
+        return '<button type="button" class="gcol' + (on ? ' on' : '') + '" data-day="' + x.date + '" aria-label="' + esc(cap(dateLabel(x.date)) + ': ' + fmt(x.kcal) + ' kcal') + '">' + (on && x.kcal ? '<div class="gtip">' + fmt(x.kcal) + '</div>' : '') + '<div class="gbar" style="height:' + h.toFixed(1) + '%"></div><div class="glab">' + esc(new Date(x.date + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short' }).replace('.', '')) + '</div></button>';
       }).join('') + '</div></div>';
   }
   /* Donut: andel av energien fra protein, karbo og fett. */
@@ -1633,6 +1635,7 @@
     $('#dNext').onclick = function () { S.date = C.addDays(S.date, 1); renderToday(); };
     $('#btnAddItem').onclick = function () { openAddItem(date, null, 'mellommåltid'); };
     $('#btnLogFood').onclick = function () { openFoodFinder({ date: date }); };
+    v.querySelectorAll('[data-day]').forEach(function (b) { b.onclick = function () { if (S.date === b.dataset.day) return; S.date = b.dataset.day; renderToday(); }; });
     if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
     if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
@@ -2794,6 +2797,22 @@
   function draftSetCount(d) { return d.exercises.reduce(function (a, e) { return a + e.sets.filter(function (x) { return E.num(x.w) !== null || E.num(x.r) !== null; }).length; }, 0); }
   function kgTxt(v) { return v >= 10000 ? fmt(v / 1000, 1) + ' tonn' : fmt(v) + ' kg'; }
   var CHEV_D = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
+  /* Telleren for total vekt: starter rolig, går fort i midten og bremser inn mot det nye tallet. */
+  function animateKg(el, to) {
+    var from = el._cur !== undefined ? el._cur : (+el.dataset.v || 0);
+    if (Math.abs(to - from) < 0.01) return;
+    cancelAnimationFrame(el._raf);
+    var dur = Math.min(1600, 700 + Math.sqrt(Math.abs(to - from)) * 14), t0 = performance.now();
+    var box = el.closest('.lgvolbox'); if (box && to > from) { box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
+    function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+    function step(now) {
+      var t = Math.min(1, (now - t0) / dur), v = from + (to - from) * ease(t);
+      el._cur = v; el.textContent = kgTxt(Math.round(v));
+      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; }
+    }
+    if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); return; }
+    el._raf = requestAnimationFrame(step);
+  }
   function draftHasValues(d) { return d.exercises.some(function (e) { return e.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }); }); }
 
   function strengthLoggerHtml() {
@@ -2842,7 +2861,7 @@
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
 
-      (draftHasValues(d) ? '<div class="lgtot"><div><span>Totalt løftet</span><b id="lg_vol">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
+      (draftHasValues(d) ? '<div class="lgtot"><div class="lgvolbox"><span>Totalt løftet</span><b id="lg_vol" data-v="' + draftVolume(d) + '">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
@@ -2876,7 +2895,7 @@
       else { var sr = e.target.closest('[data-set]'); if (sr) ex.sets[+sr.dataset.set][f] = e.target.value; }
       saveDraft();
       var vb = box.querySelector('#lg_vol'), sb2 = box.querySelector('#lg_sets');
-      if (vb) vb.textContent = kgTxt(draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
+      if (vb) animateKg(vb, draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
     });
     box.addEventListener('click', async function (e) {
       var b = e.target.closest('[data-lg]'); if (!b) return;
@@ -3122,8 +3141,18 @@
       var wv = workoutVolume(w), ns = (w.exercises || []).reduce(function (a, e) { return a + (e.sets || []).length; }, 0);
       body.innerHTML = '<div class="stack"><div class="small muted">' + esc(cap(dateLabel(w.date))) + (w.durationMin ? ' · ' + fmt(w.durationMin) + ' min' : '') + (w.avgHr ? ' · puls ' + fmt(w.avgHr) : '') + (w.source === 'garmin' ? ' · Garmin' : '') + '</div>' +
         (wv ? '<div class="lgtot"><div><span>Totalt løftet</span><b>' + kgTxt(wv) + '</b></div><div><span>Sett</span><b>' + ns + '</b></div><div><span>Øvelser</span><b>' + w.exercises.length + '</b></div></div>' : '') +
-        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="small muted">Ingen øvelser registrert på denne økten.</p>') +
-        (w.type === 'styrke' ? '<div class="row"><button class="btn primary" id="wo_edit">' + (hasEx ? 'Endre' : 'Legg inn øvelser') + '</button>' + (hasEx ? '<button class="btn" id="wo_tpl">Bruk som mal i dag</button>' : '') + '</div>' : '') + '</div>';
+        (w.cardio ? (function () { var c = w.cardio; function t(k, v) { return v ? '<div><span>' + k + '</span><b>' + v + '</b></div>' : ''; }
+          return '<div class="lgtot">' + t('Tid', c.durationMin ? fmt(c.durationMin) + ' min' : '') + t('Distanse', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '') + t('Snittpuls', c.avgHr ? fmt(c.avgHr) : '') + t('Kalorier', c.kcal ? fmt(c.kcal) : '') + '</div>' +
+            '<div class="small muted">' + esc([cap(c.modality || ''), c.speedKmh ? fmt(c.speedKmh, 1) + ' km/t' : '', c.inclinePct ? c.inclinePct + ' % stigning' : '', c.intensity ? c.intensity : ''].filter(Boolean).join(' · ')) + '</div>' + (w.notes ? '<p class="small">' + esc(w.notes) + '</p>' : ''); })() : '') +
+        (hasEx ? muscleMapCard(muscleLoad([w]), { compact: true }) : '') +
+        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : (w.type === 'styrke' ? '<p class="small muted">Ingen øvelser registrert på denne økten.</p>' : '')) +
+        (w.type === 'styrke' ? '<div class="row"><button class="btn primary" id="wo_edit">' + (hasEx ? 'Endre' : 'Legg inn øvelser') + '</button>' + (hasEx ? '<button class="btn" id="wo_tpl">Bruk som mal i dag</button>' : '') + '</div>' : '') +
+        '<button type="button" class="btn ghost danger-text" id="wo_del">Slett økta</button><div id="wo_delbox"></div></div>';
+      $('#wo_del').onclick = function () {
+        $('#wo_delbox').innerHTML = '<div class="notice">Slette «' + esc(w.title) + '» fra ' + esc(dateLabel(w.date)) + '? Det kan ikke angres.<div class="row" style="margin-top:8px"><button class="btn danger sm" id="wo_dely">Slett</button><button class="btn sm" id="wo_deln">Avbryt</button></div></div>';
+        $('#wo_deln').onclick = function () { $('#wo_delbox').innerHTML = ''; };
+        $('#wo_dely').onclick = async function () { try { await repo.del('workouts/' + w.id); closeSheet(); toast('Økta er slettet'); } catch (er) { toast(er.message); } };
+      };
       var eb = $('#wo_edit');
       if (eb) eb.onclick = function () {
         var sp = SPLITS.find(function (x) { return C.norm(w.title || '').indexOf(C.norm(x)) === 0; }) || '';
@@ -3167,6 +3196,64 @@
     return d === 0 ? '<em class="dz">som forrige</em>' : '<em class="' + (d > 0 ? 'du' : 'dd') + '">' + (d > 0 ? '↑ ' : '↓ ') + Math.abs(d) + ' %</em>';
   }
   function e1(x) { return x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; }
+  /* ---------- Muskelkart med belastning ----------
+   * Hver øvelse gir sett til musklene den trener: hovedmuskler teller fullt, hjelpemuskler halvt. Fargen viser hvor
+   * mye hver muskel er trent: hvit = ikke trent, så lys rav, oransje og rød jo mer. */
+  function mkey(m) { return m === 'LEFT_SOLEUS' || m === 'RIGHT_SOLEUS' ? 'CALVES' : m; }
+  function muscleLoad(sessions) {
+    var M = {};
+    sessions.forEach(function (w) { (w.exercises || []).forEach(function (e) {
+      var vs = (e.sets || []).filter(hasVal); if (!vs.length) return;
+      var lx = libFor(e.name); if (!lx || !lx.muscles) return;
+      var vol = setsVolume(vs);
+      function add(m, f, prim) {
+        var k = mkey(m), o = M[k] || (M[k] = { key: k, score: 0, direct: 0, help: 0, vol: 0, ex: {} });
+        o.score += vs.length * f; o.vol += vol * f; if (prim) o.direct += vs.length; else o.help += vs.length;
+        var ek = exKey(e.name), x = o.ex[ek] || (o.ex[ek] = { name: e.name, sets: 0, vol: 0, prim: prim, last: w.date, best: null });
+        x.sets += vs.length; x.vol += vol; if (w.date > x.last) x.last = w.date; vs.forEach(function (q) { if (!x.best || e1(q) > e1(x.best)) x.best = q; });
+      }
+      var seen = {};
+      (lx.muscles[0] || []).forEach(function (m) { if (seen[mkey(m)]) return; seen[mkey(m)] = 1; add(m, 1, true); });
+      (lx.muscles[1] || []).forEach(function (m) { if (seen[mkey(m)]) return; seen[mkey(m)] = 1; add(m, .5, false); });
+    }); });
+    return M;
+  }
+  function heatColor(t) {
+    var stops = [[0, [255, 226, 196]], [.3, [255, 196, 140]], [.55, [244, 162, 97]], [.8, [232, 104, 58]], [1, [201, 55, 44]]];
+    for (var i = 1; i < stops.length; i++) if (t <= stops[i][0]) { var a = stops[i - 1], b = stops[i], f = (t - a[0]) / (b[0] - a[0]); return 'rgb(' + a[1].map(function (v, j) { return Math.round(v + (b[1][j] - v) * f); }).join(',') + ')'; }
+    return 'rgb(201,55,44)';
+  }
+  function muscleMapCard(M, o) {
+    o = o || {};
+    var B = EXLIB.body || { front: [], back: [] }, N = EXLIB.muscleNames || {}, keys = Object.keys(M);
+    var mx = Math.max.apply(null, keys.map(function (k) { return M[k].score; }).concat([1]));
+    var sel = o.sel || null;
+    function side(arr) {
+      return arr.map(function (m) {
+        var k = mkey(m[0]), d = M[k], skel = /HEAD|KNEES|NECK/.test(m[0]);
+        var fill = skel ? 'rgba(255,255,255,.55)' : d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : 'rgba(255,255,255,.92)';
+        return m[1].map(function (pts) { return '<polygon points="' + pts + '" fill="' + fill + '"' + (skel ? '' : ' data-m="' + k + '" class="mz' + (sel === k ? ' sel' : '') + (d ? ' hot' : '') + '"') + '/>'; }).join('');
+      }).join('');
+    }
+    var ranked = keys.sort(function (a, b) { return M[b].score - M[a].score; });
+    var html = '<div class="gcard musmap' + (o.compact ? ' compact' : '') + '"><div class="mmfig"><svg viewBox="0 0 215 200" aria-label="Muskelkart"><g>' + side(B.front) + '</g><g transform="translate(115 0)">' + side(B.back) + '</g></svg>' +
+      '<div class="mmlbl"><span>Forfra</span><span>Bakfra</span></div></div>' +
+      '<div class="mmscale"><span>Ikke trent</span><i></i><span>Mye</span></div>';
+    if (!o.compact) {
+      if (sel && M[sel]) {
+        var d = M[sel], exs = Object.keys(d.ex).map(function (k) { return d.ex[k]; }).sort(function (a, b) { return (b.prim - a.prim) || b.sets - a.sets; });
+        html += '<div class="mmsel"><div class="mmselh"><span class="mmdot" style="background:' + heatColor(Math.min(1, .12 + .88 * d.score / mx)) + '"></span><b>' + esc(N[sel] || sel) + '</b><button type="button" class="btn ghost sm" data-msel="">Alle muskler</button></div>' +
+          '<div class="mmstats"><div><b>' + d.direct + '</b><span>sett direkte</span></div><div><b>' + d.help + '</b><span>som hjelpemuskel</span></div><div><b>' + kgTxt(d.vol) + '</b><span>belastning</span></div></div>' +
+          '<div class="list">' + exs.map(function (x) { return '<button type="button" class="li" data-exh="' + esc(x.name) + '">' + exThumb(x.name) + '<div class="grow"><div class="t1">' + esc(x.name) + '</div><div class="t2">' + x.sets + ' sett' + (x.prim ? '' : ' · hjelpemuskel') + (x.best ? ' · beste ' + esc(setTxt(x.best)) : '') + '</div></div><div class="kc">' + kgTxt(x.vol) + '</div></button>'; }).join('') + '</div></div>';
+      } else if (ranked.length) {
+        html += '<div class="mmrank">' + ranked.map(function (k) { var d = M[k]; return '<button type="button" class="mmrow" data-msel="' + k + '"><span class="mmdot" style="background:' + heatColor(Math.min(1, .12 + .88 * d.score / mx)) + '"></span><span class="mmn">' + esc(N[k] || k) + '</span><span class="mmb"><i style="width:' + Math.round(d.score / mx * 100) + '%;background:' + heatColor(Math.min(1, .12 + .88 * d.score / mx)) + '"></i></span><b>' + (d.direct + (d.help ? '<small>+' + d.help + '</small>' : '')) + '</b></button>'; }).join('') +
+          '<p class="small faint" style="margin:6px 2px 0">Tall: sett der muskelen er hovedmuskel (+ sett som hjelpemuskel). Trykk på en muskel på figuren eller i lista for å se alle settene.</p></div>';
+      }
+    } else if (ranked.length) {
+      html += '<div class="mmchips">' + ranked.slice(0, 8).map(function (k) { return '<span><i style="background:' + heatColor(Math.min(1, .12 + .88 * M[k].score / mx)) + '"></i>' + esc(N[k] || k) + ' ' + M[k].direct + (M[k].help ? '<small>+' + M[k].help + '</small>' : '') + '</span>'; }).join('') + '</div>';
+    }
+    return html + '</div>';
+  }
   function trainingStatsHtml() {
     var per = S.trPeriod || 'uke', r = periodRange(per, 0), rp = per === 'alt' ? null : periodRange(per, 1);
     var cur = strengthSessions(per === 'alt' ? null : r), prev = rp ? strengthSessions(rp) : [];
@@ -3211,13 +3298,12 @@
           return '<div class="tsbar' + (x.today ? ' now' : '') + '" title="' + esc(x.k + ': ' + kgTxt(x.v)) + '"><i style="height:' + (x.v ? Math.max(4, Math.round(x.v / mx * 100)) : 0) + '%"></i><span>' + esc(x.l) + '</span></div>';
         }).join('') + '</div></div>';
       }
-      /* Muskelgrupper: antall sett */
-      var grp = {};
-      cur.forEach(function (w) { w.exercises.forEach(function (e) { var n = (e.sets || []).filter(hasVal).length; if (!n) return; var lx = libFor(e.name), g = lx ? lx.group : 'annet'; grp[g] = (grp[g] || 0) + n; }); });
-      var gk = Object.keys(grp).sort(function (x, y) { return grp[y] - grp[x]; }), gmax = Math.max.apply(null, gk.map(function (k) { return grp[k]; }).concat([1]));
-      html += '<div class="section"><h3>Sett per muskelgruppe</h3><div class="gcard tsgroups">' + gk.map(function (k) {
-        return '<div class="tsg"><span>' + esc((EXLIB.groups || {})[k] || 'Annet') + '</span><div class="tsgb"><i style="width:' + Math.round(grp[k] / gmax * 100) + '%"></i></div><b>' + grp[k] + '</b></div>';
-      }).join('') + '</div></div>';
+      /* Muskler: hele perioden eller én økt */
+      var scope = S.musScope && cur.some(function (w) { return w.id === S.musScope; }) ? S.musScope : 'all';
+      var scoped = scope === 'all' ? cur : cur.filter(function (w) { return w.id === scope; });
+      html += '<div class="section"><h3>Muskler</h3><div class="mmscope">' + '<button type="button" class="expchip' + (scope === 'all' ? ' on' : '') + '" data-mscope="all"><b>Hele perioden</b><span>' + cur.length + ' økter</span></button>' +
+        cur.slice(0, 12).map(function (w) { return '<button type="button" class="expchip' + (scope === w.id ? ' on' : '') + '" data-mscope="' + esc(w.id) + '"><b>' + esc(w.title || 'Økt') + '</b><span>' + esc(shortDate(w.date)) + '</span></button>'; }).join('') + '</div>' +
+        muscleMapCard(muscleLoad(scoped), { sel: S.musSel }) + '</div>';
       /* Øvelser med mest volum */
       var exs = {};
       cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
@@ -3233,6 +3319,13 @@
         if (prs.length) html += '<div class="section"><h3>Nye rekorder</h3><div class="list">' + prs.map(function (o) { return '<button type="button" class="li" data-exh="' + esc(o.name) + '"><span class="prbadge">PR</span><div class="grow"><div class="t1">' + esc(o.name) + '</div><div class="t2">' + esc(setTxt(o.best)) + ' · ca. ' + fmt(e1(o.best)) + ' kg 1RM (før ' + fmt(before[exKey(o.name)]) + ')</div></div></button>'; }).join('') + '</div></div>';
       }
     }
+    /* Kondisjon i perioden */
+    var cs = cardioSessions(per === 'alt' ? null : r);
+    if (cs.length) {
+      var cMin = cs.reduce(function (x, w) { return x + ((w.cardio && w.cardio.durationMin) || 0); }, 0), cKm = cs.reduce(function (x, w) { return x + ((w.cardio && w.cardio.distanceKm) || 0); }, 0);
+      html += '<div class="section"><h3>Kondisjon</h3><div class="lgtot"><div><span>Økter</span><b>' + cs.length + '</b></div><div><span>Tid</span><b>' + (cMin >= 120 ? fmt(cMin / 60, 1) + ' t' : fmt(cMin) + ' min') + '</b></div><div><span>Distanse</span><b>' + (cKm ? fmt(cKm, 1) + ' km' : '–') + '</b></div></div>' +
+        '<div class="list" style="margin-top:10px">' + cs.slice(0, 6).map(cardioLine).join('') + '</div></div>';
+    }
     /* Øktene */
     var list = per === 'alt' ? cur : cur;
     var showAll = S.trShowAll || list.length <= 12;
@@ -3246,6 +3339,65 @@
     var bk = Object.keys(best).sort(function (x, y) { return bestName[x].localeCompare(bestName[y], 'nb'); });
     if (bk.length) html += '<details class="section tsbest"><summary>Beste sett gjennom tidene</summary><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Sett</th><th class="r">1RM ca.</th><th class="r">Dato</th></tr></thead><tbody>' + bk.map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + esc(setTxt(best[k])) + '</td><td class="r">' + fmt(e1(best[k])) + ' kg</td><td class="r">' + esc(shortDate(best[k].date)) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
     return html;
+  }
+  /* ---------- Kondisjon ---------- */
+  var CARDIO_TYPES = [['gåtur', 'Gåtur'], ['løping', 'Løping'], ['tredemølle', 'Tredemølle'], ['sykkel', 'Sykkel'], ['spinning', 'Spinning'], ['roing', 'Roing'], ['ellipse', 'Ellipse'], ['svømming', 'Svømming'], ['annet', 'Annet']];
+  var CARDIO_ICON = { 'gåtur': '🚶', 'løping': '🏃', 'tredemølle': '🏃', 'sykkel': '🚴', 'spinning': '🚴', 'roing': '🚣', 'ellipse': '⛰', 'svømming': '🏊', 'annet': '❤' };
+  function cardioSessions(r) { return S.workouts.filter(function (w) { return !w.planned && w.type === 'kondisjon' && (!r || (w.date >= r.from && w.date <= r.to)); }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt || '') < (b.createdAt || '') ? 1 : -1; }); }
+  function cardioLine(w) {
+    var c = w.cardio || {}, mod = (c.modality || 'annet').toLowerCase();
+    var det = [c.durationMin ? fmt(c.durationMin) + ' min' : '', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '', c.avgHr ? 'puls ' + fmt(c.avgHr) : '', c.kcal ? fmt(c.kcal) + ' kcal' : ''].filter(Boolean).join(' · ');
+    return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><span class="cdico" aria-hidden="true">' + (CARDIO_ICON[mod] || '❤') + '</span><div class="grow"><div class="t1">' + esc(w.title || cap(mod)) + (w.source === 'garmin' ? ' <span class="pill garmin">Garmin</span>' : '') + '</div><div class="t2">' + esc(cap(dateLabel(w.date)) + (det ? ' · ' + det : '')) + '</div></div></button>';
+  }
+  function cardioLoggerHtml() {
+    if (!S.cardioDraft) { try { S.cardioDraft = JSON.parse(localStorage.getItem('coach.cardioDraft') || 'null'); } catch (e) {} }
+    var c = S.cardioDraft || (S.cardioDraft = { date: today(), mod: 'løping', min: '', km: '', hr: '', kcal: '', inc: '', intensity: 'moderat', notes: '' });
+    function num(id, label, val, unit, ph) { return '<div class="field"><label for="' + id + '">' + label + '</label><label class="unitin"><input class="input" id="' + id + '" inputmode="decimal" value="' + esc(val) + '" placeholder="' + (ph || '') + '"><span>' + unit + '</span></label></div>'; }
+    var list = cardioSessions().slice(0, 20), r = periodRange('uke', 0), wk = cardioSessions(r);
+    var wkMin = wk.reduce(function (a, w) { return a + ((w.cardio && w.cardio.durationMin) || 0); }, 0), wkKm = wk.reduce(function (a, w) { return a + ((w.cardio && w.cardio.distanceKm) || 0); }, 0);
+    return '<div class="gcard logger cardio">' +
+      '<div class="lghead"><div class="lgdate"><span>' + esc(c.date === today() ? 'I dag' : cap(dateLabel(c.date))) + '</span><input id="cd_date" type="date" value="' + esc(c.date) + '" aria-label="Dato"></div><span class="small faint">Kondisjonsøkt</span></div>' +
+      '<div class="splits cdtypes">' + CARDIO_TYPES.map(function (x) { return '<button type="button" class="splitbtn' + (c.mod === x[0] ? ' on' : '') + '" data-cmod="' + x[0] + '">' + (CARDIO_ICON[x[0]] || '') + ' ' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="grid2">' + num('cd_min', 'Tid', c.min, 'min', '30') + num('cd_km', 'Distanse', c.km, 'km', 'valgfritt') + num('cd_hr', 'Snittpuls', c.hr, 'bpm', 'valgfritt') + num('cd_kcal', 'Kalorier', c.kcal, 'kcal', 'valgfritt') +
+      (c.mod === 'tredemølle' || c.mod === 'gåtur' ? num('cd_inc', 'Stigning', c.inc, '%', 'valgfritt') : '') + '</div>' +
+      '<div id="cd_speed" class="small faint" style="margin:-4px 2px 0">' + cardioSpeedTxt(c) + '</div>' +
+      '<div class="field"><label>Hvor hardt?</label><div class="seg cdint" role="group">' + [['lett', 'Lett'], ['moderat', 'Moderat'], ['hard', 'Hard']].map(function (x) { return '<button type="button" data-cint="' + x[0] + '" aria-pressed="' + (c.intensity === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="field"><label for="cd_notes">Notat</label><input class="input" id="cd_notes" value="' + esc(c.notes) + '" placeholder="valgfritt"></div>' +
+      '<div id="cd_msg"></div><button type="button" class="btn primary" id="cd_save" style="min-height:50px">Lagre kondisjonsøkt</button></div>' +
+      '<div class="section"><h3 style="margin:0">Kondisjonsøkter</h3><div class="small faint" style="margin:2px 2px 0">Denne uka: ' + wk.length + ' økt' + (wk.length === 1 ? '' : 'er') + (wkMin ? ' · ' + fmt(wkMin) + ' min' : '') + (wkKm ? ' · ' + fmt(wkKm, 1) + ' km' : '') + '</div>' +
+      (list.length ? '<div class="list" style="margin-top:10px">' + list.map(cardioLine).join('') + '</div>' : '<p class="small muted">Ingen kondisjonsøkter ennå. Økter fra Garmin og de du lagrer her, vises her.</p>') + '</div>';
+  }
+  function cardioSpeedTxt(c) {
+    var m = E.num(c.min), k = E.num(c.km);
+    if (!m || !k) return '';
+    var pace = m / k, pm = Math.floor(pace), ps = Math.round((pace - pm) * 60);
+    if (ps === 60) { pm++; ps = 0; }
+    return 'Fart ' + fmt(k / m * 60, 1) + ' km/t · ' + pm + ':' + String(ps).padStart(2, '0') + ' min/km';
+  }
+  function bindCardioLogger(v) {
+    var c = S.cardioDraft, box = v.querySelector('.logger.cardio'); if (!box) return;
+    function save() { try { localStorage.setItem('coach.cardioDraft', JSON.stringify(c)); } catch (e) {} }
+    [['cd_min', 'min'], ['cd_km', 'km'], ['cd_hr', 'hr'], ['cd_kcal', 'kcal'], ['cd_inc', 'inc'], ['cd_notes', 'notes']].forEach(function (x) {
+      var el = $('#' + x[0]); if (el) el.addEventListener('input', function () { c[x[1]] = el.value; save(); var sp = $('#cd_speed'); if (sp) sp.textContent = cardioSpeedTxt(c); });
+    });
+    $('#cd_date').onchange = function (e) { c.date = e.target.value || today(); save(); renderTraining(); };
+    box.querySelectorAll('[data-cmod]').forEach(function (b) { b.onclick = function () { c.mod = b.dataset.cmod; save(); renderTraining(); }; });
+    box.querySelectorAll('[data-cint]').forEach(function (b) { b.onclick = function () { c.intensity = b.dataset.cint; box.querySelectorAll('[data-cint]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); save(); }; });
+    $('#cd_save').onclick = async function () {
+      var min = E.num(c.min), msg = $('#cd_msg');
+      if (!min || min <= 0) { msg.innerHTML = '<div class="notice bad">Skriv inn hvor mange minutter økta varte.</div>'; $('#cd_min').focus(); return; }
+      var km = E.num(c.km), label = (CARDIO_TYPES.find(function (x) { return x[0] === c.mod; }) || ['', 'Kondisjon'])[1];
+      this.disabled = true;
+      try {
+        await C.logWorkout(ctx, { date: c.date, type: 'kondisjon', title: label, notes: c.notes.trim(),
+          cardio: { modality: c.mod, duration_min: min, distance_km: km, avg_hr: E.num(c.hr), kcal: E.num(c.kcal), incline_pct: E.num(c.inc), speed_kmh: km ? km / min * 60 : null, intensity: c.intensity } });
+        S.cardioDraft = { date: today(), mod: c.mod, min: '', km: '', hr: '', kcal: '', inc: '', intensity: c.intensity, notes: '' };
+        try { localStorage.removeItem('coach.cardioDraft'); } catch (e) {}
+        toast(label + ' lagret · ' + fmt(min) + ' min' + (km ? ' · ' + fmt(km, 1) + ' km' : ''));
+        renderTraining();
+      } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; this.disabled = false; }
+    };
+    v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
   }
   function renderTraining() {
     var v = $('#v-trening');
@@ -3264,18 +3416,14 @@
       v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
       v.querySelectorAll('[data-exh]').forEach(function (b) { b.onclick = function () { openExHistory(b.dataset.exh); }; });
       var more = $('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; renderTraining(); };
+      v.querySelectorAll('[data-mscope]').forEach(function (b) { b.onclick = function () { S.musScope = b.dataset.mscope; S.musSel = null; renderTraining(); }; });
+      v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; renderTraining(); }; });
+      v.querySelectorAll('.musmap polygon[data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; renderTraining(); }); });
       return;
     }
+    html += '<div class="seg trtype" role="group" aria-label="Type økt"><button type="button" data-tt="styrke" aria-pressed="' + (t === 'styrke') + '"><b>🏋️</b> Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="' + (t === 'kondisjon') + '"><b>🏃</b> Kondisjon og løping</button></div>';
     if (t === 'styrke') html += strengthLoggerHtml();
-    else html += '<div class="section"><h3>Registrer økt</h3><form id="tf" class="stack" novalidate>' +
-      '<div class="row"><div class="seg" role="group" aria-label="Type"><button type="button" data-tt="styrke" aria-pressed="' + (t === 'styrke') + '">Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="' + (t === 'kondisjon') + '">Kondisjon</button></div>' +
-      '<input class="input grow" id="tf_date" type="date" value="' + today() + '" style="max-width:170px"></div>' +
-      '<div class="field"><label for="tf_title">Tittel</label><input class="input" id="tf_title" placeholder="' + (t === 'styrke' ? 'Overkropp' : 'Tredemølle') + '"></div>' +
-      (t === 'styrke' ? '<div class="field"><label for="tf_ex">Øvelser, én per linje</label><textarea class="input" id="tf_ex" rows="4" placeholder="Benkpress 3x8 70kg rir2&#10;Roing 3x10 50kg"></textarea></div>'
-        : '<div class="grid3"><div class="field"><label for="tf_min">Minutter</label><input class="input" id="tf_min" inputmode="decimal"></div><div class="field"><label for="tf_spd">Fart (km/t)</label><input class="input" id="tf_spd" inputmode="decimal"></div><div class="field"><label for="tf_inc">Stigning (%)</label><input class="input" id="tf_inc" inputmode="decimal"></div><div class="field"><label for="tf_rpe">RPE (1–10)</label><input class="input" id="tf_rpe" inputmode="decimal"></div></div>') +
-      '<div class="field"><label for="tf_notes">Notat</label><input class="input" id="tf_notes"></div>' +
-      '<label class="row small"><input type="checkbox" id="tf_planned"> Planlagt (ikke gjennomført ennå)</label>' +
-      '<div id="tf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre økt</button></div></form></div>';
+    else html += cardioLoggerHtml();
     if (plan) {
       html += '<div class="section"><h3>Aktiv plan: ' + esc(plan.name) + '</h3>' + (plan.goal ? '<p class="small muted">' + esc(plan.goal) + '</p>' : '') +
         (plan.days || []).map(function (d) { return '<details><summary>' + esc(d.name) + (d.focus ? ' <span class="faint small">· ' + esc(d.focus) + '</span>' : '') + '</summary><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Sett</th><th class="r">Reps</th><th class="r">RIR</th></tr></thead><tbody>' + (d.exercises || []).map(function (e) { return '<tr><td>' + esc(e.name) + (e.notes ? '<div class="small faint">' + esc(e.notes) + '</div>' : '') + '</td><td class="r">' + esc(e.sets || '') + '</td><td class="r">' + esc(e.reps) + '</td><td class="r">' + esc(e.rir) + '</td></tr>'; }).join('') + '</tbody></table></div></details>'; }).join('') +
@@ -3295,20 +3443,14 @@
       if (prog.length) html += '<div class="section"><h3>Neste økt</h3><div class="list">' + prog.map(function (x) { return '<div class="li"><div class="grow"><div class="t1">' + esc(x.name) + ' <span class="pill ' + (x.s.action === 'øk vekt' ? 'bekreftet' : '') + '">' + esc(x.s.action) + '</span></div><div class="t2" style="white-space:normal">' + esc(x.s.text) + ' (sist ' + esc(x.date) + ')</div></div></div>'; }).join('') + '</div></div>';
     }
     if (false && bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort(function (a, b) { return bestName[a].localeCompare(bestName[b], 'nb'); }).map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
-    html += '<div class="trfoot">' + (t === 'styrke' ? '<button type="button" class="btn ghost sm" data-tt="kondisjon">Registrer kondisjonsøkt</button>' : '<button type="button" class="btn ghost sm" data-tt="styrke">Tilbake til styrke</button>') + '<button type="button" class="btn ghost sm" data-trtab="stats">Historikk og tall ›</button></div>';
+    html += '<div class="trfoot"><button type="button" class="btn ghost sm" data-trtab="stats">Historikk og tall ›</button></div>';
     if (!setHTML(v, html)) return;
     v.querySelectorAll('[data-trtab]').forEach(function (b) { b.onclick = function () { S.trTab = b.dataset.trtab; renderTraining(); v.scrollTop = 0; }; });
     v.querySelectorAll('[data-tt]').forEach(function (b) { b.onclick = function () { S.trType = b.dataset.tt; renderTraining(); }; });
     bindGarminCard(v);
     if (t === 'styrke') bindStrengthLogger(v);
     v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
-    if ($('#tf')) $('#tf').onsubmit = async function (e) {
-      e.preventDefault();
-      var a = { date: $('#tf_date').value || today(), type: t, title: $('#tf_title').value.trim() || undefined, notes: $('#tf_notes').value.trim(), planned: $('#tf_planned').checked };
-      if (t === 'styrke') { a.exercises = parseStrength($('#tf_ex').value); if (!a.exercises.length) { $('#tf_msg').innerHTML = '<div class="notice bad">Skriv minst én øvelse.</div>'; return; } }
-      else { a.cardio = { modality: 'tredemølle', duration_min: E.num($('#tf_min').value), speed_kmh: E.num($('#tf_spd').value), incline_pct: E.num($('#tf_inc').value), rpe: E.num($('#tf_rpe').value) }; if (a.cardio.duration_min === null) { $('#tf_msg').innerHTML = '<div class="notice bad">Oppgi varighet.</div>'; return; } }
-      try { await C.logWorkout(ctx, a); toast('Økt lagret'); renderTraining(); } catch (er) { $('#tf_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
-    };
+    if (t !== 'styrke') bindCardioLogger(v);
   }
 
   /* ---------- Fremgang ---------- */
