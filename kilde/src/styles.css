@@ -984,3 +984,76 @@ em.du { color: #8fe0a8; } em.dd { color: #ffab8f; } em.dz { color: var(--ink-3);
 .pgwk-g b small { font-size: 11px; color: var(--ink-3); }
 .pgwk-g em { font-style: normal; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .pgwk-g em.up { color: #ffb39f; } .pgwk-g em.down { color: #9ff0bd; }
+
+/* ---------- Ryddigere styrkelogg ---------- */
+.logger { margin-top: 4px; }
+.lghead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lgdate { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--glass-edge); font-weight: 650; font-size: 15px; }
+.lgdate::after { content: ""; width: 7px; height: 7px; border-right: 2px solid var(--ink-3); border-bottom: 2px solid var(--ink-3); transform: rotate(45deg) translateY(-2px); }
+.lgdate input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: 0; padding: 0; cursor: pointer; }
+.voltoggle { display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 8px; border-radius: 999px; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink-2); font: inherit; font-weight: 650; font-size: 14.5px; }
+.voltoggle i { width: 34px; height: 20px; border-radius: 999px; background: rgba(255, 244, 232, .16); position: relative; transition: background .2s ease; }
+.voltoggle i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+.voltoggle.on { color: var(--ink); border-color: rgba(244, 162, 97, .45); }
+.voltoggle.on i { background: linear-gradient(150deg, #f7b77e, #ee9550); }
+.voltoggle.on i::after { transform: translateX(14px); }
+.trfoot { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.trfoot .btn { color: var(--ink-2); }
+.trfoot .btn:last-child { color: var(--accent); }
+.fftabs, .scanmode { display: flex; width: 100%; }
+.fftabs button, .scanmode button { flex: 1; padding: 9px 6px; }
+
+/* Skanneren står fast i stående format */
+.scanner.rot { inset: auto; left: 50%; top: 50%; width: 100vh; height: 100vw; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); }
+
+/* ---------- Liquid Glass ----------
+   Frostet, lysbrytende glass over varme lyskilder: sterkere uskarphet og metning, en lys kant øverst til venstre
+   som fanger lyset, mørk kant nederst, og myke skygger. */
+body::after {
+  background:
+    radial-gradient(42% 30% at 88% 4%, rgba(255, 178, 110, .38), transparent 70%),
+    radial-gradient(40% 32% at 6% 26%, rgba(196, 128, 78, .42), transparent 72%),
+    radial-gradient(50% 36% at 76% 58%, rgba(150, 96, 60, .5), transparent 72%),
+    radial-gradient(46% 34% at 18% 82%, rgba(244, 162, 97, .24), transparent 70%),
+    radial-gradient(30% 22% at 55% 30%, rgba(255, 220, 180, .10), transparent 70%),
+    linear-gradient(180deg, #1f1712 0%, #140f0c 55%, #0e0a08 100%);
+}
+:root {
+  --lg-fill: linear-gradient(145deg, rgba(255, 249, 242, .16) 0%, rgba(255, 249, 242, .06) 38%, rgba(255, 249, 242, .035) 62%, rgba(255, 249, 242, .09) 100%);
+  --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), inset 0 -1px 0 rgba(0, 0, 0, .28), inset 1px 0 0 rgba(255, 255, 255, .05), 0 20px 44px -14px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .18);
+  --lg-edge: rgba(255, 240, 225, .17);
+}
+.hero, .gcard, .tile, .card, .list, .tbl, .chart, details, .slot, .pgwk, .exrow, .li:not(.list .li), .face, .label, .tsbig, .lgtot > div, .rbtot > div, .pgmini > div, .pggoal {
+  background: var(--lg-fill); border-color: var(--lg-edge); box-shadow: var(--lg-shadow);
+}
+.hero, .gcard, .tile, .tsbig, .pgwk, nav.tabs, .sheet, .exart {
+  -webkit-backdrop-filter: blur(28px) saturate(175%) brightness(1.04); backdrop-filter: blur(28px) saturate(175%) brightness(1.04);
+}
+/* Lysende kant: gradient-ramme som bare tegnes i kanten (som lys som brytes i glasset) */
+.hero, .gcard, nav.tabs, .tsbig, .exart { position: relative; isolation: isolate; }
+.hero::after, .gcard::after, nav.tabs::after, .tsbig::after, .exart::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 2;
+  background: linear-gradient(140deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, .12) 22%, rgba(255, 255, 255, 0) 45%, rgba(255, 255, 255, 0) 60%, rgba(255, 220, 190, .14) 80%, rgba(255, 255, 255, .32) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+/* Fremhevede flater i rav beholder fargen, men får glassglans */
+.tiles .tile:first-child, .tsbig, .cbig:not(.alt), .onkcal, .rbtot > div.per, .lgtot > div:first-child {
+  background: linear-gradient(150deg, rgba(255, 196, 140, .55) 0%, rgba(214, 128, 66, .38) 45%, rgba(150, 82, 38, .32) 100%);
+  border-color: rgba(255, 214, 178, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -1px 0 rgba(0, 0, 0, .2), 0 18px 40px -12px rgba(160, 80, 20, .55);
+}
+/* Fanelinjen: flytende glasskapsel, valgt fane som en lysende linse */
+nav.tabs { background: linear-gradient(160deg, rgba(60, 46, 36, .55), rgba(28, 21, 17, .5)); border-color: rgba(255, 240, 225, .16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 18px 40px rgba(0, 0, 0, .5); -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%); }
+nav.tabs button[aria-current="page"] { background: radial-gradient(120% 140% at 30% 0%, rgba(255, 255, 255, .26), rgba(255, 255, 255, .07) 60%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -1px 0 rgba(0, 0, 0, .2), 0 4px 14px rgba(0, 0, 0, .25); }
+/* Ark: frostet glass */
+.sheet { background: linear-gradient(170deg, rgba(58, 44, 34, .78), rgba(26, 20, 16, .86)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 -20px 50px rgba(0, 0, 0, .45); }
+/* Knapper og valg med glass */
+.btn:not(.primary):not(.ghost):not(.danger) { background: linear-gradient(160deg, rgba(255, 249, 242, .14), rgba(255, 249, 242, .05)); border: 1px solid var(--lg-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18); }
+.btn.primary { background: linear-gradient(160deg, #ffc896 0%, #f4a261 45%, #e08a45 100%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), inset 0 -2px 0 rgba(120, 60, 20, .25), 0 10px 26px -6px rgba(244, 162, 97, .55); }
+.seg { background: linear-gradient(160deg, rgba(255, 249, 242, .1), rgba(255, 249, 242, .04)); border: 1px solid var(--lg-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.seg button[aria-pressed="true"] { background: radial-gradient(120% 160% at 30% 0%, #fff, #f3ece6 70%); color: #1b140f; box-shadow: 0 2px 10px rgba(0, 0, 0, .3), inset 0 -1px 0 rgba(0, 0, 0, .08); }
+.iconbtn { background: linear-gradient(160deg, rgba(255, 249, 242, .16), rgba(255, 249, 242, .05)); border: 1px solid var(--lg-edge); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22), 0 6px 16px rgba(0, 0, 0, .3); }
+.input, select.input, textarea.input, .cselect { background: rgba(255, 249, 242, .07); border-color: rgba(255, 240, 225, .12); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); }
+.expchip, .splitbtn, .chiptoggle, .voltoggle, .lgdate, .xpgroups button, .pgchip { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
+.splitbtn.on { background: linear-gradient(160deg, #ffc896, #ee9550); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .5), 0 8px 18px -4px rgba(244, 162, 97, .5); }

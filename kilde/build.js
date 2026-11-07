@@ -96,7 +96,7 @@ if ('serviceWorker' in navigator) window.addEventListener('load', function () { 
 fs.mkdirSync(out('web'), { recursive: true });
 fs.writeFileSync(out('web', 'index.html'), web);
 fs.writeFileSync(out('web', 'manifest.webmanifest'), JSON.stringify({
-  name: 'Coach', short_name: 'Coach', start_url: './', scope: './', display: 'standalone',
+  name: 'Coach', short_name: 'Coach', start_url: './', scope: './', display: 'standalone', orientation: 'portrait',
   background_color: '#120e0b', theme_color: '#120e0b', lang: 'nb',
   icons: [
     { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },

@@ -1840,7 +1840,16 @@
       '<div class="scanbot"><div class="scanhint">Hold strekkoden inne i rammen</div><button class="btn" data-photo>Ta bilde i stedet</button></div>';
     document.body.appendChild(ov);
     var video = ov.querySelector('video'), stream = null, alive = true, timer = null;
-    function stop() { alive = false; clearTimeout(timer); try { video.pause(); video.srcObject = null; } catch (e) {} if (stream) releaseCamera(); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
+    /* Skanneren står fast i stående format: snus telefonen, roteres bildet tilbake, så det ikke vender seg. */
+    function lockPortrait() {
+      var a = window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number' ? window.screen.orientation.angle : (window.orientation || 0);
+      if (a === 270) a = -90;
+      if (a === 90 || a === -90) { ov.classList.add('rot'); ov.style.setProperty('--rot', (-a) + 'deg'); }
+      else { ov.classList.remove('rot'); ov.style.removeProperty('--rot'); }
+    }
+    lockPortrait();
+    window.addEventListener('orientationchange', lockPortrait); window.addEventListener('resize', lockPortrait);
+    function stop() { alive = false; clearTimeout(timer); window.removeEventListener('orientationchange', lockPortrait); window.removeEventListener('resize', lockPortrait); try { video.pause(); video.srcObject = null; } catch (e) {} if (stream) releaseCamera(); ov.classList.add('closing'); setTimeout(function () { ov.remove(); }, 200); }
     ov.querySelector('[data-x]').onclick = stop;
     ov.querySelector('[data-photo]').onclick = function () { stop(); onFallback(); };
     getCamera().then(async function (st) {
@@ -1878,8 +1887,12 @@
     }, function () { stop(); onFallback(); });
   }
 
+  /* Skannemåte: «live» (kamera i appen, iPhone spør om lov én gang hver gang appen åpnes) eller «photo» (iPhone sin
+   * kamera-app, spør aldri). Velges under Innstillinger. */
+  function scanMode() { try { return localStorage.getItem('coach.scanMode') || 'live'; } catch (e) { return 'live'; } }
+  function liveOk() { return scanMode() === 'live' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia; }
   function scanBarcode() {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) { openLiveScanner(handleBarcode, scanByPhoto); return; }
+    if (liveOk()) { openLiveScanner(handleBarcode, scanByPhoto); return; }
     scanByPhoto();
   }
   function scanByPhoto() {
@@ -1902,7 +1915,7 @@
         if (code && validEan(code)) cb(code); else toast('Fant ingen strekkode på bildet. Prøv igjen i godt lys.');
       });
     }
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) openLiveScanner(cb, byPhoto); else byPhoto();
+    if (liveOk()) openLiveScanner(cb, byPhoto); else byPhoto();
   }
   function productByBarcode(code) {
     var hit = null;
@@ -2230,7 +2243,7 @@
   }
   function openFoodFinder(o) {
     o = o || {};
-    var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0;
+    var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0, tab = o.tab || 'mat';
     function after(p) {
       closeSheet();
       setTimeout(function () { if (mode === 'log') openAddItem(date, p.id, mt); else { toast('Lagret ' + p.name); openProduct(p.id); } }, 230);
@@ -2239,6 +2252,7 @@
       body.innerHTML = '<div class="stack finder">' +
         '<div class="findtop"><button type="button" class="btn primary" id="ff_scan">' + ICON.barcode + 'Skann strekkode</button>' +
         '</div>' +
+        (mode === 'log' ? '<div class="seg fftabs" role="group" aria-label="Vis"><button type="button" data-fft="mat" aria-pressed="' + (tab === 'mat') + '">Mat</button><button type="button" data-fft="rec" aria-pressed="' + (tab === 'rec') + '">Mine oppskrifter</button></div>' : '') +
         '<input class="input" id="ff_q" type="search" enterkeyhint="search" placeholder="' + (mode === 'log' ? 'Søk i mat og oppskrifter' : 'Søk, f.eks. banan eller kvarg') + '" autocomplete="off">' +
         '<div id="ff_res"></div>' +
         '<button type="button" class="btn ghost ownbtn" id="ff_own">Finner du det ikke? <b>Lag din egen</b></button></div>';
@@ -2251,6 +2265,14 @@
       }
       function run() {
         var q = $('#ff_q').value.trim(), my = ++seq;
+        if (tab === 'rec') {
+          var nq0 = C.norm(q), all = recipeList().filter(function (r) { return !nq0 || C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(nq0) >= 0; });
+          res.innerHTML = (all.length ? '<div class="list">' + all.map(recipeLi).join('') + '</div>' : '<p class="small muted" style="margin:4px 2px">' + (S.recipes.size ? 'Ingen oppskrifter heter «' + esc(q) + '».' : 'Du har ingen oppskrifter ennå.') + '</p>') +
+            '<button type="button" class="btn ghost" id="ff_newrec" style="width:100%;margin-top:8px">+ Lag ny oppskrift</button>';
+          bind();
+          $('#ff_newrec').onclick = function () { closeSheet(); setTimeout(function () { openRecipeBuilder(null); }, 230); };
+          return;
+        }
         if (!q) {
           var rec = recentProducts(8), rr = mode === 'log' ? recipeList() : [];
           res.innerHTML = (rr.length ? '<div class="fhead">Dine oppskrifter</div><div class="list">' + rr.slice(0, 6).map(recipeLi).join('') + '</div>' : '') +
@@ -2288,6 +2310,13 @@
       ['input', 'keyup', 'change', 'search'].forEach(function (ev) { $('#ff_q').addEventListener(ev, safeRun); });
       $('#ff_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
       $('#ff_scan').onclick = function () { closeSheet(); setTimeout(scanBarcode, 120); };
+      body.querySelectorAll('[data-fft]').forEach(function (b) { b.onclick = function () {
+        tab = b.dataset.fft; lastQ = null;
+        body.querySelectorAll('[data-fft]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+        $('#ff_q').placeholder = tab === 'rec' ? 'Søk i oppskriftene dine' : 'Søk i mat og oppskrifter';
+        $('#ff_own').hidden = tab === 'rec'; $('#ff_scan').hidden = tab === 'rec';
+        safeRun();
+      }; });
       $('#ff_own').onclick = function () { var q = $('#ff_q').value.trim(); closeSheet(); setTimeout(function () { openQuickProduct({ name: q }, { mode: mode, date: date, mealType: mt }); }, 230); };
       safeRun();
     });
@@ -2720,7 +2749,14 @@
     });
     return out;
   }
-  function lastFor(name, excludeId) { return exHistory(name, excludeId)[0] || null; }
+  function isVol(t) { return /volum/i.test(t || ''); }
+  /* Med «Volum» på: tidligere volumøkter først, så vanlige. Uten: vanlige først. */
+  function histFor(name, excludeId, vol) {
+    var h = exHistory(name, excludeId);
+    if (vol === undefined || vol === null) return h;
+    return h.filter(function (x) { return isVol(x.title) === !!vol; }).concat(h.filter(function (x) { return isVol(x.title) !== !!vol; }));
+  }
+  function lastFor(name, excludeId, vol) { return histFor(name, excludeId, vol)[0] || null; }
   function topSet(sets) {
     var b = null, be = -1;
     (sets || []).forEach(function (x) { var e = x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; if (e > be || (e === be && (x.weightKg || 0) > ((b && b.weightKg) || 0))) { be = e; b = x; } });
@@ -2737,7 +2773,7 @@
       if (!m[k]) { m[k] = { key: k, name: e.name, n: 0 }; order.push(k); }
       m[k].n++;
     }); });
-    return order.map(function (k) { var c = m[k], l = lastFor(c.name, excludeId); c.last = l; if (l) c.name = l.name; return c; });
+    return order.map(function (k) { var c = m[k], l = lastFor(c.name, excludeId, volume); c.last = l; if (l) c.name = l.name; return c; });
   }
   function shortDate(ds) { return new Date(ds + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace(/\./g, ''); }
   function setTxt(x) { return (x.weightKg !== null && x.weightKg !== undefined ? fmt(x.weightKg, 2) : '–') + ' × ' + (x.reps !== null && x.reps !== undefined ? fmt(x.reps, 1) : '–'); }
@@ -2764,7 +2800,9 @@
     var d = loadDraft();
     var html = '<div class="gcard logger">' +
       (d.editId ? '<div class="notice info small">Endrer økten fra ' + esc(dateLabel(d.date)) + '. <button class="btn ghost sm" type="button" data-lg="canceledit">Avbryt</button></div>' : '') +
-      '<div class="row"><input class="input" id="lg_date" type="date" value="' + esc(d.date) + '" style="max-width:170px"><label class="chiptoggle' + (d.volume ? ' on' : '') + '"><input type="checkbox" id="lg_vol"' + (d.volume ? ' checked' : '') + '> Volum</label></div>' +
+      '<div class="lghead"><div class="lgdate"><span>' + esc(d.date === today() ? 'I dag' : cap(dateLabel(d.date))) + '</span><input id="lg_date" type="date" value="' + esc(d.date) + '" aria-label="Dato"></div>' +
+      '<button type="button" class="voltoggle' + (d.volume ? ' on' : '') + '" id="lg_vol" aria-pressed="' + (!!d.volume) + '"><i></i>Volum</button></div>' +
+      (d.volume ? '<div class="small faint" style="margin:-4px 2px 0">Volumøkt: «Sist» og forslag hentes fra tidligere volumøkter.</div>' : '') +
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
     var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
     d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
@@ -2781,7 +2819,8 @@
         '</div><p class="small faint" style="margin:0 2px">Trykk for å legge til. Trykk på en valgt øvelse for å se historikken.</p></div>';
     } else if (!d.exercises.length) html += '<p class="small muted" style="margin:4px 2px">' + (d.split ? 'Ingen tidligere ' + esc(d.split.toLowerCase()) + '-økter ennå. Legg til øvelser under.' : 'Velg økt, så ser du øvelsene du har gjort før og hva du tok sist.') + '</p>';
     html += '<div class="exlist">' + d.exercises.map(function (e, i) {
-      var hist = exHistory(e.name, d.editId), last = hist[0], prev = hist[1];
+      var hist = histFor(e.name, d.editId, d.volume), last = hist[0], prev = hist[1];
+      var otherType = last && isVol(last.title) !== !!d.volume ? ' <span class="faint">(' + (isVol(last.title) ? 'volumøkt' : 'vanlig økt') + ')</span>' : '';
       if (e.folded) {
         var done = e.sets.filter(function (x) { return String(x.w).trim() || String(x.r).trim(); });
         return '<div class="exrow folded" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><button type="button" class="exfold" data-lg="fold" aria-expanded="false" aria-label="Åpne ' + esc(e.name) + '">' +
@@ -2789,7 +2828,7 @@
           '<span class="exfv">' + (setsVolume(e.sets) ? kgTxt(setsVolume(e.sets)) : '') + '</span>' + CHEV_D + '</button></div>';
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
-        (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
+        (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist' + (d.volume && isVol(last.title) ? ' volum' : '') + '</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + otherType + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {};
           return '<div class="setrow" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
@@ -2802,7 +2841,7 @@
     }).join('') + '</div>' +
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
-      '<details class="paste"><summary>Lim inn fra Notater</summary><p class="small muted">Lim inn som du skriver i Notater, f.eks. «Mandag 3. mars push» og «Benkpress 60 x 8» (kg × reps). Flere dager blir flere økter.</p><textarea class="input" id="lg_paste" rows="5" placeholder="Benkpress 60 x 8&#10;Knebøy 80 x 5"></textarea><button type="button" class="btn" data-lg="paste">Hent inn</button></details>' +
+
       (draftHasValues(d) ? '<div class="lgtot"><div><span>Totalt løftet</span><b id="lg_vol">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
@@ -2812,8 +2851,8 @@
   function bindStrengthLogger(root) {
     var d = loadDraft(), box = root.querySelector('.logger'); if (!box) return;
     function rerender() { saveDraft(); renderTraining(); }
-    box.querySelector('#lg_date').onchange = function (e) { d.date = e.target.value || today(); saveDraft(); };
-    box.querySelector('#lg_vol').onchange = function (e) { d.volume = e.target.checked; d.title = ''; rerender(); };
+    box.querySelector('#lg_date').onchange = function (e) { d.date = e.target.value || today(); rerender(); };
+    box.querySelector('#lg_vol').onclick = function () { d.volume = !d.volume; d.title = ''; rerender(); };
     box.querySelectorAll('[data-split]').forEach(function (b) { b.onclick = function () {
       d.split = d.split === b.dataset.split ? '' : b.dataset.split; d.title = '';
       if (!draftHasValues(d)) d.exercises = [];
@@ -2857,7 +2896,6 @@
       if (act === 'picker') { openExercisePicker(d.split); }
       if (act === 'clear') { S.draft = newDraft(); saveDraft(true); renderTraining(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
-      if (act === 'paste') { await importNotes(box.querySelector('#lg_paste').value); }
       if (act === 'save') { await saveStrength(); }
     });
     box.querySelectorAll('[data-sugg]').forEach(function (b) { b.onclick = function () {
@@ -2941,7 +2979,7 @@
     var d = loadDraft(), k = exKey(name);
     var have = d.exercises.find(function (e) { return exKey(e.name) === k; });
     if (have) { toast(have.name + ' er allerede med i økta'); return; }
-    var last = lastFor(name, d.editId), n = last ? Math.max(1, Math.min(last.sets.length, 6)) : 1, sets = [];
+    var last = lastFor(name, d.editId, d.volume), n = last ? Math.max(1, Math.min(last.sets.length, 6)) : 1, sets = [];
     for (var j = 0; j < n; j++) sets.push({ w: '', r: '' });
     d.exercises.push({ name: name, sets: sets });
     saveDraft(); renderTraining();
@@ -3228,9 +3266,7 @@
       var more = $('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; renderTraining(); };
       return;
     }
-    html += '<div class="small muted" style="margin:-4px 2px 10px">Denne uka: <b>' + wk.filter(function (w) { return w.type === 'styrke'; }).length + '</b> styrke · <b>' + wk.filter(function (w) { return w.type === 'kondisjon'; }).length + '</b> kondisjon</div>';
-    html += garminCard();
-    if (t === 'styrke') html += '<div class="section"><div class="row"><h3 class="grow">Logg styrkeøkt</h3><div class="seg" role="group" aria-label="Type"><button type="button" data-tt="styrke" aria-pressed="true">Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="false">Kondisjon</button></div></div>' + strengthLoggerHtml() + '</div>';
+    if (t === 'styrke') html += strengthLoggerHtml();
     else html += '<div class="section"><h3>Registrer økt</h3><form id="tf" class="stack" novalidate>' +
       '<div class="row"><div class="seg" role="group" aria-label="Type"><button type="button" data-tt="styrke" aria-pressed="' + (t === 'styrke') + '">Styrke</button><button type="button" data-tt="kondisjon" aria-pressed="' + (t === 'kondisjon') + '">Kondisjon</button></div>' +
       '<input class="input grow" id="tf_date" type="date" value="' + today() + '" style="max-width:170px"></div>' +
@@ -3259,7 +3295,7 @@
       if (prog.length) html += '<div class="section"><h3>Neste økt</h3><div class="list">' + prog.map(function (x) { return '<div class="li"><div class="grow"><div class="t1">' + esc(x.name) + ' <span class="pill ' + (x.s.action === 'øk vekt' ? 'bekreftet' : '') + '">' + esc(x.s.action) + '</span></div><div class="t2" style="white-space:normal">' + esc(x.s.text) + ' (sist ' + esc(x.date) + ')</div></div></div>'; }).join('') + '</div></div>';
     }
     if (false && bk.length) html += '<div class="section"><h3>Beste sett</h3><div class="tbl"><table><thead><tr><th>Øvelse</th><th class="r">Belastning</th><th class="r">Reps</th><th class="r">e1RM</th><th class="r">Dato</th></tr></thead><tbody>' + bk.sort(function (a, b) { return bestName[a].localeCompare(bestName[b], 'nb'); }).map(function (k) { return '<tr><td>' + esc(bestName[k]) + '</td><td class="r">' + fmt(best[k].weightKg, 1) + ' kg</td><td class="r">' + best[k].reps + '</td><td class="r">' + fmt(E.e1rm(best[k].weightKg, best[k].reps), 1) + '</td><td class="r">' + best[k].date + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
-    html += '<button type="button" class="btn ghost tsjump" data-trtab="stats">Se historikk og tall for treningen din ›</button>';
+    html += '<div class="trfoot">' + (t === 'styrke' ? '<button type="button" class="btn ghost sm" data-tt="kondisjon">Registrer kondisjonsøkt</button>' : '<button type="button" class="btn ghost sm" data-tt="styrke">Tilbake til styrke</button>') + '<button type="button" class="btn ghost sm" data-trtab="stats">Historikk og tall ›</button></div>';
     if (!setHTML(v, html)) return;
     v.querySelectorAll('[data-trtab]').forEach(function (b) { b.onclick = function () { S.trTab = b.dataset.trtab; renderTraining(); v.scrollTop = 0; }; });
     v.querySelectorAll('[data-tt]').forEach(function (b) { b.onclick = function () { S.trType = b.dataset.tt; renderTraining(); }; });
@@ -3755,6 +3791,8 @@
         (p.weightKg ? '<p class="small muted">Veiledende protein ved ' + fmt(p.weightKg, 1) + ' kg: ' + fmt(p.weightKg * 1.6) + '–' + fmt(p.weightKg * 2.2) + ' g/dag (1,6–2,2 g/kg).</p>' : '') +
         '<div id="sf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre profil</button></div></form>' +
         ((p.notes || []).length ? '<div class="section"><h3>Notater coachen tar hensyn til</h3><ul class="small">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
+        (window.COACH_STANDALONE ? '<div class="section"><h3>Strekkodeskanner</h3><div class="seg scanmode" role="group">' + [['live', 'Kamera i appen'], ['photo', 'iPhone-kameraet']].map(function (x) { return '<button type="button" data-sm="' + x[0] + '" aria-pressed="' + (scanMode() === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+          '<p class="small faint" style="margin:8px 2px 0">' + (scanMode() === 'live' ? 'Skanner fortløpende i appen. iPhone spør om tilgang til kameraet én gang hver gang appen åpnes. Det er en begrensning i iOS for apper på hjemskjermen.' : 'Åpner iPhone sitt eget kamera; ta et bilde av strekkoden. iPhone spør aldri om tilgang.') + '</p></div>' : '') +
         '<div class="section"><h3>Garmin</h3>' + garminCard() + '</div>' +
         (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (window.coachViewport ? (function () { var q = window.coachViewport(); return ' · skjerm ' + q.screen + ' / app ' + q.root + ' / vindu ' + q.inner; })() : '') + '</p>' : '') + '</div>' : '') +
         '<div class="section"><h3>Data og personvern</h3><p class="small muted">Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.</p>' +
@@ -3763,6 +3801,7 @@
         '</div>';
       fillSuggestion();
       $('#s_calc').onclick = function () { closeSheet(); setTimeout(openCalculator, 230); };
+      body.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { try { localStorage.setItem('coach.scanMode', b.dataset.sm); } catch (e) {} if (S.sheet) S.sheet.force(); }; });
       if ($('#s_reload')) $('#s_reload').onclick = function () { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } location.reload(); };
       if ($('#s_logout')) $('#s_logout').onclick = function () { if (window.coachSignOut) window.coachSignOut(); };
       $('#sf').onsubmit = async function (e) {
