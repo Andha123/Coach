@@ -3228,18 +3228,31 @@
     var B = EXLIB.body || { front: [], back: [] }, N = EXLIB.muscleNames || {}, keys = Object.keys(M);
     var mx = Math.max.apply(null, keys.map(function (k) { return M[k].score; }).concat([1]));
     var sel = o.sel || null;
-    function side(arr) {
+    function heatOf(k) { var d = M[k]; return d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : null; }
+    function layer(arr, kind) {
       return arr.map(function (m) {
-        var k = mkey(m[0]), d = M[k], skel = /HEAD|KNEES|NECK/.test(m[0]);
-        var fill = skel ? 'rgba(255,255,255,.55)' : d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : 'rgba(255,255,255,.92)';
-        return m[1].map(function (pts) { return '<polygon points="' + pts + '" fill="' + fill + '"' + (skel ? '' : ' data-m="' + k + '" class="mz' + (sel === k ? ' sel' : '') + (d ? ' hot' : '') + '"') + '/>'; }).join('');
+        var k = mkey(m[0]), skel = /HEAD|KNEES|NECK/.test(m[0]), h = skel ? null : heatOf(k);
+        return m[1].map(function (pts) {
+          if (kind === 'base') return '<polygon points="' + pts + '"/>';
+          if (kind === 'heat') return h ? '<polygon points="' + pts + '" fill="' + h + '" stroke="' + h + '"/>' : '';
+          if (kind === 'line') return skel ? '' : '<polygon points="' + pts + '"/>';
+          if (kind === 'hit') return skel ? '' : '<polygon points="' + pts + '" data-m="' + k + '" class="mz' + (sel === k ? ' sel' : '') + '"/>';
+          return '';
+        }).join('');
       }).join('');
+    }
+    function figure(arr, dx) {
+      return '<g transform="translate(' + dx + ' 0)"><ellipse class="mmfloor" cx="50" cy="197" rx="30" ry="3.2"/>' +
+        '<g class="mmbase">' + layer(arr, 'base') + '</g><g class="mmheat">' + layer(arr, 'heat') + '</g>' +
+        '<g class="mmline">' + layer(arr, 'line') + '</g><g class="mmgloss">' + layer(arr, 'base') + '</g><g class="mmhit">' + layer(arr, 'hit') + '</g></g>';
     }
     var ranked = keys.sort(function (a, b) { return M[b].score - M[a].score; });
     var ORDER = ['CHEST', 'FRONT_DELTOIDS', 'BACK_DELTOIDS', 'TRICEPS', 'BICEPS', 'FOREARM', 'UPPER_BACK', 'TRAPEZIUS', 'LOWER_BACK', 'ABS', 'OBLIQUES', 'GLUTEAL', 'QUADRICEPS', 'HAMSTRING', 'ABDUCTORS', 'ABDUCTOR', 'CALVES'];
     var html = '<div class="gcard musmap' + (o.compact ? ' compact' : '') + '">' +
       (o.picker ? '<div class="mmscope mmmus">' + ORDER.map(function (k) { var d = M[k]; return '<button type="button" class="mmpill' + (sel === k ? ' on' : '') + (d ? '' : ' cold') + '" data-msel="' + (sel === k ? '' : k) + '"><i style="background:' + (d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : '#fff') + '"></i>' + esc(N[k] || k) + '</button>'; }).join('') + '</div>' : '') +
-      '<div class="mmfig"><svg viewBox="0 0 215 200" aria-label="Muskelkart"><g>' + side(B.front) + '</g><g transform="translate(115 0)">' + side(B.back) + '</g></svg>' +
+      '<div class="mmfig"><svg viewBox="0 -4 215 206" aria-label="Muskelkart"><defs><linearGradient id="mmGloss" gradientUnits="userSpaceOnUse" x1="10" y1="0" x2="95" y2="200"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="#fff" stop-opacity=".08"/><stop offset=".7" stop-color="#000" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>' +
+      '<radialGradient id="mmFloor"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>' +
+      figure(B.front, 0) + figure(B.back, 115) + '</svg>' +
       '<div class="mmlbl"><span>Forfra</span><span>Bakfra</span></div></div>' +
       '<div class="mmscale"><span>Ikke trent</span><i></i><span>Mye</span></div>';
     if (!o.compact) {
@@ -3259,6 +3272,7 @@
     }
     return html + '</div>';
   }
+  function periodSeg(per) { return '<div class="seg trper" role="group" aria-label="Periode">' + PERIODS.map(function (p) { return '<button type="button" data-per="' + p[0] + '" aria-pressed="' + (per === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>'; }
   function bindStats(v, rerender) {
     v.querySelectorAll('[data-per]').forEach(function (b) { b.onclick = function () { S.trPeriod = b.dataset.per; rerender(); }; });
     v.querySelectorAll('[data-wid]').forEach(function (b) { b.onclick = function () { openWorkout(b.dataset.wid); }; });
@@ -3268,12 +3282,36 @@
     v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; rerender(); }; });
     v.querySelectorAll('.musmap polygon[data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }); });
   }
-  function trainingStatsHtml() {
+  /* Velg: hele perioden, en økttype (Push viser alle muskler brukt på push) eller én bestemt økt */
+  function muscleSectionHtml(cur, opts) {
+    opts = opts || {};
+    var scope = S.musScope || 'all', note = '';
+    function typeMatch(w, t) { var sp = splitOf(w.title) || 'Annet'; return t.slice(-8) === ' (volum)' ? sp === t.slice(0, -8) && isVol(w.title) : sp === t; }
+    var types = SPLITS.slice();
+    cur.forEach(function (w) { if (isVol(w.title)) { var k = (splitOf(w.title) || 'Annet') + ' (volum)'; if (types.indexOf(k) < 0) types.push(k); } });
+    if (scope !== 'all' && scope.indexOf('type:') !== 0 && !cur.some(function (w) { return w.id === scope; })) scope = 'all';
+    var scoped;
+    if (scope === 'all') scoped = cur;
+    else if (scope.indexOf('type:') === 0) {
+      var t = scope.slice(5);
+      scoped = cur.filter(function (w) { return typeMatch(w, t); });
+      if (!scoped.length) { scoped = strengthSessions(null).filter(function (w) { return typeMatch(w, t); }); note = scoped.length ? 'Ingen ' + t.toLowerCase() + '-økter i perioden, så figuren viser alle ' + t.toLowerCase() + '-øktene dine.' : 'Du har ingen ' + t.toLowerCase() + '-økter ennå.'; }
+    } else scoped = cur.filter(function (w) { return w.id === scope; });
+    function chip(val, t1, t2, dim) { return '<button type="button" class="expchip' + (scope === val ? ' on' : '') + (dim ? ' dim' : '') + '" data-mscope="' + esc(val) + '"><b>' + esc(t1) + '</b><span>' + esc(t2) + '</span></button>'; }
+    return '<div class="mmsection">' + (opts.title === false ? '' : '<h3>Muskler</h3>') +
+      '<div class="mmscope">' + chip('all', 'Alt', cur.length + ' økter') +
+      types.map(function (k) { var n = cur.filter(function (w) { return typeMatch(w, k); }).length; return chip('type:' + k, k, n ? n + ' økt' + (n === 1 ? '' : 'er') : 'ingen i perioden', !n); }).join('') + '</div>' +
+      (cur.length ? '<div class="mmscope mmsess">' + cur.slice(0, 30).map(function (w) { return chip(w.id, w.title || 'Økt', shortDate(w.date)); }).join('') + '</div>' : '') +
+      (note ? '<div class="small faint" style="margin:0 2px 8px">' + esc(note) + '</div>' : '') +
+      muscleMapCard(muscleLoad(scoped), { sel: S.musSel, picker: true }) + '</div>';
+  }
+  function trainingStatsHtml(opts) {
+    opts = opts || {};
     var per = S.trPeriod || 'uke', r = periodRange(per, 0), rp = per === 'alt' ? null : periodRange(per, 1);
     var cur = strengthSessions(per === 'alt' ? null : r), prev = rp ? strengthSessions(rp) : [];
     var a = sessionStats(cur), b = sessionStats(prev);
     var prevLbl = { dag: 'i går', uke: 'forrige uke', maned: 'forrige måned', ar: 'i fjor' }[per];
-    var html = '<div class="seg trper" role="group" aria-label="Periode">' + PERIODS.map(function (p) { return '<button type="button" data-per="' + p[0] + '" aria-pressed="' + (per === p[0]) + '">' + p[1] + '</button>'; }).join('') + '</div>';
+    var html = opts.noPeriod ? '' : periodSeg(per);
     var title = per === 'dag' ? cap(dateLabel(r.from)) : per === 'uke' ? 'Uke ' + C.isoWeek(r.from).split('-U')[1] + ' · ' + shortDate(r.from) + '–' + shortDate(r.to) : per === 'maned' ? cap(new Date(r.from + 'T12:00:00').toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })) : per === 'ar' ? r.from.slice(0, 4) : 'All trening';
     html += '<div class="tshead"><b>' + esc(title) + '</b>' + (rp ? '<span>Sammenlignet med ' + prevLbl + '</span>' : '') + '</div>';
     html += '<div class="tsbig"><span>Totalt løftet</span><b>' + kgTxt(a.vol) + '</b>' + (rp ? deltaTxt(a.vol, b.vol) : '') + '</div>';
@@ -3313,20 +3351,7 @@
         }).join('') + '</div></div>';
       }
       /* Muskler: hele perioden eller én økt */
-      /* Velg: hele perioden, alle økter av én type (Push, Pull …) eller én bestemt økt */
-      var types = [];
-      cur.forEach(function (w) { var sp = splitOf(w.title) || 'Annet'; var v2 = isVol(w.title); var k = sp + (v2 ? ' (volum)' : ''); if (types.indexOf(k) < 0) types.push(k); });
-      function typeOf(w) { return (splitOf(w.title) || 'Annet') + (isVol(w.title) ? ' (volum)' : ''); }
-      var scope = S.musScope || 'all';
-      if (scope !== 'all' && scope.indexOf('type:') !== 0 && !cur.some(function (w) { return w.id === scope; })) scope = 'all';
-      if (scope.indexOf('type:') === 0 && types.indexOf(scope.slice(5)) < 0) scope = 'all';
-      var scoped = scope === 'all' ? cur : scope.indexOf('type:') === 0 ? cur.filter(function (w) { return typeOf(w) === scope.slice(5); }) : cur.filter(function (w) { return w.id === scope; });
-      function chip(val, t1, t2) { return '<button type="button" class="expchip' + (scope === val ? ' on' : '') + '" data-mscope="' + esc(val) + '"><b>' + esc(t1) + '</b><span>' + esc(t2) + '</span></button>'; }
-      html += '<div class="section"><h3>Muskler</h3>' +
-        '<div class="mmlabel">Vis for</div><div class="mmscope">' + chip('all', 'Hele perioden', cur.length + ' økter') +
-        types.map(function (k) { var n = cur.filter(function (w) { return typeOf(w) === k; }).length; return chip('type:' + k, 'Alle ' + k.toLowerCase(), n + ' økt' + (n === 1 ? '' : 'er')); }).join('') + '</div>' +
-        '<div class="mmlabel">Eller én økt</div><div class="mmscope">' + cur.slice(0, 30).map(function (w) { return chip(w.id, w.title || 'Økt', shortDate(w.date)); }).join('') + '</div>' +
-        muscleMapCard(muscleLoad(scoped), { sel: S.musSel, picker: true }) + '</div>';
+      if (!opts.noMuscles) html += muscleSectionHtml(cur);
       /* Øvelser med mest volum */
       var exs = {};
       cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
@@ -3632,8 +3657,11 @@
   }
   function renderProgress() {
     var v = $('#v-fremgang');
-    var html = '<div class="section"><h2 class="vh">Fremgang</h2></div>' + weightCard() + weekSummary() +
-      '<div class="section pgstats"><h3>Trening: historikk og tall</h3>' + trainingStatsHtml() + '</div>' +
+    var per = S.trPeriod || 'uke', rr = periodRange(per, 0), curS = strengthSessions(per === 'alt' ? null : rr);
+    var html = '<div class="section"><h2 class="vh">Fremgang</h2></div>' +
+      '<div class="section pgtop"><h3>Musklene dine</h3>' + periodSeg(per) + muscleSectionHtml(curS, { title: false }) + '</div>' +
+      weightCard() + weekSummary() +
+      '<div class="section pgstats"><h3>Trening: historikk og tall</h3><div class="small faint" style="margin:-6px 2px 10px">For perioden du har valgt øverst.</div>' + trainingStatsHtml({ noMuscles: true, noPeriod: true }) + '</div>' +
       goalsCard() + waistCard() + weeksList();
     var changedP = setHTML(v, html);
     if (!S.plan && !S.planLoading) refreshPlan();
