@@ -56,7 +56,7 @@
     oppskrift: '<svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>',
     trening: '<svg viewBox="0 0 24 24"><path d="M3 9v6M6 6v12M18 6v12M21 9v6M6 12h12"/></svg>',
     fremgang: '<svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>',
-    gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+    gear: '<svg viewBox="0 0 24 24"><path d="M10.3 3h3.4l.5 2.4a7 7 0 0 1 1.7 1l2.3-.8 1.7 2.9-1.8 1.6a7 7 0 0 1 0 2l1.8 1.6-1.7 2.9-2.3-.8a7 7 0 0 1-1.7 1l-.5 2.4h-3.4l-.5-2.4a7 7 0 0 1-1.7-1l-2.3.8-1.7-2.9 1.8-1.6a7 7 0 0 1 0-2L4.1 8.5l1.7-2.9 2.3.8a7 7 0 0 1 1.7-1z"/><circle cx="12" cy="12" r="2.8"/></svg>',
     send: '<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
     stop: '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>',
     camera: '<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
@@ -296,7 +296,7 @@
       '<div class="app">' +
       '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="gKcal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd2a6"/><stop offset="1" stop-color="#ee8a42"/></linearGradient><linearGradient id="gProt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9e0ff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs></svg>' +
       '<header class="topbar"><div class="brand"><div class="logo" aria-hidden="true">' + LOGO_SVG + '</div><div class="btwrap"><div class="bt">Coach</div><small id="tbsub">' + esc(greeting()) + '</small></div></div><div class="spacer"></div>' +
-      '<button class="iconbtn" id="btnSettings" aria-label="Innstillinger">' + ICON.gear + '</button></header>' +
+      '<button class="profbtn" id="btnSettings" aria-label="Profil og innstillinger"></button></header>' +
       '<main>' +
       '<section class="view chatview" id="v-chat">' +
       '  <div id="chatStrip"></div>' +
@@ -324,7 +324,7 @@
       '<section class="view" id="v-fremgang" hidden></section>' +
       '</main>' +
       '<nav class="tabs" id="tabs">' + tabs.map(function (t) { return '<button data-view="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>' +
-      '</div><div id="sheetHost"></div><div id="toastHost"></div>';
+      '</div><div id="pageHost"></div><div id="sheetHost"></div><div id="toastHost"></div>';
 
     document.addEventListener('error', function (e) {
       var t = e.target; if (!t || t.tagName !== 'IMG') return;
@@ -488,6 +488,7 @@
   function editingInside(el) { var a = document.activeElement; return a && el && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
 
   function render() {
+    refreshProfileBtn();
     if (S.status === 'nodb') {
       $('#messages').innerHTML = '<div class="empty"><h3>Lagring er ikke tilgjengelig her</h3><p class="small">Åpne Coach i Claude (innlogget) for å bruke matloggen og coachen. Dataene dine lagres i appens egen database knyttet til kontoen din.</p></div>';
       return;
@@ -4234,66 +4235,188 @@
   }
 
   /* ---------- Innstillinger ---------- */
+  /* ---------- Innstillinger: egen side med profil øverst og grupperte rader, som Innstillinger på iPhone ----------
+   * Sider legges oppå hverandre (push), «Tilbake» går ett steg tilbake. Ark (kalkulator osv.) åpnes over sidene. */
+  var PI = {
+    person: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+    target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>',
+    calc: '<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8.5 7.5h7M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 15.5h.01M12 15.5h.01M15.5 15.5h.01"/></svg>',
+    run: '<svg viewBox="0 0 24 24"><circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2.5V22M6 11l3-3.5 4 1 2.5 3.5 3 .5M11 15l-1.5-4"/></svg>',
+    watch: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="4"/><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9.5V12l1.5 1.5"/></svg>',
+    download: '<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 13h9l1-13"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4"/></svg>',
+    logout: '<svg viewBox="0 0 24 24"><path d="M14 4.5H6.5v15H14M10.5 12h10M17 8.5l3.5 3.5-3.5 3.5"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg>',
+    back: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'
+  };
+  function initialOf() {
+    var p = S.profile || {}, n = String(p.name || '').trim() || String(window.coachEmail || '').trim();
+    return n ? n.charAt(0).toUpperCase() : '';
+  }
+  function profileBtnHtml() {
+    var i = initialOf();
+    return '<span class="pfav">' + (i ? esc(i) : PI.person) + '</span><span class="pfgear" aria-hidden="true">' + ICON.gear + '</span>';
+  }
+  function refreshProfileBtn() { var b = $('#btnSettings'); if (b) { var h = profileBtnHtml(); if (b._h !== h) { b._h = h; b.innerHTML = h; } } }
+  function openPage(title, bodyFn, o) {
+    o = o || {};
+    var host = $('#pageHost'); if (!host) return null;
+    var depth = host.children.length;
+    var pg = document.createElement('section');
+    pg.className = 'page'; pg.setAttribute('role', 'dialog'); pg.setAttribute('aria-label', title);
+    pg.innerHTML = '<div class="pghd"><button type="button" class="pgback" aria-label="' + (depth ? 'Tilbake' : 'Lukk') + '">' + PI.back + '<span>' + esc(depth ? o.backLabel || 'Innstillinger' : 'Tilbake') + '</span></button><h2>' + esc(title) + '</h2><span></span></div><div class="pgbody"></div>';
+    host.appendChild(pg);
+    var body = pg.querySelector('.pgbody');
+    function draw() { bodyFn(body, draw); }
+    pg._draw = draw;
+    pg.querySelector('.pgback').onclick = function () { closePage(pg); };
+    draw();
+    var prev = pg.previousElementSibling; if (prev) prev.classList.add('under');
+    requestAnimationFrame(function () { requestAnimationFrame(function () { pg.classList.add('in'); }); });
+    return pg;
+  }
+  function closePage(pg) {
+    var host = $('#pageHost'); if (!host) return;
+    pg = pg || host.lastElementChild; if (!pg) return;
+    var prev = pg.previousElementSibling;
+    if (prev) { prev.classList.remove('under'); if (prev._draw) prev._draw(); }
+    pg.classList.remove('in'); pg.classList.add('out');
+    setTimeout(function () { pg.remove(); }, MOTION ? 320 : 0);
+  }
+  function closeAllPages() { var host = $('#pageHost'); if (host) host.innerHTML = ''; }
+  function pgRow(id, icon, color, label, value, o) {
+    o = o || {};
+    return '<button type="button" class="pgrow' + (o.danger ? ' danger' : '') + '" id="' + id + '"><span class="pgic" style="background:' + color + '">' + icon + '</span><span class="pgl">' + esc(label) + '</span>' +
+      (value ? '<span class="pgv">' + esc(value) + '</span>' : '') + (o.noChevron ? '' : '<span class="pgch">' + PI.chevron + '</span>') + '</button>';
+  }
+  function pgGroup(title, rows, foot) { return (title ? '<div class="pggt">' + esc(title) + '</div>' : '<div class="pggap"></div>') + '<div class="pggroup">' + rows.join('') + '</div>' + (foot ? '<p class="pgfoot">' + foot + '</p>' : ''); }
+
   function openSettings() {
-    openSheet('Innstillinger', function (body) {
+    if ($('#pageHost') && $('#pageHost').children.length) return;
+    openPage('Innstillinger', function (body) {
+      var p = S.profile || {}, i = initialOf();
+      var facts = [p.age ? fmt(p.age) + ' år' : '', p.heightCm ? fmt(p.heightCm) + ' cm' : '', p.weightKg ? fmt(p.weightKg, 1) + ' kg' : ''].filter(Boolean);
+      var goalTxt = { fettreduksjon: 'Gå ned i fett', vedlikehold: 'Holde vekten', muskelvekst: 'Bygge muskler' }[p.goalType] || '';
+      body.innerHTML =
+        '<button type="button" class="pfcard" id="pg_prof"><span class="pfbig">' + (i ? esc(i) : PI.person) + '</span><span class="pfinfo"><b>' + esc(p.name || 'Din profil') + '</b>' +
+          (window.coachEmail ? '<span>' + esc(window.coachEmail) + '</span>' : '') + '<em>' + esc(facts.length ? facts.join(' · ') : 'Legg inn alder, høyde og vekt') + '</em></span><span class="pgch">' + PI.chevron + '</span></button>' +
+        pgGroup('Mål', [
+          pgRow('pg_goals', PI.target, 'linear-gradient(150deg,#f7b77e,#e0823d)', 'Daglige mål', p.kcalTarget ? fmt(p.kcalTarget) + ' kcal' + (p.proteinTarget ? ' · ' + fmt(p.proteinTarget) + ' g P' : '') : 'Ikke satt'),
+          pgRow('pg_calc', PI.calc, 'linear-gradient(150deg,#7cc4a6,#2f8f6e)', 'Kalkulator', goalTxt)
+        ], 'Kalkulatoren regner ut kalorier og protein ut fra forskning. Du velger selv om du vil bruke forslaget.') +
+        pgGroup('Hverdag og trening', [
+          pgRow('pg_act', PI.run, 'linear-gradient(150deg,#8fb3ff,#3f6fd8)', 'Aktivitet og trening', p.strengthSessions ? fmt(p.strengthSessions) + ' økter/uke' : ''),
+          pgRow('pg_garmin', PI.watch, 'linear-gradient(150deg,#9aa4b1,#56606d)', 'Garmin', S.garminAvail ? 'Tilkoblet' : '')
+        ]) +
+        (window.COACH_STANDALONE ? pgGroup('Appen', [
+          pgRow('pg_scan', ICON.barcode, 'linear-gradient(150deg,#c9a2ff,#7f53d6)', 'Strekkodeskanner', scanMode() === 'live' ? 'Kamera i appen' : 'iPhone-kameraet'),
+          pgRow('pg_reload', PI.refresh, 'linear-gradient(150deg,#7fd3e8,#2b8fb0)', 'Oppdater appen', '', { noChevron: true })
+        ]) : '') +
+        pgGroup('Data', [
+          pgRow('pg_export', PI.download, 'linear-gradient(150deg,#9ad48a,#4f9a3f)', 'Eksporter alt', 'JSON', { noChevron: true }),
+          pgRow('pg_priv', PI.shield, 'linear-gradient(150deg,#a8b0bd,#5f6876)', 'Personvern og status', ''),
+          pgRow('pg_wipe', PI.trash, 'linear-gradient(150deg,#ff9a8a,#d64a3a)', 'Slett data', '', { danger: true })
+        ]) +
+        (window.COACH_STANDALONE ? pgGroup('', [pgRow('pg_logout', PI.logout, 'linear-gradient(150deg,#ff9a8a,#d64a3a)', 'Logg ut', '', { danger: true, noChevron: true })]) : '') +
+        (window.COACH_BUILD ? '<p class="pgfoot center">Coach · versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</p>' : '');
+      function on(id, fn) { var el = body.querySelector('#' + id); if (el) el.onclick = fn; }
+      on('pg_prof', openProfilePage);
+      on('pg_goals', openProfilePage);
+      on('pg_calc', openCalculator);
+      on('pg_act', openActivityPage);
+      on('pg_garmin', function () { openPage('Garmin', function (b) { b.innerHTML = '<div class="pgcard">' + garminCard() + '</div>'; bindGarminCard(b); }); });
+      on('pg_scan', openScanPage);
+      on('pg_reload', function () { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } location.reload(); });
+      on('pg_export', exportAll);
+      on('pg_priv', openPrivacyPage);
+      on('pg_wipe', openWipePage);
+      on('pg_logout', function () { closeAllPages(); if (window.coachSignOut) window.coachSignOut(); });
+    });
+  }
+  function profField(id, label, val, num, ph) { return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" ' + (num ? 'inputmode="decimal"' : '') + (ph ? ' placeholder="' + esc(ph) + '"' : '') + ' value="' + esc(val === undefined || val === null ? '' : String(val).replace('.', ',')) + '"></div>'; }
+  function profSel(id, label, val, opts) { return '<div class="field"><label for="' + id + '">' + label + '</label><select class="input" id="' + id + '">' + opts.map(function (o) { var v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : (o || 'velg'); return '<option value="' + esc(v) + '"' + (v === val ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select></div>'; }
+  async function saveProfileFields(fields, msgEl) {
+    try {
+      var r = await C.updateProfile(ctx, fields);
+      S.plan = null;
+      msgEl.innerHTML = '<div class="notice info">' + (r.changed.length ? 'Lagret.' : 'Ingen endringer.') + '</div>';
+      refreshProfileBtn();
+    } catch (er) { msgEl.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
+  }
+  function openProfilePage() {
+    openPage('Profil og mål', function (body) {
       var p = S.profile || {};
-      function sel(id, label, val, opts) { return '<div class="field"><label for="' + id + '">' + label + '</label><select class="input" id="' + id + '">' + opts.map(function (o) { return '<option value="' + esc(o) + '"' + (o === val ? ' selected' : '') + '>' + esc(o || 'velg') + '</option>'; }).join('') + '</select></div>'; }
-      function f(id, label, val, num) { return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" ' + (num ? 'inputmode="decimal"' : '') + ' value="' + esc(val === undefined || val === null ? '' : String(val).replace('.', ',')) + '"></div>'; }
-      body.innerHTML = '<div class="stack">' +
-        '<button class="btn primary" id="s_calc">Kalkulator: regn ut kalorier og makroer</button>' +
-        '<form id="sf" class="stack" novalidate><h3>Profil og mål</h3><div class="grid3">' +
-        f('s_age', 'Alder', p.age, 1) + '<div class="field"><label for="s_sex">Kjønn</label><select class="input" id="s_sex"><option' + (p.sex === 'mann' ? ' selected' : '') + '>mann</option><option' + (p.sex === 'kvinne' ? ' selected' : '') + '>kvinne</option></select></div>' +
-        f('s_h', 'Høyde (cm)', p.heightCm, 1) + f('s_w', 'Vekt (kg)', p.weightKg, 1) + f('s_kcal', 'Kalorimål (kcal)', p.kcalTarget, 1) + f('s_prot', 'Proteinmål (g)', p.proteinTarget, 1) + '</div>' +
+      body.innerHTML = '<form id="pf_form" class="stack pgform" novalidate>' +
+        '<div class="pgcard stack">' + profField('s_name', 'Navn', p.name, false, 'Fornavn') +
+        '<div class="grid2">' + profField('s_age', 'Alder', p.age, 1) + profSel('s_sex', 'Kjønn', p.sex || 'mann', ['mann', 'kvinne']) + profField('s_h', 'Høyde (cm)', p.heightCm, 1) + profField('s_w', 'Vekt (kg)', p.weightKg, 1) + '</div></div>' +
+        '<div class="pggt">Daglige mål</div><div class="pgcard stack"><div class="grid2">' + profField('s_kcal', 'Kalorier (kcal)', p.kcalTarget, 1) + profField('s_prot', 'Protein (g)', p.proteinTarget, 1) + '</div>' +
         '<div id="s_sugg"></div>' +
-        f('s_goal', 'Mål med egne ord', p.goal) +
-        '<h3 style="margin-top:6px">Hverdag og trening</h3><p class="small muted" style="margin:0">Brukes til å beregne energibehovet. Skritt og økter hentes fra Garmin og treningsloggen når det finnes nok data.</p><div class="grid3">' +
-        sel('s_gtype', 'Måltype', p.goalType || 'fettreduksjon', ['fettreduksjon', 'vedlikehold', 'muskelvekst']) + sel('s_pace', 'Tempo', p.pace || 'moderat', ['rolig', 'moderat', 'raskere']) +
-        sel('s_job', 'Jobb/skole', p.jobActivity || '', ['', 'sittende', 'stående', 'fysisk']) + f('s_steps', 'Skritt per dag', p.avgSteps, 1) +
-        f('s_ss', 'Styrkeøkter/uke', p.strengthSessions, 1) + f('s_sm', 'Min per styrkeøkt', p.strengthMinutes, 1) + f('s_cm', 'Kondisjon min/uke', p.cardioMinutes, 1) +
-        sel('s_ci', 'Kondisjon intensitet', p.cardioIntensity || 'moderat', ['lett', 'moderat', 'hard']) + '</div>' +
-        (p.weightKg ? '<p class="small muted">Veiledende protein ved ' + fmt(p.weightKg, 1) + ' kg: ' + fmt(p.weightKg * 1.6) + '–' + fmt(p.weightKg * 2.2) + ' g/dag (1,6–2,2 g/kg).</p>' : '') +
-        '<div id="sf_msg"></div><div class="row"><button class="btn primary" type="submit">Lagre profil</button></div></form>' +
-        ((p.notes || []).length ? '<div class="section"><h3>Notater coachen tar hensyn til</h3><ul class="small">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
-        (window.COACH_STANDALONE ? '<div class="section"><h3>Strekkodeskanner</h3><div class="seg scanmode" role="group">' + [['live', 'Kamera i appen'], ['photo', 'iPhone-kameraet']].map(function (x) { return '<button type="button" data-sm="' + x[0] + '" aria-pressed="' + (scanMode() === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
-          '<p class="small faint" style="margin:8px 2px 0">' + (scanMode() === 'live' ? 'Skanner fortløpende i appen. iPhone spør om tilgang til kameraet én gang hver gang appen åpnes. Det er en begrensning i iOS for apper på hjemskjermen.' : 'Åpner iPhone sitt eget kamera; ta et bilde av strekkoden. iPhone spør aldri om tilgang.') + '</p></div>' : '') +
-        '<div class="section"><h3>Garmin</h3>' + garminCard() + '</div>' +
-        (window.COACH_STANDALONE ? '<div class="section"><h3>Konto</h3><div class="row"><button class="btn" id="s_logout">Logg ut</button><button class="btn" id="s_reload">Oppdater appen</button></div>' + (window.COACH_BUILD ? '<p class="small faint">Versjon fra ' + esc(new Date(+window.COACH_BUILD).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + (window.coachViewport ? (function () { var q = window.coachViewport(); return ' · skjerm ' + q.screen + ' / app ' + q.root + ' / vindu ' + q.inner; })() : '') + '</p>' : '') + '</div>' : '') +
-        '<div class="section"><h3>Data og personvern</h3><p class="small muted">Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.</p>' +
-        '<div class="row"><button class="btn" id="s_export">Eksporter alt (JSON)</button><button class="btn danger" id="s_wipe">Slett data …</button></div><div id="s_wipebox"></div></div>' +
-        '<div class="section"><h3>Status</h3><dl class="kv small"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd><dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' + (S.toolsOk && S.toolMode !== 'json' ? ', med verktøy' : ', registrering via appen') : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + (S.assets ? ', lagres' : '') + '</dd><dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd><dt>Nettsøk</dt><dd>' + (S.browserAvail ? 'tilgjengelig via nettleseren i Claude-skrivebordsappen' : 'ikke tilgjengelig her. Åpne appen i Claude-skrivebordsappen for nettsøk; ellers brukes lagrede data, og ukjente varer merkes som estimat.') + '</dd></dl></div>' +
-        '</div>';
+        (p.weightKg ? '<p class="small muted" style="margin:0">Anbefalt protein ved ' + fmt(p.weightKg, 1) + ' kg: ' + fmt(p.weightKg * 1.6) + '–' + fmt(p.weightKg * 2.2) + ' g per dag (1,6–2,2 g/kg).</p>' : '') +
+        '<button type="button" class="btn" id="s_calc2">Åpne kalkulatoren</button></div>' +
+        '<div class="pggt">Målet ditt</div><div class="pgcard stack"><div class="grid2">' + profSel('s_gtype', 'Måltype', p.goalType || 'fettreduksjon', [['fettreduksjon', 'Gå ned i fett'], ['vedlikehold', 'Holde vekten'], ['muskelvekst', 'Bygge muskler']]) + profSel('s_pace', 'Tempo', p.pace || 'moderat', ['rolig', 'moderat', 'raskere']) + '</div>' +
+        profField('s_goal', 'Med egne ord', p.goal, false, 'F.eks. ned 4 kg til sommeren') + '</div>' +
+        ((p.notes || []).length ? '<div class="pggt">Notater</div><div class="pgcard"><ul class="small" style="margin:0;padding-left:18px">' + p.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>' : '') +
+        '<div id="sf_msg"></div><button class="btn primary pgsave" type="submit">Lagre</button></form>';
       fillSuggestion();
-      $('#s_calc').onclick = function () { closeSheet(); setTimeout(openCalculator, 230); };
-      body.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { try { localStorage.setItem('coach.scanMode', b.dataset.sm); } catch (e) {} if (S.sheet) S.sheet.force(); }; });
-      if ($('#s_reload')) $('#s_reload').onclick = function () { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } location.reload(); };
-      if ($('#s_logout')) $('#s_logout').onclick = function () { if (window.coachSignOut) window.coachSignOut(); };
-      $('#sf').onsubmit = async function (e) {
+      $('#s_calc2').onclick = openCalculator;
+      $('#pf_form').onsubmit = function (e) {
         e.preventDefault();
-        try {
-          var fields = { age: $('#s_age').value, sex: $('#s_sex').value, heightCm: $('#s_h').value, weightKg: $('#s_w').value, kcalTarget: $('#s_kcal').value, proteinTarget: $('#s_prot').value, goal: $('#s_goal').value, goalType: $('#s_gtype').value, pace: $('#s_pace').value, cardioIntensity: $('#s_ci').value };
-          if ($('#s_job').value) fields.jobActivity = $('#s_job').value;
-          [['s_steps', 'avgSteps'], ['s_ss', 'strengthSessions'], ['s_sm', 'strengthMinutes'], ['s_cm', 'cardioMinutes']].forEach(function (x) { var v = $('#' + x[0]).value.trim(); if (v !== '') fields[x[1]] = v; });
-          var r = await C.updateProfile(ctx, fields);
-          S.plan = null;
-          $('#sf_msg').innerHTML = '<div class="notice info">' + (r.changed.length ? 'Lagret.' : 'Ingen endringer.') + '</div>';
-        } catch (er) { $('#sf_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
+        saveProfileFields({ name: $('#s_name').value.trim(), age: $('#s_age').value, sex: $('#s_sex').value, heightCm: $('#s_h').value, weightKg: $('#s_w').value, kcalTarget: $('#s_kcal').value, proteinTarget: $('#s_prot').value, goal: $('#s_goal').value, goalType: $('#s_gtype').value, pace: $('#s_pace').value }, $('#sf_msg'));
       };
-      $('#s_export').onclick = exportAll;
-      bindGarminCard(body);
-      $('#s_wipe').onclick = function () {
-        $('#s_wipebox').innerHTML = '<div class="notice bad" style="margin-top:8px"><p>Velg hva som skal slettes. Dette kan ikke angres. Skriv SLETT for å bekrefte.</p>' +
-          '<div class="row"><select class="input" id="s_wscope" style="max-width:240px"><option value="logs">Matlogg, vekt, trening og chat</option><option value="all">Alt, inkludert matvarer og oppskrifter</option></select><input class="input" id="s_wtext" placeholder="SLETT" style="max-width:110px"><button class="btn danger sm" id="s_wgo">Slett</button></div><div id="s_wres"></div></div>';
-        $('#s_wgo').onclick = async function () {
-          if ($('#s_wtext').value.trim() !== 'SLETT') { $('#s_wres').textContent = 'Skriv SLETT for å bekrefte.'; return; }
-          var cols = ['days', 'weights', 'workouts', 'plans', 'chats', 'changes', 'garmin', 'measures'];
-          if ($('#s_wscope').value === 'all') cols = cols.concat(['products', 'recipes']);
-          $('#s_wres').textContent = 'Sletter …';
-          try {
-            for (var c = 0; c < cols.length; c++) { var snap = await S.db.collection(cols[c]).get(); for (var k = 0; k < snap.docs.length; k++) await repo.del(cols[c] + '/' + snap.docs[k].id); }
-            if ($('#s_wscope').value === 'all') await repo.del('meta/profile');
-            $('#s_wres').textContent = 'Slettet.';
-          } catch (er) { $('#s_wres').textContent = dbErrorText(er); }
-        };
+    });
+  }
+  function openActivityPage() {
+    openPage('Aktivitet og trening', function (body) {
+      var p = S.profile || {};
+      body.innerHTML = '<form id="act_form" class="stack pgform" novalidate><p class="pgfoot" style="margin-top:0">Brukes til å beregne energibehovet. Skritt og økter hentes fra Garmin og treningsloggen når det finnes nok data.</p>' +
+        '<div class="pgcard stack"><div class="grid2">' + profSel('s_job', 'Jobb/skole', p.jobActivity || '', [['', 'velg'], 'sittende', 'stående', 'fysisk']) + profField('s_steps', 'Skritt per dag', p.avgSteps, 1) + '</div></div>' +
+        '<div class="pggt">Trening</div><div class="pgcard stack"><div class="grid2">' + profField('s_ss', 'Styrkeøkter per uke', p.strengthSessions, 1) + profField('s_sm', 'Minutter per styrkeøkt', p.strengthMinutes, 1) +
+        profField('s_cm', 'Kondisjon, min per uke', p.cardioMinutes, 1) + profSel('s_ci', 'Intensitet kondisjon', p.cardioIntensity || 'moderat', ['lett', 'moderat', 'hard']) + '</div></div>' +
+        '<div id="act_msg"></div><button class="btn primary pgsave" type="submit">Lagre</button></form>';
+      $('#act_form').onsubmit = function (e) {
+        e.preventDefault();
+        var fields = { cardioIntensity: $('#s_ci').value };
+        if ($('#s_job').value) fields.jobActivity = $('#s_job').value;
+        [['s_steps', 'avgSteps'], ['s_ss', 'strengthSessions'], ['s_sm', 'strengthMinutes'], ['s_cm', 'cardioMinutes']].forEach(function (x) { var v = $('#' + x[0]).value.trim(); if (v !== '') fields[x[1]] = v; });
+        saveProfileFields(fields, $('#act_msg'));
+      };
+    });
+  }
+  function openScanPage() {
+    openPage('Strekkodeskanner', function (body, redraw) {
+      var m = scanMode();
+      body.innerHTML = '<div class="pggroup">' + [['live', 'Kamera i appen', 'Skanner fortløpende i appen. iPhone spør om kameratilgang én gang hver gang appen åpnes; det er en begrensning i iOS for apper på hjemskjermen.'], ['photo', 'iPhone-kameraet', 'Åpner iPhone sitt eget kamera, og du tar et bilde av strekkoden. iPhone spør aldri om tilgang.']].map(function (x) {
+        return '<button type="button" class="pgrow pgradio" data-sm="' + x[0] + '"><span class="pgl"><b>' + x[1] + '</b><small>' + x[2] + '</small></span><span class="pgtick' + (m === x[0] ? ' on' : '') + '"></span></button>';
+      }).join('') + '</div>';
+      body.querySelectorAll('[data-sm]').forEach(function (b) { b.onclick = function () { try { localStorage.setItem('coach.scanMode', b.dataset.sm); } catch (e) {} redraw(); }; });
+    });
+  }
+  function openPrivacyPage() {
+    openPage('Personvern og status', function (body) {
+      body.innerHTML = '<div class="pgcard"><p class="small" style="margin:0">' + (window.COACH_STANDALONE ? 'Alt lagres i appens egen database, knyttet til kontoen din. Bare du kan lese og skrive dataene dine.' : 'Alt lagres i denne appens egen database, knyttet til Claude-kontoen din. Bare du (eieren) kan lese og skrive. Når du chatter, sendes profil, matdatabase, oppskrifter, dagens logg og de siste meldingene til Claude for å svare. Bilder du legger ved, sendes til Claude og lagres i appen.') + '</p></div>' +
+        '<div class="pggt">Status</div><div class="pgcard"><dl class="kv small" style="margin:0"><dt>Database</dt><dd>' + (S.db ? 'tilkoblet' : 'ikke tilgjengelig') + '</dd>' +
+        (window.COACH_STANDALONE ? '' : '<dt>Claude</dt><dd>' + (S.sample ? 'tilgjengelig' : 'ikke tilgjengelig') + '</dd><dt>Bilder</dt><dd>' + (S.imagesOk ? 'kan sendes' : 'ikke tilgjengelig') + '</dd>') +
+        '<dt>Garmin</dt><dd>' + (S.garminAvail ? 'tilkoblet' : 'ikke tilkoblet her') + '</dd>' +
+        (window.coachViewport ? (function () { var q = window.coachViewport(); return '<dt>Skjerm</dt><dd>' + q.screen + ' / app ' + q.root + ' / vindu ' + q.inner + '</dd>'; })() : '') + '</dl></div>';
+    });
+  }
+  function openWipePage() {
+    openPage('Slett data', function (body) {
+      body.innerHTML = '<div class="pgcard stack"><p class="small" style="margin:0">Velg hva som skal slettes. Dette kan ikke angres. Skriv SLETT for å bekrefte.</p>' +
+        profSel('s_wscope', 'Hva', 'logs', [['logs', 'Matlogg, vekt, trening og chat'], ['all', 'Alt, inkludert matvarer og oppskrifter']]) +
+        profField('s_wtext', 'Bekreft', '', false, 'SLETT') + '<button class="btn danger" id="s_wgo">Slett</button><div id="s_wres" class="small"></div></div>';
+      $('#s_wgo').onclick = async function () {
+        if ($('#s_wtext').value.trim() !== 'SLETT') { $('#s_wres').textContent = 'Skriv SLETT for å bekrefte.'; return; }
+        var cols = ['days', 'weights', 'workouts', 'plans', 'chats', 'changes', 'garmin', 'measures'];
+        if ($('#s_wscope').value === 'all') cols = cols.concat(['products', 'recipes']);
+        $('#s_wres').textContent = 'Sletter …';
+        try {
+          for (var c = 0; c < cols.length; c++) { var snap = await S.db.collection(cols[c]).get(); for (var k = 0; k < snap.docs.length; k++) await repo.del(cols[c] + '/' + snap.docs[k].id); }
+          if ($('#s_wscope').value === 'all') await repo.del('meta/profile');
+          $('#s_wres').textContent = 'Slettet.';
+        } catch (er) { $('#s_wres').textContent = dbErrorText(er); }
       };
     });
   }

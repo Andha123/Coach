@@ -176,7 +176,7 @@
     if (!session) { showLogin('login'); return; }
     hideLogin();
     if (started) { if (session.user.id !== userId) location.reload(); return; }
-    started = true; userId = session.user.id;
+    started = true; userId = session.user.id; window.coachEmail = session.user.email || '';
     startRealtime();
     resolveDb(db);
   }
