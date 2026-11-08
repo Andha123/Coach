@@ -68,6 +68,7 @@
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     chevDown: '<svg viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></svg>',
+    torch: '<svg viewBox="0 0 24 24"><path d="M8 3h8v4l-2 3v11h-4V10L8 7z"/><path d="M12 13.5v2"/></svg>',
     del: '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'
   };
 
@@ -325,7 +326,7 @@
       '<section class="view" id="v-trening" hidden></section>' +
       '<section class="view" id="v-fremgang" hidden></section>' +
       '</main>' +
-      '<nav class="tabs" id="tabs">' + tabs.map(function (t) { return '<button data-view="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>' +
+      '<nav class="tabs" id="tabs"><i class="tabind" aria-hidden="true"></i>' + tabs.map(function (t) { return '<button data-view="' + t[0] + '">' + t[2] + '<span>' + t[1] + '</span></button>'; }).join('') + '</nav>' +
       '</div><div id="pageHost"></div><div id="sheetHost"></div><div id="toastHost"></div>';
 
     document.addEventListener('error', function (e) {
@@ -470,17 +471,33 @@
 
   function autosize() { var t = $('#msgInput'); t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight) + 'px'; }
 
+  var TAB_ORDER = ['idag', 'matvarer', 'oppskrifter', 'trening', 'fremgang'];
+  /* Den glassaktige markøren i fanelinja glir over til valgt fane. */
+  function placeTabInd(instant) {
+    var nav = $('#tabs'), ind = nav && nav.querySelector('.tabind'), b = nav && nav.querySelector('button[aria-current="page"]');
+    if (!ind) return;
+    if (!b) { ind.style.opacity = '0'; return; }
+    if (instant) ind.classList.add('noanim');
+    ind.style.opacity = '1'; ind.style.width = b.offsetWidth + 'px'; ind.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+    if (instant) { void ind.offsetWidth; ind.classList.remove('noanim'); }
+  }
+  window.addEventListener('resize', function () { placeTabInd(true); });
   function go(view, silent) {
-    var changed = S.view !== view;
+    var changed = S.view !== view, from = TAB_ORDER.indexOf(S.view), to = TAB_ORDER.indexOf(view);
+    if (changed && S.view && from >= 0 && to >= 0) haptic();
     S.view = view;
     if (view === 'fremgang') S.plan = null;
     render();
     document.querySelectorAll('.view').forEach(function (v) {
       var on = v.id === 'v-' + view;
       v.hidden = !on;
-      if (on && changed && MOTION) { v.classList.remove('enter'); void v.offsetWidth; v.classList.add('enter'); }
+      if (on && changed && MOTION) {
+        v.classList.remove('enter', 'fromL', 'fromR'); void v.offsetWidth;
+        v.classList.add('enter'); if (from >= 0 && to >= 0) v.classList.add(to > from ? 'fromR' : 'fromL');
+      }
     });
     document.querySelectorAll('#tabs button').forEach(function (b) { if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    placeTabInd(!changed || from < 0);
     try { localStorage.setItem('pt.view', view); } catch (e) {}
     /* I appen på hjemskjermen endres ikke adressen: på iPhone nullstiller en endret adresse kameratillatelsen (WebKit-feil 215884). */
     if (!silent && !window.COACH_STANDALONE && location.hash.slice(1) !== view) { try { history.replaceState(null, '', '#' + view); } catch (e) {} }
@@ -1678,7 +1695,7 @@
     if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
     if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
-    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () { setSlotClosed(date, b.dataset.togslot, !slotClosed(date, b.dataset.togslot)); renderToday(); }; });
+    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () { haptic(); setSlotClosed(date, b.dataset.togslot, !slotClosed(date, b.dataset.togslot)); renderToday(); }; });
     $('#dayComplete').onchange = async function (e) {
       var d = clone(S.days.get(date)) || { date: date, meals: [] };
       d.complete = e.target.checked;
@@ -1767,6 +1784,74 @@
     el.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { openProduct(b.dataset.pid); }; });
   }
 
+  /* Lett vibrasjon ved trykk. iPhone har ikke navigator.vibrate, men Safari (iOS 18+) gir et lite «tikk» når en
+   * bryter-avkrysning endres, så vi bruker en usynlig bryter der. */
+  var hapticEl = null;
+  function haptic() {
+    try {
+      if (navigator.vibrate) { navigator.vibrate(10); return; }
+      if (!/iP(hone|ad|od)/.test(navigator.userAgent)) return;
+      if (!hapticEl) {
+        hapticEl = document.createElement('label'); hapticEl.setAttribute('aria-hidden', 'true');
+        hapticEl.style.cssText = 'position:fixed;left:-100px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
+        hapticEl.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(hapticEl);
+      }
+      hapticEl.click();
+    } catch (e) {}
+  }
+  /* Dra et ark ned for å lukke det (som på iPhone). Starter bare når arket er rullet helt opp og du drar nedover. */
+  function sheetDrag(bg) {
+    var sh = bg.querySelector('.sheet'); if (!sh) return;
+    var y0 = 0, x0 = 0, dy = 0, t0 = 0, mode = 0;
+    sh.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      var t = e.target;
+      if (t.closest('input, textarea, select, .afchips, .mmscope, .ffbar')) { mode = -1; return; }
+      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = Date.now(); mode = sh.scrollTop <= 0 ? 0 : -1;
+    }, { passive: true });
+    sh.addEventListener('touchmove', function (e) {
+      if (mode < 0) return;
+      var y = e.touches[0].clientY - y0, x = e.touches[0].clientX - x0;
+      if (mode === 0) { if (Math.abs(y) < 8 && Math.abs(x) < 8) return; if (y > 0 && y > Math.abs(x) && sh.scrollTop <= 0) { mode = 1; sh.classList.add('dragging'); } else { mode = -1; return; } }
+      dy = Math.max(0, y); var d = dy < 0 ? 0 : dy;
+      sh.style.transform = 'translateY(' + d + 'px)';
+      bg.style.backgroundColor = 'rgba(0,0,0,' + Math.max(0, .45 - d / 900) + ')';
+      e.preventDefault();
+    }, { passive: false });
+    function end() {
+      if (mode !== 1) { mode = 0; return; }
+      mode = 0; sh.classList.remove('dragging');
+      var v = dy / Math.max(1, Date.now() - t0);
+      if (dy > Math.min(160, sh.offsetHeight * .3) || (v > .55 && dy > 40)) { haptic(); closeSheet(true); }
+      else { sh.style.transform = ''; bg.style.backgroundColor = ''; }
+    }
+    sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
+  }
+  /* Sveip fra venstre kant for å gå tilbake på en side. */
+  function pageSwipe(pg) {
+    var x0 = 0, y0 = 0, dx = 0, t0 = 0, mode = 0;
+    pg.addEventListener('touchstart', function (e) {
+      var t = e.touches[0]; if (t.clientX > 28) { mode = -1; return; }
+      x0 = t.clientX; y0 = t.clientY; dx = 0; t0 = Date.now(); mode = 0;
+    }, { passive: true });
+    pg.addEventListener('touchmove', function (e) {
+      if (mode < 0) return;
+      var x = e.touches[0].clientX - x0, y = e.touches[0].clientY - y0;
+      if (mode === 0) { if (x > 10 && x > Math.abs(y)) { mode = 1; pg.classList.add('dragging'); } else if (Math.abs(y) > 10) { mode = -1; return; } else return; }
+      dx = Math.max(0, x); pg.style.transform = 'translateX(' + dx + 'px)';
+      var prev = pg.previousElementSibling; if (prev) prev.style.transform = 'translateX(' + (-24 + 24 * dx / pg.offsetWidth) + '%)';
+      e.preventDefault();
+    }, { passive: false });
+    function end() {
+      if (mode !== 1) { mode = 0; return; }
+      mode = 0; pg.classList.remove('dragging');
+      var prev = pg.previousElementSibling; if (prev) prev.style.transform = '';
+      var v = dx / Math.max(1, Date.now() - t0);
+      pg.style.transform = '';
+      if (dx > pg.offsetWidth * .33 || (v > .5 && dx > 40)) closePage(pg);
+    }
+    pg.addEventListener('touchend', end); pg.addEventListener('touchcancel', end);
+  }
   function openSheet(title, bodyFn, opts) {
     opts = opts || {};
     var host = $('#sheetHost');
@@ -1775,8 +1860,9 @@
     function draw() { if (!editingInside(body)) bodyFn(body); }
     S.sheet = { refresh: opts.live ? draw : null, force: function () { bodyFn(body); } };
     bodyFn(body);
-    $('#sheetClose').onclick = closeSheet;
+    $('#sheetClose').onclick = function () { closeSheet(); };
     $('#sheetBg').addEventListener('click', function (e) { if (e.target.id === 'sheetBg') closeSheet(); });
+    sheetDrag($('#sheetBg'));
     document.addEventListener('keydown', escClose);
   }
   function escClose(e) { if (e.key === 'Escape') closeSheet(); }
@@ -1785,6 +1871,12 @@
     if (!bg) return;
     if (!MOTION) { bg.remove(); return; }
     bg.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); }); bg.removeAttribute('id');
+    var sh = bg.querySelector('.sheet');
+    if (sh && sh.style.transform) {
+      sh.style.transition = 'transform .24s cubic-bezier(.3, 0, .8, .15)'; sh.style.transform = 'translateY(110%)';
+      bg.style.transition = 'background-color .24s'; bg.style.backgroundColor = 'rgba(0,0,0,0)';
+      setTimeout(function () { bg.remove(); }, 250); return;
+    }
     bg.classList.add('closing');
     setTimeout(function () { bg.remove(); }, 220);
   }
@@ -1868,7 +1960,17 @@
   function getCamera() {
     clearTimeout(camTimer);
     if (camLive()) return Promise.resolve(camStream);
-    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }).then(function (st) { camStream = st; return st; });
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } }).then(function (st) {
+      camStream = st;
+      /* Kontinuerlig fokus og litt zoom gjør små strekkoder skarpere, så de leses raskere. */
+      try {
+        var tr = st.getVideoTracks()[0], cap = tr.getCapabilities ? tr.getCapabilities() : {}, adv = {};
+        if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) adv.focusMode = 'continuous';
+        if (cap.zoom && cap.zoom.max >= 2) adv.zoom = Math.min(1.6, cap.zoom.max);
+        if (Object.keys(adv).length) tr.applyConstraints({ advanced: [adv] }).catch(function () {});
+      } catch (e) {}
+      return st;
+    });
   }
   function releaseCamera(ms) {
     clearTimeout(camTimer);
@@ -1878,8 +1980,8 @@
   function openLiveScanner(onCode, onFallback) {
     var ov = document.createElement('div');
     ov.className = 'scanner';
-    ov.innerHTML = '<video playsinline autoplay muted></video><div class="scanframe"><i></i></div>' +
-      '<div class="scantop"><button class="iconbtn" data-x aria-label="Lukk">' + ICON.close + '</button></div>' +
+    ov.innerHTML = '<video playsinline autoplay muted></video><div class="scanframe"><i></i><b>' + ICON.check + '</b></div>' +
+      '<div class="scantop"><button class="iconbtn" data-torch aria-label="Lommelykt" hidden>' + ICON.torch + '</button><span class="scantitle">Skann strekkode</span><button class="iconbtn" data-x aria-label="Lukk">' + ICON.close + '</button></div>' +
       '<div class="scanbot"><div class="scanhint">Hold strekkoden inne i rammen</div><button class="btn" data-photo>Ta bilde i stedet</button></div>';
     document.body.appendChild(ov);
     var video = ov.querySelector('video'), stream = null, alive = true, timer = null;
@@ -1899,15 +2001,25 @@
       if (!alive) { releaseCamera(); return; }
       stream = st; video.srcObject = st;
       try { await video.play(); } catch (e) { /* iOS starter etter brukerhandling */ }
+      ov.classList.add('live');
+      try {
+        var trk = st.getVideoTracks()[0], caps = trk.getCapabilities ? trk.getCapabilities() : {};
+        if (caps.torch) {
+          var tb = ov.querySelector('[data-torch]'), on = false; tb.hidden = false;
+          tb.onclick = function () { on = !on; tb.classList.toggle('on', on); trk.applyConstraints({ advanced: [{ torch: on }] }).catch(function () {}); };
+        }
+      } catch (e) {}
       var det = null, Z = null, reader = null, cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
       if ('BarcodeDetector' in window) { try { det = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); } catch (e) { det = null; } }
       if (!det) {
         Z = await loadZXing();
         var hints = new Map();
         hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128]);
-        hints.set(Z.DecodeHintType.TRY_HARDER, true);
         reader = new Z.MultiFormatReader(); reader.setHints(hints);
+        var hints2 = new Map(hints); hints2.set(Z.DecodeHintType.TRY_HARDER, true);
+        var reader2 = new Z.MultiFormatReader(); reader2.setHints(hints2);
       }
+      var frame = 0;
       async function tick() {
         if (!alive) return;
         var code = null;
@@ -1915,16 +2027,18 @@
           try {
             if (det) { var r = await det.detect(video); if (r && r.length) code = r[0].rawValue; }
             else {
-              var vw = video.videoWidth, vh = video.videoHeight, cw = Math.round(vw * .8), ch = Math.round(vh * .5);
-              var sc = Math.min(1, 1000 / cw); cv.width = Math.round(cw * sc); cv.height = Math.round(ch * sc);
+              /* Rask lesing av et bånd midt i bildet hver gang, grundigere lesing av et større utsnitt hver fjerde gang. */
+              var hard = frame++ % 4 === 3, vw = video.videoWidth, vh = video.videoHeight;
+              var cw = Math.round(vw * (hard ? .9 : .75)), ch = Math.round(vh * (hard ? .6 : .32));
+              var sc = Math.min(1, (hard ? 1100 : 760) / cw); cv.width = Math.round(cw * sc); cv.height = Math.round(ch * sc);
               cx.drawImage(video, (vw - cw) / 2, (vh - ch) / 2, cw, ch, 0, 0, cv.width, cv.height);
-              var res = reader.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));
+              var res = (hard ? reader2 : reader).decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv))));
               if (res) code = res.getText();
             }
           } catch (e) { code = null; }
         }
-        if (code) { code = String(code).replace(/\D/g, ''); if (validEan(code)) { if (navigator.vibrate) navigator.vibrate(40); ov.classList.add('hit'); setTimeout(function () { stop(); onCode(code); }, 180); return; } }
-        timer = setTimeout(tick, det ? 120 : 160);
+        if (code) { code = String(code).replace(/\D/g, ''); if (validEan(code)) { haptic(); ov.classList.add('hit'); ov.querySelector('.scanhint').textContent = 'Fant strekkoden'; setTimeout(function () { stop(); onCode(code); }, 380); return; } }
+        timer = setTimeout(tick, det ? 90 : 50);
       }
       tick();
     }, function () { stop(); onFallback(); });
@@ -1932,6 +2046,8 @@
 
   /* Skannemåte: «live» (kamera i appen, iPhone spør om lov én gang hver gang appen åpnes) eller «photo» (iPhone sin
    * kamera-app, spør aldri). Velges under Innstillinger. */
+  /* Last strekkodeleseren i bakgrunnen, så første skann starter med en gang. */
+  setTimeout(function () { try { if (window.COACH_STANDALONE && liveOk() && !('BarcodeDetector' in window)) loadZXing().catch(function () {}); } catch (e) {} }, 3000);
   function scanMode() { try { return localStorage.getItem('coach.scanMode') || 'live'; } catch (e) { return 'live'; } }
   function liveOk() { return scanMode() === 'live' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia; }
   function scanBarcode(o) {
@@ -2385,6 +2501,7 @@
   }
   function mealSeg(mt) { return '<div class="seg afmt" role="group" aria-label="Måltid">' + MEALS.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>'; }
   function afterLogToast(text, o) {
+    haptic();
     if (o.scanned) toast(text, 'Skann neste', function () { scanBarcode(o.scanned); });
     else toast(text, 'Legg til mer', function () { openFoodFinder({ date: o.date, mealType: o.mealType }); });
   }
@@ -2504,8 +2621,8 @@
         var online = window.COACH_STANDALONE && q.length > 1;
         res.innerHTML = (own.length ? '<div class="fhead"><span>Dine matvarer</span></div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
           (recs.length ? '<div class="fhead"><span>Dine oppskrifter</span></div><div class="list">' + recs.map(recipeLi).join('') + '</div>' : '') +
-          '<div id="ff_mvt">' + (online ? '<div class="ffload"><i></i>Søker i Matvaretabellen …</div>' : '') + '</div>' +
-          '<div id="ff_store">' + (online ? '<div class="ffload"><i></i>Søker i butikkvarer …</div>' : '') + '</div><div id="ff_none"></div>' +
+          '<div id="ff_mvt">' + (online ? '<div class="ffload" data-t="Matvaretabellen" aria-label="Søker i Matvaretabellen"></div>' : '') + '</div>' +
+          '<div id="ff_store">' + (online ? '<div class="ffload" data-t="Butikkvarer" aria-label="Søker i butikkvarer"></div>' : '') + '</div><div id="ff_none"></div>' +
           (!window.COACH_STANDALONE && !own.length && !recs.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff på «' + esc(q) + '» i matvarene dine. Matvaretabellen og butikkvarer kan du søke i fra Coach-appen på hjemskjermen. Her kan du lage varen selv.</p>' : '');
         if (!online) return;
         clearTimeout(timer);
@@ -3077,7 +3194,7 @@
     var d = loadDraft();
     var html = '<div class="gcard logger">' +
       (d.editId ? '<div class="notice info small">Endrer økten fra ' + esc(dateLabel(d.date)) + '. <button class="btn ghost sm" type="button" data-lg="canceledit">Avbryt</button></div>' : '') +
-      '<div class="lghead"><div class="lgdate"><span>' + esc(d.date === today() ? 'I dag' : cap(dateLabel(d.date))) + '</span><input id="lg_date" type="date" value="' + esc(d.date) + '" aria-label="Dato"></div>' +
+      '<div class="lghead"><div class="lgdate"><span>' + esc(d.date === today() ? 'I dag' : cap(dateLabel(d.date))) + '</span><input id="lg_date" type="text" readonly tabindex="-1" inputmode="none" data-datepick="workouts" value="' + esc(d.date) + '" aria-label="Dato"></div>' +
       '<button type="button" class="voltoggle' + (d.volume ? ' on' : '') + '" id="lg_vol" aria-pressed="' + (!!d.volume) + '"><i></i>Volum</button></div>' +
       (d.volume ? '<div class="small faint" style="margin:-4px 2px 0">Volumøkt: «Sist» og forslag hentes fra tidligere volumøkter.</div>' : '') +
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
@@ -3700,7 +3817,7 @@
     var list = cardioSessions().slice(0, 20), r = periodRange('uke', 0), wk = cardioSessions(r);
     var wkMin = wk.reduce(function (a, w) { return a + ((w.cardio && w.cardio.durationMin) || 0); }, 0), wkKm = wk.reduce(function (a, w) { return a + ((w.cardio && w.cardio.distanceKm) || 0); }, 0);
     return '<div class="gcard logger cardio">' +
-      '<div class="lghead"><div class="lgdate"><span>' + esc(c.date === today() ? 'I dag' : cap(dateLabel(c.date))) + '</span><input id="cd_date" type="date" value="' + esc(c.date) + '" aria-label="Dato"></div><span class="small faint">Kondisjonsøkt</span></div>' +
+      '<div class="lghead"><div class="lgdate"><span>' + esc(c.date === today() ? 'I dag' : cap(dateLabel(c.date))) + '</span><input id="cd_date" type="text" readonly tabindex="-1" inputmode="none" data-datepick="cardio" value="' + esc(c.date) + '" aria-label="Dato"></div><span class="small faint">Kondisjonsøkt</span></div>' +
       '<div class="splits cdtypes">' + CARDIO_TYPES.map(function (x) { return '<button type="button" class="splitbtn' + (c.mod === x[0] ? ' on' : '') + '" data-cmod="' + x[0] + '">' + (CARDIO_ICON[x[0]] || '') + ' ' + x[1] + '</button>'; }).join('') + '</div>' +
       '<div class="grid2">' + num('cd_min', 'Tid', c.min, 'min', '30') + num('cd_km', 'Distanse', c.km, 'km', 'valgfritt') + num('cd_hr', 'Snittpuls', c.hr, 'bpm', 'valgfritt') + num('cd_kcal', 'Kalorier', c.kcal, 'kcal', 'valgfritt') +
       (c.mod === 'tredemølle' || c.mod === 'gåtur' ? num('cd_inc', 'Stigning', c.inc, '%', 'valgfritt') : '') + '</div>' +
@@ -4219,6 +4336,64 @@
   /* ---------- Egne velgere i stedet for iPhone-hjulet ----------
    * Alle <select class="input"> får en knapp i Coach-stil; valget skrives tilbake til select-feltet og sender «change». */
   var CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
+  /* ---------- Egen kalender (i stedet for iPhone sin datovelger) ----------
+   * Måned med mandag først, i dag markert med ring, valgt dag fylt, prikk på dager med økter. Sveip eller piler bytter måned. */
+  var MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
+  function openDatePicker(anchor, value, opts, cb) {
+    opts = opts || {};
+    var sel = value || today(), cur = sel.slice(0, 7), max = opts.max || today();
+    var bg = document.createElement('div'); bg.className = 'dp-bg';
+    var card = document.createElement('div'); card.className = 'dp'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', 'Velg dato');
+    bg.appendChild(card); document.body.appendChild(bg);
+    var r = anchor.getBoundingClientRect(), W = Math.min(360, window.innerWidth - 24);
+    card.style.width = W + 'px';
+    card.style.left = Math.max(12, Math.min(window.innerWidth - W - 12, r.left)) + 'px';
+    var below = r.bottom + 8, H = 420;
+    if (below + H > window.innerHeight - 12) card.style.top = Math.max(12, r.top - H - 8) + 'px', card.classList.add('up'); else card.style.top = below + 'px';
+    function ym(d) { return d.slice(0, 7); }
+    function shift(m, n) { var y = +m.slice(0, 4), mo = +m.slice(5, 7) - 1 + n; y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12; return y + '-' + String(mo + 1).padStart(2, '0'); }
+    function draw(dir) {
+      var y = +cur.slice(0, 4), m = +cur.slice(5, 7) - 1, first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate();
+      var lead = (first.getDay() + 6) % 7, marks = opts.marks || {}, t = today(), cells = '';
+      for (var i = 0; i < lead; i++) cells += '<span></span>';
+      for (var dd = 1; dd <= days; dd++) {
+        var iso = cur + '-' + String(dd).padStart(2, '0'), dis = iso > max;
+        cells += '<button type="button" data-d="' + iso + '" class="' + (iso === sel ? 'sel ' : '') + (iso === t ? 'now ' : '') + (marks[iso] ? 'mk ' : '') + '"' + (dis ? ' disabled' : '') + '>' + dd + '</button>';
+      }
+      card.innerHTML = '<div class="dphd"><b>' + cap(MONTHS[m]) + ' <span>' + y + '</span></b><button type="button" class="dpnav" data-n="-1" aria-label="Forrige måned">' + PI.back + '</button><button type="button" class="dpnav" data-n="1" aria-label="Neste måned"' + (shift(cur, 1) > ym(max) ? ' disabled' : '') + '>' + PI.chevron + '</button></div>' +
+        '<div class="dpwk">' + ['ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø'].map(function (w) { return '<span>' + w + '</span>'; }).join('') + '</div>' +
+        '<div class="dpgrid' + (dir ? (dir > 0 ? ' inR' : ' inL') : '') + '">' + cells + '</div>' +
+        '<div class="dpft">' + [['I dag', t], ['I går', C.addDays(t, -1)]].map(function (q) { return '<button type="button" class="dpq' + (q[1] === sel ? ' on' : '') + '" data-d="' + q[1] + '">' + q[0] + '</button>'; }).join('') +
+        (opts.markLabel ? '<span class="dpleg"><i></i>' + esc(opts.markLabel) + '</span>' : '') + '</div>';
+    }
+    function close(v) {
+      bg.classList.add('out'); setTimeout(function () { bg.remove(); }, 180);
+      if (v) { haptic(); cb(v); }
+    }
+    card.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.n) { cur = shift(cur, +b.dataset.n); draw(+b.dataset.n); return; }
+      if (b.dataset.d) { sel = b.dataset.d; draw(); setTimeout(function () { close(sel); }, 120); }
+    });
+    var sx = 0, sy = 0;
+    card.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    card.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) { var n = dx < 0 ? 1 : -1; if (n > 0 && shift(cur, 1) > ym(max)) return; cur = shift(cur, n); draw(n); }
+    });
+    bg.addEventListener('click', function (e) { if (e.target === bg) close(null); });
+    draw();
+  }
+  /* Datofelt med data-datepick åpner Coach-kalenderen og sender «change» som vanlig. */
+  document.addEventListener('click', function (e) {
+    var inp = e.target.closest && e.target.closest('input[data-datepick]'); if (!inp) return;
+    e.preventDefault(); inp.blur();
+    var kind = inp.dataset.datepick, marks = {};
+    if (kind === 'workouts' || kind === 'cardio') S.workouts.forEach(function (w) { if (w && w.date && (kind === 'cardio' ? w.type === 'kondisjon' : w.type !== 'kondisjon')) marks[w.date] = 1; });
+    openDatePicker(inp.closest('.lgdate') || inp, inp.value, { marks: marks, markLabel: kind === 'cardio' ? 'kondisjonsøkt' : 'styrkeøkt' }, function (v) {
+      inp.value = v; inp.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
   function enhanceSelects(root) {
     (root || document).querySelectorAll('select.input').forEach(function (sel) {
       if (sel._cbtn) { sel._sync(); return; }
@@ -4294,6 +4469,7 @@
     function draw() { bodyFn(body, draw); }
     pg._draw = draw;
     pg.querySelector('.pgback').onclick = function () { closePage(pg); };
+    pageSwipe(pg);
     draw();
     var prev = pg.previousElementSibling; if (prev) prev.classList.add('under');
     requestAnimationFrame(function () { requestAnimationFrame(function () { pg.classList.add('in'); }); });
@@ -4460,6 +4636,10 @@
     var host = $('#toastHost');
     host.innerHTML = '<div class="toast" role="status"><span>' + esc(text) + '</span>' + (actionLabel ? '<button id="toastAct">' + esc(actionLabel) + '</button>' : '') + '</div>';
     if (actionLabel) $('#toastAct').onclick = async function () { host.innerHTML = ''; try { await action(); } catch (e) { toast(e.message); } };
+    var tEl = host.firstChild, ty0 = 0;
+    tEl.addEventListener('touchstart', function (e) { ty0 = e.touches[0].clientY; }, { passive: true });
+    tEl.addEventListener('touchmove', function (e) { var d = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.transform = 'translate(-50%, ' + d + 'px)'; tEl.style.opacity = String(Math.max(0, 1 - d / 90)); }, { passive: true });
+    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate(-50%, 120px)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 7000 : 3500);
   }
