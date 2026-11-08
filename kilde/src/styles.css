@@ -1270,3 +1270,16 @@ html.kb .sheet { padding-bottom: 12px; max-height: 96%; }
 @keyframes btShine { from { background-position: 0 0, 100% 0; } to { background-position: 0 0, 0% 0; } }
 .splitwarn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; border-color: rgba(244, 162, 97, .4); background: rgba(244, 162, 97, .1); }
 .splitwarn span { flex: 1 1 200px; }
+
+/* Toppen v3: ingen maske på innholdet (iPhone tegner maskert tekst uskarpt). En myk fargeovergang øverst i stedet,
+   større «Coach» med sterkere metallglans, og hilsenen under navnet. */
+.view { -webkit-mask-image: none !important; mask-image: none !important; }
+main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 16px; z-index: 5; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(22, 17, 13, .96), rgba(22, 17, 13, 0)); }
+.topbar { padding-block: 12px 10px; }
+.brand { gap: 12px; }
+.brand .logo { width: 48px !important; height: 48px !important; border-radius: 15px !important; }
+.brand .logo svg { width: 34px; height: 34px; }
+.btwrap { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.brand .bt { font-size: 40px; line-height: .98; letter-spacing: -.04em; }
+.topbar .brand small { font-size: 13.5px; color: rgba(251, 246, 241, .8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

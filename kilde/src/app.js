@@ -295,7 +295,7 @@
     document.getElementById('root').innerHTML =
       '<div class="app">' +
       '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="gKcal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd2a6"/><stop offset="1" stop-color="#ee8a42"/></linearGradient><linearGradient id="gProt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9e0ff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs></svg>' +
-      '<header class="topbar"><div class="brand"><div class="logo" aria-hidden="true">' + LOGO_SVG + '</div><div><small id="tbsub">' + esc(greeting()) + '</small><div class="bt">Coach</div></div></div><div class="spacer"></div>' +
+      '<header class="topbar"><div class="brand"><div class="logo" aria-hidden="true">' + LOGO_SVG + '</div><div class="btwrap"><div class="bt">Coach</div><small id="tbsub">' + esc(greeting()) + '</small></div></div><div class="spacer"></div>' +
       '<button class="iconbtn" id="btnSettings" aria-label="Innstillinger">' + ICON.gear + '</button></header>' +
       '<main>' +
       '<section class="view chatview" id="v-chat">' +
