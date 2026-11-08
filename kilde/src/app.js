@@ -64,7 +64,9 @@
     barcode: '<svg viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M10.5 6v12M13 6v12M16.5 6v12M20 6v12"/></svg>',
     arrowUR: '<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg>',
     right: '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
-    close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+    close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+    del: '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'
   };
 
   /* ---------- Garmin (lokal tilkobling i Claude-skrivebordsappen) ---------- */
@@ -396,6 +398,21 @@
       setTimeout(check, 1500);
       document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') setTimeout(check, 300); });
       setInterval(function () { if (pending && !busy()) apply(); else if (!pending) check(); }, 5 * 60 * 1000);
+    })();
+    /* Ark følger det synlige området: når tastaturet er oppe, krymper arket over det i stedet for å bli dekket. */
+    (function () {
+      var vv = window.visualViewport; if (!vv) return;
+      var de = document.documentElement;
+      function set() {
+        de.style.setProperty('--vvh', Math.round(vv.height) + 'px');
+        de.style.setProperty('--vvt', Math.round(Math.max(0, vv.offsetTop)) + 'px');
+        de.classList.toggle('kb', window.innerHeight - vv.height > 120);
+      }
+      vv.addEventListener('resize', set); vv.addEventListener('scroll', set); set();
+      document.addEventListener('focusin', function (e) {
+        var t = e.target; if (!t || !/INPUT|TEXTAREA/.test(t.tagName) || !t.closest('.sheet')) return;
+        setTimeout(function () { try { t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (er) {} }, 320);
+      });
     })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
     document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
@@ -1010,7 +1027,7 @@
     var m = unitMem()[p.id], opts = unitOptions(p);
     if (m && opts.some(function (u) { return u[0] === m.unit; })) return { unit: m.unit, amount: m.amount || (m.unit === 'stk' || m.unit === 'porsjon' || m.unit === 'pakke' ? 1 : 100) };
     var sw = E.stkWeight(p);
-    if (sw && (sw.src !== 'pakning' || sw.g <= (p.basis === 'ml' ? 600 : 150))) return { unit: 'stk', amount: 1 };
+    if (sw && (sw.src !== 'pakning' || sw.g <= (p.basis === 'ml' ? 600 : 250))) return { unit: 'stk', amount: 1 };
     if ((p.commonPortions || []).length) return { unit: p.basis === 'ml' ? 'ml' : 'g', amount: p.commonPortions[0] };
     return { unit: p.basis === 'ml' ? 'ml' : 'g', amount: 100 };
   }
@@ -1730,7 +1747,7 @@
   function openSheet(title, bodyFn, opts) {
     opts = opts || {};
     var host = $('#sheetHost');
-    host.innerHTML = '<div class="sheet-bg" id="sheetBg"><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="sh"><h2>' + esc(title) + '</h2><button class="iconbtn" id="sheetClose" aria-label="Lukk">' + ICON.close + '</button></div><div id="sheetBody"></div></div></div>';
+    host.innerHTML = '<div class="sheet-bg" id="sheetBg"><div class="sheet' + (opts.cls ? ' ' + esc(opts.cls) : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="sh"><h2>' + esc(title) + '</h2><button class="iconbtn" id="sheetClose" aria-label="Lukk">' + ICON.close + '</button></div><div id="sheetBody"></div></div></div>';
     var body = $('#sheetBody');
     function draw() { if (!editingInside(body)) bodyFn(body); }
     S.sheet = { refresh: opts.live ? draw : null, force: function () { bodyFn(body); } };
@@ -1894,19 +1911,19 @@
    * kamera-app, spør aldri). Velges under Innstillinger. */
   function scanMode() { try { return localStorage.getItem('coach.scanMode') || 'live'; } catch (e) { return 'live'; } }
   function liveOk() { return scanMode() === 'live' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia; }
-  function scanBarcode() {
-    if (liveOk()) { openLiveScanner(handleBarcode, scanByPhoto); return; }
-    scanByPhoto();
+  function scanBarcode(o) {
+    if (liveOk()) { openLiveScanner(function (c) { handleBarcode(c, o); }, function () { scanByPhoto(o); }); return; }
+    scanByPhoto(o);
   }
-  function scanByPhoto() {
+  function scanByPhoto(o) {
     pickPhoto(async function (file) {
       toast('Leser strekkoden …');
       var code = null;
       try { code = await decodeBarcode(file); } catch (e) { code = null; }
       clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
       if (code) { code = String(code).replace(/\D/g, ''); }
-      if (code && validEan(code)) handleBarcode(code);
-      else openScanFail(file);
+      if (code && validEan(code)) handleBarcode(code, o);
+      else openScanFail(file, o);
     });
   }
   /* Skann en strekkode og gi koden tilbake (brukes f.eks. i oppskrifter). */
@@ -1948,25 +1965,102 @@
   }
   /* Matvaretabellen ligger i databasen (egen app). Treff gjøres om til vanlige produkter når du velger dem. */
   var mvtCache = {};
+  /* ---------- Søk: rangering ----------
+   * Bøyde ord forstås (bananer → banan, eplene → epl), og navnet før første komma teller mest:
+   * «Banan, rå» kommer foran «Skyr, banan», og «Melk, uspesifisert» foran «Melkesjokolade». */
+  function stemWord(w) {
+    if (w.length > 5 && /ene$/.test(w)) return w.slice(0, -3);
+    if (w.length > 4 && /(er|en|et)$/.test(w)) return w.slice(0, -2);
+    return w;
+  }
+  function qWords(q) { return C.norm(q).split(' ').filter(Boolean).map(stemWord); }
+  var PREP_RE = /kjøpt|hjemmelaget|fastfood|barnemat|morsmelk|pulver|tørket|hermetisk|fritert|glutenfri/;
+  function matchScore(name, brand, words, rawQ) {
+    var raw = String(name || ''), ci = raw.indexOf(',');
+    var hw = C.norm(ci >= 0 ? raw.slice(0, ci) : raw).split(' '), tw = C.norm(ci >= 0 ? raw.slice(ci + 1) : '').split(' '), bw = C.norm(brand || '').split(' ');
+    var s = 0, miss = 0;
+    words.forEach(function (w) {
+      var best = 9;
+      hw.forEach(function (x, j) {
+        if (!x) return;
+        var v = 9;
+        if (x === w) v = 0;
+        else if (x.indexOf(w) === 0) v = 0.6 + Math.min(1.5, (x.length - w.length) * 0.12);
+        else if (x.length > w.length && x.slice(-w.length) === w) v = 1 + Math.min(1.5, (x.length - w.length) * 0.1);
+        else if (x.indexOf(w) > 0) v = 2.5;
+        if (j > 0 && v < 9) v += 0.4;
+        if (v < best) best = v;
+      });
+      tw.forEach(function (x) { if (!x) return; var v = x === w ? 2 : x.indexOf(w) === 0 ? 2.3 : x.indexOf(w) > 0 ? 3.2 : 9; if (v < best) best = v; });
+      bw.forEach(function (x) { if (!x) return; var v = x === w || x.indexOf(w) === 0 ? 1.5 : 9; if (v < best) best = v; });
+      if (best >= 9) miss++; else s += best;
+    });
+    s += miss * 20 + raw.length * 0.015;
+    if (PREP_RE.test(C.norm(raw)) && !PREP_RE.test(C.norm(rawQ || ''))) s += 1.2;
+    return s;
+  }
+  function rankFoods(list, q, extra) {
+    var words = qWords(q);
+    return list.map(function (p) { var b = matchScore(p.name, p.brand, words, q); return { p: p, base: b, s: b + (extra ? extra(p) : 0) }; })
+      .sort(function (a, b) { return a.s - b.s; });
+  }
+  /* Hvor ofte du har loggført hver vare: brukes til å løfte dine vanligste varer i søket. */
+  function usageCounts() {
+    var n = {};
+    S.days.forEach(function (day) { ((day && day.meals) || []).forEach(function (m) { (m.items || []).forEach(function (i) { if (i.productId) n[i.productId] = (n[i.productId] || 0) + 1; }); }); });
+    return n;
+  }
+  function searchOwn(q, n) {
+    var use = usageCounts(), all = [];
+    S.products.forEach(function (p) { if (!p.archived) all.push(p); });
+    var digits = String(q || '').replace(/\D/g, '');
+    if (digits.length >= 8) { var hit = all.filter(function (p) { return p.barcode === digits; }); if (hit.length) return hit; }
+    var nq = C.norm(q), alias = function (p) { return (p.aliases || []).some(function (a) { return C.norm(a).indexOf(nq) === 0; }); };
+    return rankFoods(all, q, function (p) {
+      return (alias(p) ? -25 : 0) - Math.min(2, (use[p.id] || 0) * 0.25);
+    }).filter(function (x) { return x.base < 20 || alias(x.p); }).slice(0, n || 8).map(function (x) { return x.p; });
+  }
+
+  /* Matvaretabellen ligger i databasen (egen app). Treff gjøres om til vanlige produkter når du velger dem. */
+  var mvtCache = {};
+  function mvtRow(f) {
+    var p = { id: 'mvt:' + f.id, mvtId: f.id, name: f.name, brand: '', state: /rå|tørr|ukokt/i.test(f.name) ? (/tørr|ukokt/i.test(f.name) ? 'tørr' : 'rå') : (/kokt|stekt|grillet/i.test(f.name) ? 'tilberedt' : 'ferdig'), basis: 'g', status: 'offentlig',
+      per100: { kcal: E.num(f.kcal), protein: E.num(f.protein), carbs: E.num(f.carbs), sugars: E.num(f.sugars), fat: E.num(f.fat), satFat: E.num(f.sat_fat), fiber: E.num(f.fiber), salt: E.num(f.salt) },
+      edibleFactor: f.edible_pct && f.edible_pct < 100 ? f.edible_pct / 100 : undefined,
+      source: { type: 'offentlig', name: 'Matvaretabellen', url: 'https://www.matvaretabellen.no/', mvtId: f.id, checkedAt: today() } };
+    mvtCache[p.id] = p; return p;
+  }
   async function mvtSearch(q, n) {
     var sb = window.coachSupabase; if (!sb || !q || q.trim().length < 2) return [];
-    var words = C.norm(q).split(' ').filter(function (w) { return w.length > 1; }).slice(0, 4);
+    var words = qWords(q).filter(function (w) { return w.length > 1; }).slice(0, 4).map(function (w) { return w.replace(/[%_]/g, ''); });
     if (!words.length) return [];
-    var qr = sb.from('mvt_foods').select('id,name,kcal,protein,carbs,sugars,fat,sat_fat,fiber,salt,edible_pct');
-    words.forEach(function (w) { qr = qr.ilike('name', '%' + w.replace(/[%_]/g, '') + '%'); });
-    var r = await qr.limit(40);
-    if (r.error) throw new Error(r.error.message || 'Matvaretabellen svarte ikke');
-    if (!r.data) return [];
-    var list = r.data.map(function (f) {
-      var p = { id: 'mvt:' + f.id, mvtId: f.id, name: f.name, brand: '', state: /rå|tørr|ukokt/i.test(f.name) ? (/tørr|ukokt/i.test(f.name) ? 'tørr' : 'rå') : (/kokt|stekt|grillet/i.test(f.name) ? 'tilberedt' : 'ferdig'), basis: 'g', status: 'offentlig',
-        per100: { kcal: E.num(f.kcal), protein: E.num(f.protein), carbs: E.num(f.carbs), sugars: E.num(f.sugars), fat: E.num(f.fat), satFat: E.num(f.sat_fat), fiber: E.num(f.fiber), salt: E.num(f.salt) },
-        edibleFactor: f.edible_pct && f.edible_pct < 100 ? f.edible_pct / 100 : undefined,
-        source: { type: 'offentlig', name: 'Matvaretabellen', url: 'https://www.matvaretabellen.no/', mvtId: f.id, checkedAt: today() } };
-      mvtCache[p.id] = p; return p;
+    var r = await sb.rpc('mvt_search', { words: words, lim: 80 });
+    if (r.error) {
+      var qr = sb.from('mvt_foods').select('id,name,kcal,protein,carbs,sugars,fat,sat_fat,fiber,salt,edible_pct');
+      words.forEach(function (w) { qr = qr.ilike('name', '%' + w + '%'); });
+      r = await qr.limit(60);
+      if (r.error) throw new Error(r.error.message || 'Matvaretabellen svarte ikke');
+    }
+    var list = (r.data || []).map(mvtRow);
+    return rankFoods(list, q).map(function (x) { return x.p; }).slice(0, n || 8);
+  }
+  /* Butikkvarer solgt i Norge (Open Food Facts via databasefunksjonen), med bilde og pakning. */
+  var storeCache = {}, storeMem = {};
+  async function storeSearch(q) {
+    var key = C.norm(q); if (storeMem[key]) return storeMem[key];
+    var sb = window.coachSupabase; if (!sb || !sb.functions || key.length < 2) return [];
+    var r = await sb.functions.invoke('food-lookup', { body: { q: q } });
+    if (r.error) throw new Error('Fikk ikke kontakt med butikkvarene');
+    var list = ((r.data && r.data.results) || []).map(function (f, i) {
+      var p = Object.assign({}, f, { id: 'off:' + (f.barcode || i + ':' + key), state: 'ferdig', status: 'nett' });
+      p.source = Object.assign({ checkedAt: today() }, f.source || {});
+      if (p.kcalCorrected) p.notes = 'Energien fra kilden stemte ikke med makroene, så kcal er regnet ut fra protein, karbo og fett. Sjekk mot etiketten.';
+      delete p.kcalCorrected;
+      storeCache[p.id] = p; return p;
     });
-    var first = C.norm(words[0]);
-    list.sort(function (a, b) { var as = C.norm(a.name).indexOf(first) === 0 ? 0 : 1, bs = C.norm(b.name).indexOf(first) === 0 ? 0 : 1; return as - bs || a.name.length - b.name.length; });
-    return list.slice(0, n || 8);
+    var ranked = rankFoods(list, q).map(function (x) { return x.p; });
+    storeMem[key] = ranked;
+    return ranked;
   }
   /* Finn eksisterende produkt (strekkode, Matvaretabellen-id eller navn+merke) eller lagre et nytt. */
   async function ensureProduct(data) {
@@ -2052,50 +2146,47 @@
     });
   }
 
-  async function handleBarcode(code) {
+  /* Skann → rett inn på mengde og måltid. Varer fra nettet lagres i matvarene dine første gang. */
+  async function handleBarcode(code, o) {
+    o = o || {};
+    var date = o.date || S.date || today(), mt = o.mealType || null, again = { date: date, mealType: mt };
     var p = productByBarcode(code);
-    if (!p && window.COACH_STANDALONE) {
-      toast('Slår opp ' + code + ' …');
+    if (p) { openAddItem(date, p.id, mt, { scanned: again }); return; }
+    if (window.COACH_STANDALONE) {
+      toast('Slår opp varen …');
       var off = null;
       try { off = await foodLookup(code); } catch (e) { off = null; }
       clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
-      if (off && off.name && off.per100.kcal !== null) { openOffProduct(off); return; }
-      if (off && off.name) { toast('Fant «' + off.name + '», men næringsinnholdet mangler. Fyll inn fra etiketten.'); setTimeout(function () { openQuickProduct(Object.assign({ per100: {} }, off)); }, 300); return; }
-    }
-    openSheet(p ? 'Funnet' : 'Ny vare', function (body) {
-      if (p) {
-        body.innerHTML = '<div class="stack"><div class="card stack" style="gap:6px"><div class="eyebrow">Strekkode ' + esc(code) + '</div>' +
-          '<div style="font-size:21px;font-weight:700;letter-spacing:-.02em">' + esc(p.name) + '</div><div class="small muted">' + esc(p.brand || '') + '</div>' +
-          '<div class="small">' + fmt(p.per100.kcal) + ' kcal · ' + fmt(p.per100.protein, 1) + ' g protein per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</div></div>' +
-          '<div class="row"><button class="btn primary" id="sc_add">Loggfør</button><button class="btn" id="sc_open">Se varen</button><button class="btn ghost" id="sc_again">Skann en til</button></div></div>';
-        $('#sc_add').onclick = function () { closeSheet(); setTimeout(function () { openAddItem(today(), p.id); }, 230); };
-        $('#sc_open').onclick = function () { closeSheet(); setTimeout(function () { openProduct(p.id); }, 230); };
-        $('#sc_again').onclick = function () { closeSheet(); scanBarcode(); };
+      if (off && off.name && off.per100.kcal !== null && off.per100.protein !== null) {
+        try { var pr = await ensureProduct(off); openAddItem(date, pr.id, mt, { scanned: again, note: off.notes || null, fresh: true }); }
+        catch (e) { toast(e.message); }
         return;
       }
+      if (off && off.name) { toast('Fant «' + off.name + '», men næringsinnholdet mangler. Fyll inn fra etiketten.'); setTimeout(function () { openQuickProduct(Object.assign({ per100: {} }, off), again); }, 300); return; }
+    }
+    openSheet('Ny vare', function (body) {
       body.innerHTML = '<div class="stack"><div class="card stack" style="gap:6px"><div class="eyebrow">Strekkode</div><div class="mono" style="font-size:22px;font-weight:700">' + esc(code) + '</div>' +
         '<div class="small muted">' + (window.COACH_STANDALONE ? 'Fant ikke varen i matvarebasene. Skriv inn tallene fra næringsdeklarasjonen én gang, så kjenner appen den igjen neste gang du skanner.' : 'Denne varen finnes ikke i matvarene dine ennå. Ta bilde av næringsdeklarasjonen én gang, så kjenner appen den igjen neste gang du skanner.') + '</div></div>' +
         '<div class="stack" style="gap:8px">' +
         (S.sample && S.imagesOk ? '<button class="btn primary" id="sc_label">Ta bilde av næringsdeklarasjonen</button>' : '') +
-        (S.sample && S.browserAvail ? '<button class="btn" id="sc_web">Søk den opp på nett</button>' : '') +
-        '<button class="btn' + (window.COACH_STANDALONE ? ' primary' : '') + '" id="sc_manual">Lag din egen fra etiketten</button></div></div>';
+        '<button class="btn' + (window.COACH_STANDALONE ? ' primary' : '') + '" id="sc_manual">Lag din egen fra etiketten</button>' +
+        '<button class="btn ghost" id="sc_search">Søk etter den i stedet</button></div></div>';
       var lb = $('#sc_label');
       if (lb) lb.onclick = function () { pickPhoto(function (f) { closeSheet(); askCoach('Ny vare med strekkode ' + code + '. Les næringsdeklarasjonen på bildet og lag et produktforslag med barcode "' + code + '".', [f]); }); };
-      var wb = $('#sc_web');
-      if (wb) wb.onclick = function () { closeSheet(); askCoach('Finn varen med strekkode ' + code + ' på nett (Open Food Facts først) og lag et produktforslag med barcode "' + code + '".'); };
-      $('#sc_manual').onclick = function () { closeSheet(); setTimeout(function () { openQuickProduct({ per100: {}, basis: 'g', barcode: code }); }, 230); };
+      $('#sc_manual').onclick = function () { closeSheet(); setTimeout(function () { openQuickProduct({ per100: {}, basis: 'g', barcode: code }, again); }, 230); };
+      $('#sc_search').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder(again); }, 230); };
     });
   }
-  function openScanFail(file) {
+  function openScanFail(file, o) {
     openSheet('Fant ingen strekkode', function (body) {
       body.innerHTML = '<div class="stack"><p class="small muted" style="margin:0">Hold telefonen rett over strekkoden, i godt lys, så hele koden er med.</p>' +
         '<button class="btn primary" id="sf_again">Prøv igjen</button>' +
         (S.sample && S.imagesOk ? '<button class="btn" id="sf_coach">La coachen lese bildet</button>' : '') +
         '<div class="row"><input class="input grow" id="sf_code" inputmode="numeric" placeholder="Eller skriv inn nummeret"><button class="btn" id="sf_go">Finn</button></div></div>';
-      $('#sf_again').onclick = function () { closeSheet(); scanBarcode(); };
+      $('#sf_again').onclick = function () { closeSheet(); scanBarcode(o); };
       var cb = $('#sf_coach');
       if (cb) cb.onclick = function () { closeSheet(); askCoach('Skann strekkode: les nummeret under strekkoden på bildet og finn varen i matdatabasen (på strekkode). Finnes den ikke, be meg ta bilde av næringsdeklarasjonen.', [file]); };
-      $('#sf_go').onclick = function () { var c = $('#sf_code').value.replace(/\D/g, ''); if (c.length < 6) { toast('Skriv inn hele nummeret.'); return; } closeSheet(); setTimeout(function () { handleBarcode(c); }, 230); };
+      $('#sf_go').onclick = function () { var c = $('#sf_code').value.replace(/\D/g, ''); if (c.length < 6) { toast('Skriv inn hele nummeret.'); return; } closeSheet(); setTimeout(function () { handleBarcode(c, o); }, 230); };
     });
   }
 
@@ -2188,9 +2279,25 @@
     });
     return out.slice(0, n || 8);
   }
+  /* Matvaretabellen-navn deles ved første komma: «Kylling» + «filet, uten skinn, rå», så typene er lette å skille. */
+  function foodParts(p) {
+    var n = String(p.name || ''), ci = n.indexOf(',');
+    if (p.status === 'offentlig' && ci > 0) return [n.slice(0, ci), n.slice(ci + 1).trim()];
+    return [n, ''];
+  }
+  function foodAv(p) {
+    var letter = esc((p.name || '?').charAt(0).toUpperCase());
+    if (p.image && /^https:\/\//.test(p.image)) return '<span class="av pic ' + esc(avClass(p)) + '" aria-hidden="true">' + letter + '<img src="' + esc(p.image) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()"></span>';
+    return '<span class="av ' + esc(avClass(p)) + '" aria-hidden="true">' + letter + '</span>';
+  }
+  function foodMeta(p) {
+    var parts = foodParts(p), sw = E.stkWeight(p), u = p.basis === 'ml' ? 'ml' : 'g';
+    return [parts[1], p.brand, p.variant, p.packageSize ? fmt(p.packageSize) + ' ' + u : '', sw && sw.src !== 'pakning' ? '1 stk ≈ ' + fmt(sw.g) + ' g' : ''].filter(Boolean).join(' · ');
+  }
   function foodLi(p, attr, sub) {
-    return '<button type="button" class="li" ' + attr + '><span class="av ' + esc(avClass(p)) + '" aria-hidden="true">' + esc((p.name || '?').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(p.name) + '</div><div class="t2">' + esc(sub || [p.brand, E.stkWeight(p) && E.stkWeight(p).src !== 'pakning' ? '1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : ''].filter(Boolean).join(' · ')) + '</div></div>' +
-      '<div class="kc">' + fmt(p.per100.kcal) + ' kcal<em>' + fmt(p.per100.protein, 1) + ' g P</em><span class="faint small">per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</span></div></button>';
+    var parts = foodParts(p);
+    return '<button type="button" class="li fli" ' + attr + '>' + foodAv(p) + '<div class="grow"><div class="t1">' + esc(parts[0]) + '</div><div class="t2">' + esc(sub !== undefined ? sub : foodMeta(p)) + '</div></div>' +
+      '<div class="kc">' + fmt(p.per100.kcal) + '<small> kcal</small><em>' + fmt(p.per100.protein, 1) + ' g P</em><span class="faint small">per 100 ' + (p.basis === 'ml' ? 'ml' : 'g') + '</span></div></button>';
   }
   function recipeCalc(r) {
     var ver = r.versions.find(function (x) { return x.version === r.currentVersion; });
@@ -2207,102 +2314,192 @@
     return '<button type="button" class="li" data-rid="' + esc(r.id) + '"><span class="av a2" aria-hidden="true">' + esc((r.name || 'R').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="t1">' + esc(r.name) + '</div><div class="t2">Oppskrift · ' + fmt(ver.portions || 1, 1) + ' porsjon' + ((ver.portions || 1) === 1 ? '' : 'er') + '</div></div>' +
       (c ? '<div class="kc">' + fmt(c.perPortion.kcal) + ' kcal<em>' + fmt(c.perPortion.protein, 1) + ' g P</em><span class="faint small">per porsjon</span></div>' : '') + '</button>';
   }
+  /* ---------- Eget tall-tastatur ----------
+   * Mengder skrives på et tastatur i arket, så iPhone-tastaturet aldri dekker tallene eller knappen.
+   * Første tast erstatter tallet som står der (som når tekst er markert), ⌫ sletter ett tegn. */
+  var MEALS = [['frokost', 'Frokost'], ['lunsj', 'Lunsj'], ['middag', 'Middag'], ['kvelds', 'Kvelds'], ['mellommåltid', 'Snack']];
+  function numpadHtml() {
+    return '<div class="numpad" role="group" aria-label="Tall">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'].map(function (k) {
+      return '<button type="button" data-k="' + k + '" aria-label="' + (k === 'del' ? 'Slett' : k) + '">' + (k === 'del' ? ICON.del : k) + '</button>';
+    }).join('') + '</div>';
+  }
+  function npType(str, k, fresh, maxLen) {
+    str = str || '';
+    if (k === 'del') return fresh ? '' : str.slice(0, -1);
+    if (fresh) str = '';
+    if (k === ',') return str.indexOf(',') >= 0 ? str : (str || '0') + ',';
+    if (str === '0') str = '';
+    var d = str.indexOf(',');
+    if (d >= 0 && str.length - d > 2) return str;
+    if (str.replace(',', '').length >= (maxLen || 5)) return str;
+    return str + k;
+  }
+  /* Kobler tastaturet i arket og et fysisk tastatur (Mac/PC) til samme funksjon. Lytteren fjernes når arket lukkes. */
+  function bindPad(body, onKey) {
+    body.addEventListener('click', function (e) { var b = e.target.closest('.numpad [data-k]'); if (b) onKey(b.dataset.k); });
+    function h(e) {
+      if (!body.isConnected || !body.id) { document.removeEventListener('keydown', h); return; }
+      var a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+      var k = e.key;
+      if (/^[0-9]$/.test(k)) onKey(k); else if (k === ',' || k === '.') onKey(','); else if (k === 'Backspace') onKey('del'); else if (k === 'Enter') onKey('ok'); else return;
+      e.preventDefault();
+    }
+    document.addEventListener('keydown', h);
+  }
+  function halfTxt(n) { var w = Math.floor(n), h = Math.abs(n - w - 0.5) < 0.01; return h ? (w ? w + '½' : '½') : fmt(n, 2); }
+  function quickAmounts(p, unit) {
+    if (unit === 'stk' || unit === 'porsjon' || unit === 'pakke') return [0.5, 1, 1.5, 2, 3];
+    if (unit === 'dl') return [1, 2, 3, 4, 5];
+    var base = unit === 'ml' ? [100, 200, 250, 330, 500] : [50, 100, 150, 200, 250, 300];
+    var m = unitMem()[p.id], extra = [];
+    if (m && m.unit === unit && m.amount) extra.push(m.amount);
+    if (unit === 'g' || unit === 'g_med_skall') { (p.commonPortions || []).forEach(function (x) { extra.push(x); }); if (p.servingSize) extra.push(p.servingSize); }
+    var all = extra.concat(base).filter(function (x, i, a) { return x > 0 && a.indexOf(x) === i; }).slice(0, 6);
+    return all.sort(function (a, b) { return a - b; });
+  }
+  function macroLine(x) {
+    return '<span><i class="dot" style="background:var(--protein)"></i>' + fmt(x.protein, 1) + ' P</span><span><i class="dot" style="background:var(--carbs)"></i>' + fmt(x.carbs, 1) + ' K</span><span><i class="dot" style="background:var(--fat)"></i>' + fmt(x.fat, 1) + ' F</span>';
+  }
+  function mealSeg(mt) { return '<div class="seg afmt" role="group" aria-label="Måltid">' + MEALS.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>'; }
+  function afterLogToast(text, o) {
+    if (o.scanned) toast(text, 'Skann neste', function () { scanBarcode(o.scanned); });
+    else toast(text, 'Legg til mer', function () { openFoodFinder({ date: o.date, mealType: o.mealType }); });
+  }
+
   /* Loggfør en oppskrift som spist: antall porsjoner og måltid. */
   function openLogRecipe(id, date, presetType) {
     var r = S.recipes.get(id); if (!r) return;
     date = date || S.date;
-    var c = recipeCalc(r), portions = 1, mt = presetType || r.defaultMealType || defaultMeal(), variant = '';
+    var c = recipeCalc(r), pStr = '1', fresh = true, mt = presetType || r.defaultMealType || defaultMeal(), variant = '';
     if (C.MEAL_TYPES.indexOf(mt) < 0) mt = 'mellommåltid';
-    var MT = [['frokost', 'Frokost'], ['lunsj', 'Lunsj'], ['middag', 'Middag'], ['kvelds', 'Kvelds'], ['mellommåltid', 'Snack']];
+    function portions() { return E.num(pStr) || 0; }
     openSheet(date === today() ? 'Legg til i dag' : 'Legg til ' + dateLabel(date).toLowerCase(), function (body) {
-      function preview() {
-        var el = $('#lr_res'); if (!el) return;
-        var v = null; try { v = C.previewRecipe(ctx, { id: r.id, portions: portions, variant: variant || undefined }).values; } catch (e) { v = null; }
-        if (!v && c) v = { kcal: c.perPortion.kcal * portions, protein: c.perPortion.protein * portions, carbs: c.perPortion.carbs * portions, fat: c.perPortion.fat * portions };
-        el.innerHTML = v ? '<div class="afk"><b>' + fmt(v.kcal) + '</b><span>kcal</span></div><div class="afm"><span><i class="dot" style="background:var(--protein)"></i>' + fmt(v.protein, 1) + ' g protein</span><span><i class="dot" style="background:var(--carbs)"></i>' + fmt(v.carbs, 1) + ' g karbo</span><span><i class="dot" style="background:var(--fat)"></i>' + fmt(v.fat, 1) + ' g fett</span></div>' : '<div class="small muted">Kunne ikke regne ut oppskriften. Sjekk ingrediensene.</div>';
-        $('#lr_go').disabled = !(portions > 0);
+      function vals() {
+        var v = null; try { v = C.previewRecipe(ctx, { id: r.id, portions: portions(), variant: variant || undefined }).values; } catch (e) { v = null; }
+        if (!v && c) { var n = portions(); v = { kcal: c.perPortion.kcal * n, protein: c.perPortion.protein * n, carbs: c.perPortion.carbs * n, fat: c.perPortion.fat * n }; }
+        return v;
       }
-      body.innerHTML = '<div class="stack addsheet">' +
-        '<div class="afhead"><div><div class="afname">' + esc(r.name) + '</div><div class="small muted">' + (c ? fmt(c.perPortion.kcal) + ' kcal · ' + fmt(c.perPortion.protein, 1) + ' g protein per porsjon' : 'Oppskrift') + '</div></div><button type="button" class="btn ghost sm" id="lr_other">Bytt</button></div>' +
-        '<div class="field"><label for="lr_por">Hvor mange porsjoner spiste du?</label><div class="stepper"><button type="button" data-st="-0.5" aria-label="Mindre">−</button><input class="input" id="lr_por" inputmode="decimal" value="1"><button type="button" data-st="0.5" aria-label="Mer">+</button></div></div>' +
-        ((r.variants || []).length ? '<div class="field"><label for="lr_var">Variant</label><select class="input" id="lr_var"><option value="">Standard</option>' + r.variants.map(function (x) { return '<option>' + esc(x.name) + '</option>'; }).join('') + '</select></div>' : '') +
-        '<div class="afres" id="lr_res"></div>' +
-        '<div class="seg afmt" role="group" aria-label="Måltid">' + MT.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
-        '<div id="lr_msg"></div><button type="button" class="btn primary" id="lr_go">Loggfør</button></div>';
-      $('#lr_por').addEventListener('input', function (e) { portions = E.num(e.target.value) || 0; preview(); });
-      body.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { portions = Math.max(0.5, Math.round(((portions || 0) + +b.dataset.st) * 2) / 2); $('#lr_por').value = numStr(portions); preview(); }; });
-      var vs = $('#lr_var'); if (vs) vs.onchange = function () { variant = vs.value; preview(); };
+      function upd() {
+        var n = portions(), v = vals();
+        $('#lr_v').innerHTML = '<b>' + (pStr ? esc(pStr) : '0') + '</b><i class="caret"></i><span>porsjon' + (n === 1 || !pStr ? '' : 'er') + '</span>';
+        $('#lr_v').classList.toggle('fresh', fresh);
+        $('#lr_res').innerHTML = v ? '<div class="afkc"><b>' + fmt(v.kcal) + '</b> kcal</div><div class="afm">' + macroLine(v) + '</div>' : '<div class="small muted">Kunne ikke regne ut oppskriften.</div>';
+        body.querySelectorAll('[data-q]').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.dataset.q === n)); });
+        var go = $('#lr_go'); go.disabled = !(n > 0) || !v; go.textContent = v && n > 0 ? 'Loggfør · ' + fmt(v.kcal) + ' kcal' : 'Loggfør';
+      }
+      body.innerHTML = '<div class="addsheet">' +
+        '<div class="afhead"><span class="av a2" aria-hidden="true">' + esc((r.name || 'R').charAt(0).toUpperCase()) + '</span><div class="grow"><div class="afname">' + esc(r.name) + '</div><div class="afsub">' + (c ? fmt(c.perPortion.kcal) + ' kcal · ' + fmt(c.perPortion.protein, 1) + ' g protein per porsjon' : 'Oppskrift') + '</div></div><button type="button" class="btn ghost sm" id="lr_other">Bytt</button></div>' +
+        '<div class="afcard"><button type="button" class="afamtv" id="lr_v" aria-label="Antall porsjoner"></button><div class="afresr" id="lr_res"></div></div>' +
+        ((r.variants || []).length ? '<div class="seg afunits" role="group" aria-label="Variant"><button type="button" data-var="" aria-pressed="true">Standard</button>' + r.variants.map(function (x) { return '<button type="button" data-var="' + esc(x.name) + '" aria-pressed="false">' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+        '<div class="afchips">' + [0.5, 1, 1.5, 2, 3].map(function (q) { return '<button type="button" data-q="' + q + '" aria-pressed="false">' + halfTxt(q) + '</button>'; }).join('') + '</div>' +
+        mealSeg(mt) + numpadHtml() +
+        '<div id="lr_msg"></div><button type="button" class="btn primary afgo" id="lr_go">Loggfør</button></div>';
+      bindPad(body, function (k) { if (k === 'ok') { save(); return; } pStr = npType(pStr, k, fresh, 4); fresh = false; upd(); });
+      $('#lr_v').onclick = function () { fresh = true; upd(); };
+      body.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { pStr = numStr(+b.dataset.q); fresh = true; upd(); }; });
+      body.querySelectorAll('[data-var]').forEach(function (b) { b.onclick = function () { variant = b.dataset.var; body.querySelectorAll('[data-var]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); upd(); }; });
       body.querySelectorAll('[data-mt]').forEach(function (b) { b.onclick = function () { mt = b.dataset.mt; body.querySelectorAll('[data-mt]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
-      $('#lr_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt }); }, 230); };
-      $('#lr_go').onclick = async function () {
-        var btn = $('#lr_go'); btn.disabled = true;
+      $('#lr_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt, q: S.lastFoodQ }); }, 230); };
+      async function save() {
+        var btn = $('#lr_go'); if (!btn || btn.disabled) return; btn.disabled = true;
+        var n = portions();
         try {
-          await C.logMeal(ctx, { date: date, meal_type: mt, recipe: { id: r.id, portions: portions, variant: variant || undefined }, force: true });
-          closeSheet(); toast('Loggført ' + fmt(portions, 1) + ' porsjon' + (portions === 1 ? '' : 'er') + ' ' + r.name);
+          await C.logMeal(ctx, { date: date, meal_type: mt, recipe: { id: r.id, portions: n, variant: variant || undefined }, force: true });
+          closeSheet(); afterLogToast('Loggført ' + halfTxt(n) + ' porsjon' + (n === 1 ? '' : 'er') + ' ' + r.name, { date: date, mealType: mt });
         } catch (er) { $('#lr_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; btn.disabled = false; }
-      };
-      preview();
-    });
+      }
+      $('#lr_go').onclick = save;
+      upd();
+    }, { cls: 'tall' });
   }
+  /* Loggfør mat: søk i dine varer og oppskrifter, Matvaretabellen og butikkvarer på én gang, eller skann. */
   function openFoodFinder(o) {
     o = o || {};
-    var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0, tab = o.tab || 'mat';
+    var mode = o.mode || 'log', date = o.date || S.date, mt = o.mealType || null, timer = null, seq = 0, tab = o.tab || 'mat', more = {};
+    var found = { mvt: [], store: [] };
     function after(p) {
       closeSheet();
       setTimeout(function () { if (mode === 'log') openAddItem(date, p.id, mt); else { toast('Lagret ' + p.name); openProduct(p.id); } }, 230);
     }
     openSheet(mode === 'log' ? 'Loggfør mat' : 'Legg til matvare', function (body) {
       body.innerHTML = '<div class="stack finder">' +
-        '<div class="findtop"><button type="button" class="btn primary" id="ff_scan">' + ICON.barcode + 'Skann strekkode</button>' +
-        '</div>' +
+        '<div class="ffbar"><label class="ffsearch">' + ICON.search + '<input id="ff_q" type="search" enterkeyhint="search" placeholder="' + (mode === 'log' ? 'Søk etter mat, merke eller oppskrift' : 'Søk, f.eks. banan eller kvarg') + '" autocomplete="off" autocorrect="off" spellcheck="false" value="' + esc(o.q || '') + '"><button type="button" class="ffclear" id="ff_clear" aria-label="Tøm søket" hidden>' + ICON.close + '</button></label>' +
+        '<button type="button" class="ffscan" id="ff_scan" aria-label="Skann strekkode">' + ICON.barcode + '<span>Skann</span></button></div>' +
         (mode === 'log' ? '<div class="seg fftabs" role="group" aria-label="Vis"><button type="button" data-fft="mat" aria-pressed="' + (tab === 'mat') + '">Mat</button><button type="button" data-fft="rec" aria-pressed="' + (tab === 'rec') + '">Mine oppskrifter</button></div>' : '') +
-        '<input class="input" id="ff_q" type="search" enterkeyhint="search" placeholder="' + (mode === 'log' ? 'Søk i mat og oppskrifter' : 'Søk, f.eks. banan eller kvarg') + '" autocomplete="off">' +
         '<div id="ff_res"></div>' +
         '<button type="button" class="btn ghost ownbtn" id="ff_own">Finner du det ikke? <b>Lag din egen</b></button></div>';
       var res = $('#ff_res');
-      function bind() {
-        res.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { after(S.products.get(b.dataset.pid)); }; });
-        res.querySelectorAll('[data-mvt]').forEach(function (b) { b.onclick = async function () { try { after(await ensureProduct(mvtCache[b.dataset.mvt])); } catch (e) { toast(e.message); } }; });
-        res.querySelectorAll('[data-rid]').forEach(function (b) { b.onclick = function () { closeSheet(); setTimeout(function () { openLogRecipe(b.dataset.rid, date, mt); }, 230); }; });
-        var ob = res.querySelector('[data-offq]'); if (ob) ob.onclick = function () { closeSheet(); setTimeout(function () { openOffSearch(ob.dataset.offq); }, 230); };
+      function pick(el) {
+        var b = el.closest('[data-pid],[data-mvt],[data-off],[data-rid],[data-more]'); if (!b) return;
+        if (b.dataset.more) { more[b.dataset.more] = true; paint(b.dataset.more); return; }
+        if (b.dataset.pid) { after(S.products.get(b.dataset.pid)); return; }
+        if (b.dataset.rid) { closeSheet(); setTimeout(function () { openLogRecipe(b.dataset.rid, date, mt); }, 230); return; }
+        var src = b.dataset.mvt ? mvtCache[b.dataset.mvt] : storeCache[b.dataset.off];
+        if (!src || b.disabled) return;
+        b.disabled = true; b.classList.add('busy');
+        ensureProduct(src).then(after, function (e) { b.disabled = false; b.classList.remove('busy'); toast(e.message); });
+      }
+      res.addEventListener('click', function (e) { pick(e.target); });
+      function section(key, title, list, attr, limit, note) {
+        if (!list.length) return '';
+        var show = more[key] ? list : list.slice(0, limit);
+        return '<div class="fhead"><span>' + title + '</span>' + (note ? '<em>' + note + '</em>' : '') + '</div><div class="list">' + show.map(function (p) { return foodLi(p, attr(p)); }).join('') + '</div>' +
+          (list.length > show.length ? '<button type="button" class="ffmore" data-more="' + key + '">Vis ' + (list.length - show.length) + ' til</button>' : '');
+      }
+      function paint(key) {
+        var box = $(key === 'mvt' ? '#ff_mvt' : '#ff_store'); if (!box) return;
+        if (key === 'mvt') box.innerHTML = section('mvt', 'Matvaretabellen', found.mvt, function (p) { return 'data-mvt="' + esc(p.id) + '"'; }, 5, 'råvarer og vanlig mat');
+        else box.innerHTML = section('store', 'Butikkvarer', found.store, function (p) { return 'data-off="' + esc(p.id) + '"'; }, 5, 'merkevarer i Norge');
+      }
+      function empty(q) {
+        var el = $('#ff_none'); if (!el) return;
+        var any = res.querySelector('.li');
+        el.innerHTML = any ? '' : '<div class="ffnone"><b>Fant ikke «' + esc(q) + '»</b><span>Prøv færre ord eller et annet navn, skann strekkoden, eller lag varen selv.</span></div>';
       }
       function run() {
         var q = $('#ff_q').value.trim(), my = ++seq;
+        $('#ff_clear').hidden = !q;
+        S.lastFoodQ = q; more = {};
         if (tab === 'rec') {
           var nq0 = C.norm(q), all = recipeList().filter(function (r) { return !nq0 || C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(nq0) >= 0; });
           res.innerHTML = (all.length ? '<div class="list">' + all.map(recipeLi).join('') + '</div>' : '<p class="small muted" style="margin:4px 2px">' + (S.recipes.size ? 'Ingen oppskrifter heter «' + esc(q) + '».' : 'Du har ingen oppskrifter ennå.') + '</p>') +
             '<button type="button" class="btn ghost" id="ff_newrec" style="width:100%;margin-top:8px">+ Lag ny oppskrift</button>';
-          bind();
           $('#ff_newrec').onclick = function () { closeSheet(); setTimeout(function () { openRecipeBuilder(null); }, 230); };
           return;
         }
         if (!q) {
           var rec = recentProducts(8), rr = mode === 'log' ? recipeList() : [];
-          res.innerHTML = (rr.length ? '<div class="fhead">Dine oppskrifter</div><div class="list">' + rr.slice(0, 6).map(recipeLi).join('') + '</div>' : '') +
-            (rec.length ? '<div class="fhead">Nylig brukt</div><div class="list">' + rec.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+          res.innerHTML = (rec.length ? '<div class="fhead"><span>Nylig brukt</span></div><div class="list">' + rec.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+            (rr.length ? '<div class="fhead"><span>Dine oppskrifter</span></div><div class="list">' + rr.slice(0, 4).map(recipeLi).join('') + '</div>' : '') +
             (!rec.length && !rr.length ? '<p class="small muted" style="margin:4px 2px">Søk etter maten, eller skann strekkoden på pakken.</p>' : '');
-          bind(); return;
+          return;
         }
-        var own = C.findProducts(ctx, q, 8), nq = C.norm(q);
-        var recs = mode === 'log' ? recipeList().filter(function (r) { return C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(nq) >= 0; }).slice(0, 6) : [];
-        var html = (recs.length ? '<div class="fhead">Dine oppskrifter</div><div class="list">' + recs.map(recipeLi).join('') + '</div>' : '') + (own.length ? '<div class="fhead">Dine matvarer</div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
-          '';
-        res.innerHTML = html + '<div id="ff_mvt">' + (window.COACH_STANDALONE && q.length > 1 ? '<p class="small faint" style="margin:6px 2px">Søker i Matvaretabellen …</p>' : '') + '</div>' +
-          (!window.COACH_STANDALONE && !own.length && !recs.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff på «' + esc(q) + '» i matvarene dine. Matvaretabellen og butikkvarer kan du søke i fra Coach-appen på hjemskjermen. Her kan du lage varen selv.</p>' : '') +
-          (window.COACH_STANDALONE ? '<button type="button" class="btn sm" data-offq="' + esc(q) + '">Søk i butikkvarer (Open Food Facts)</button>' : '');
-        bind();
-        if (!window.COACH_STANDALONE || q.length < 2) return;
+        var own = searchOwn(q, 6), nq = C.norm(q);
+        var recs = mode === 'log' ? recipeList().filter(function (r) { return C.norm([r.name].concat(r.aliases || []).join(' ')).indexOf(nq) >= 0; }).slice(0, 4) : [];
+        var ownIds = {}, ownCodes = {}; own.forEach(function (p) { if (p.source && p.source.mvtId) ownIds[p.source.mvtId] = 1; if (p.barcode) ownCodes[p.barcode] = 1; });
+        S.products.forEach(function (p) { if (p.barcode) ownCodes[p.barcode] = 1; if (p.source && p.source.mvtId) ownIds[p.source.mvtId] = 1; });
+        var online = window.COACH_STANDALONE && q.length > 1;
+        res.innerHTML = (own.length ? '<div class="fhead"><span>Dine matvarer</span></div><div class="list">' + own.map(function (p) { return foodLi(p, 'data-pid="' + esc(p.id) + '"'); }).join('') + '</div>' : '') +
+          (recs.length ? '<div class="fhead"><span>Dine oppskrifter</span></div><div class="list">' + recs.map(recipeLi).join('') + '</div>' : '') +
+          '<div id="ff_mvt">' + (online ? '<div class="ffload"><i></i>Søker i Matvaretabellen …</div>' : '') + '</div>' +
+          '<div id="ff_store">' + (online ? '<div class="ffload"><i></i>Søker i butikkvarer …</div>' : '') + '</div><div id="ff_none"></div>' +
+          (!window.COACH_STANDALONE && !own.length && !recs.length ? '<p class="small muted" style="margin:6px 2px">Ingen treff på «' + esc(q) + '» i matvarene dine. Matvaretabellen og butikkvarer kan du søke i fra Coach-appen på hjemskjermen. Her kan du lage varen selv.</p>' : '');
+        if (!online) return;
         clearTimeout(timer);
-        timer = setTimeout(async function () {
-          var list = [], failed = false; try { list = await mvtSearch(q, 8); } catch (e) { list = []; failed = true; }
-          if (my !== seq) return;
-          var box = $('#ff_mvt'); if (!box) return;
-          if (failed) { box.innerHTML = '<p class="small muted" style="margin:6px 2px">Fikk ikke kontakt med Matvaretabellen. Sjekk nettet og prøv igjen.</p>'; return; }
-          var known = {}; own.forEach(function (p) { if (p.source && p.source.mvtId) known[p.source.mvtId] = 1; });
-          list = list.filter(function (p) { return !known[p.mvtId]; });
-          box.innerHTML = list.length ? '<div class="fhead">Matvaretabellen</div><div class="list">' + list.map(function (p) { return foodLi(p, 'data-mvt="' + esc(p.id) + '"', 'Matvaretabellen' + (E.stkWeight(p) && E.stkWeight(p).src === 'typisk' ? ' · 1 stk ≈ ' + fmt(E.stkWeight(p).g) + ' g' : '')); }).join('') + '</div>' : (own.length || recs.length ? '' : '<p class="small muted" style="margin:6px 2px">Ingen treff i Matvaretabellen.</p>');
-          bind();
-        }, 220);
+        timer = setTimeout(function () {
+          var left = 2;
+          function done() { if (--left === 0 && my === seq) empty(q); }
+          mvtSearch(q, 30).then(function (list) {
+            if (my !== seq) return;
+            found.mvt = list.filter(function (p) { return !ownIds[p.mvtId]; }); paint('mvt'); done();
+          }, function () { if (my !== seq) return; var b = $('#ff_mvt'); if (b) b.innerHTML = '<p class="small muted" style="margin:6px 2px">Fikk ikke kontakt med Matvaretabellen. Sjekk nettet og prøv igjen.</p>'; done(); });
+          storeSearch(q).then(function (list) {
+            if (my !== seq) return;
+            var good = list.filter(function (p) { return !(p.barcode && ownCodes[p.barcode]); });
+            var exact = good.filter(function (p) { return matchScore(p.name, p.brand, qWords(q), q) < 20; });
+            found.store = exact.length >= 3 ? exact : good; paint('store'); done();
+          }, function () { if (my !== seq) return; var b = $('#ff_store'); if (b) b.innerHTML = ''; done(); });
+        }, 260);
       }
       var lastQ = null;
       function safeRun() {
@@ -2312,11 +2509,12 @@
       }
       ['input', 'keyup', 'change', 'search'].forEach(function (ev) { $('#ff_q').addEventListener(ev, safeRun); });
       $('#ff_q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
-      $('#ff_scan').onclick = function () { closeSheet(); setTimeout(scanBarcode, 120); };
+      $('#ff_clear').onclick = function () { $('#ff_q').value = ''; safeRun(); $('#ff_q').focus(); };
+      $('#ff_scan').onclick = function () { closeSheet(); setTimeout(function () { scanBarcode({ date: date, mealType: mt }); }, 120); };
       body.querySelectorAll('[data-fft]').forEach(function (b) { b.onclick = function () {
         tab = b.dataset.fft; lastQ = null;
         body.querySelectorAll('[data-fft]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-        $('#ff_q').placeholder = tab === 'rec' ? 'Søk i oppskriftene dine' : 'Søk i mat og oppskrifter';
+        $('#ff_q').placeholder = tab === 'rec' ? 'Søk i oppskriftene dine' : 'Søk etter mat, merke eller oppskrift';
         $('#ff_own').hidden = tab === 'rec'; $('#ff_scan').hidden = tab === 'rec';
         safeRun();
       }; });
@@ -2392,66 +2590,87 @@
     });
   }
 
-  /* Mengde og måltid for én vare. Velg gram, ml eller stk; vekten per stk kan justeres og lagres på varen. */
-  function openAddItem(date, productId, presetType) {
+  /* Mengde og måltid for én vare. Velg gram, ml eller stk med hurtigvalg eller tall-tastaturet i arket;
+   * vekten per stk kan justeres og lagres på varen. */
+  function openAddItem(date, productId, presetType, opts) {
+    opts = opts || {};
     var picked = productId ? S.products.get(productId) : null;
     if (!picked) { openFoodFinder({ date: date, mealType: presetType }); return; }
-    var du = defaultUnit(picked), unit = du.unit, amount = du.amount, mt = presetType || defaultMeal();
-    var sw0 = E.stkWeight(picked), stkG = sw0 && sw0.src !== 'pakning' ? sw0.g : (sw0 ? sw0.g : null), stkTouched = false;
-    var MT = [['frokost', 'Frokost'], ['lunsj', 'Lunsj'], ['middag', 'Middag'], ['kvelds', 'Kvelds'], ['mellommåltid', 'Snack']];
+    var du = defaultUnit(picked), unit = du.unit, amtStr = numStr(du.amount), fresh = true, mt = presetType || defaultMeal();
+    var sw0 = E.stkWeight(picked), stkStr = numStr(sw0 ? sw0.g : null), stkTouched = false, target = 'amt';
     if (C.MEAL_TYPES.indexOf(mt) < 0) mt = 'mellommåltid';
+    function amount() { return E.num(amtStr); }
+    function stkG() { return E.num(stkStr); }
+    function short(u) { return u === 'g_med_skall' ? 'g m/skall' : u === 'porsjon' ? 'porsjon' : u; }
     openSheet(date === today() ? 'Legg til i dag' : 'Legg til ' + dateLabel(date).toLowerCase(), function (body) {
-      function prod() { return unit === 'stk' && stkG ? withStk(picked, stkG) : picked; }
-      function calc() { try { return { c: E.calcItem(prod(), amount, unit) }; } catch (e) { return { err: e.message }; } }
-      function preview() {
-        var r = calc(), el = $('#af_res'); if (!el) return;
-        if (r.c) {
-          var x = r.c.values;
-          el.innerHTML = '<div class="afk"><b>' + fmt(x.kcal) + '</b><span>kcal</span></div><div class="afm"><span><i class="dot" style="background:var(--protein)"></i>' + fmt(x.protein, 1) + ' g protein</span><span><i class="dot" style="background:var(--carbs)"></i>' + fmt(x.carbs, 1) + ' g karbo</span><span><i class="dot" style="background:var(--fat)"></i>' + fmt(x.fat, 1) + ' g fett</span></div>' +
-            (unit !== 'g' && unit !== 'ml' ? '<div class="small faint">= ' + fmt(r.c.qty) + ' ' + r.c.basis + '</div>' : '');
-        } else el.innerHTML = '<div class="small muted">' + esc(amount === null ? 'Skriv inn mengde.' : r.err) + '</div>';
-        $('#af_go').disabled = !r.c;
+      function prod() { return unit === 'stk' && stkG() ? withStk(picked, stkG()) : picked; }
+      function calc() { try { return amount() ? { c: E.calcItem(prod(), amount(), unit) } : { err: 'Skriv inn hvor mye.' }; } catch (e) { return { err: e.message }; } }
+      function upd() {
+        var r = calc(), a = amount(), sw = E.stkWeight(picked);
+        var v = $('#af_v');
+        v.innerHTML = '<b>' + (amtStr ? esc(amtStr) : '0') + '</b>' + (target === 'amt' ? '<i class="caret"></i>' : '') + '<span>' + esc(short(unit)) + '</span>';
+        v.classList.toggle('fresh', fresh && target === 'amt'); v.classList.toggle('on', target === 'amt');
+        $('#af_res').innerHTML = r.c ? '<div class="afkc"><b>' + fmt(r.c.values.kcal) + '</b> kcal</div><div class="afm">' + macroLine(r.c.values) + '</div>' + (unit !== 'g' && unit !== 'ml' ? '<div class="afeq">= ' + fmt(r.c.qty) + ' ' + r.c.basis + '</div>' : '') : '<div class="small muted">' + esc(r.err) + '</div>';
+        var sk = $('#af_stk');
+        if (sk) {
+          sk.classList.toggle('on', target === 'stk'); sk.classList.toggle('fresh', fresh && target === 'stk');
+          sk.innerHTML = '<span>1 stk =</span><b>' + (stkStr ? esc(stkStr) : '?') + '</b>' + (target === 'stk' ? '<i class="caret"></i>' : '') + '<span>' + (sw && sw.src === 'pakning' && picked.basis === 'ml' ? 'ml' : 'g') + '</span>' +
+            '<em>' + (target === 'stk' ? 'Skriv vekten · trykk igjen når du er ferdig' : stkTouched ? 'Lagres på varen' : sw ? (sw.src === 'typisk' ? 'Typisk vekt · trykk for å endre' : sw.src === 'pakning' ? 'Én pakning · trykk for å endre' : 'Lagret på varen · trykk for å endre') : 'Trykk og skriv inn hva én veier') + '</em>';
+        }
+        body.querySelectorAll('[data-q]').forEach(function (b) { b.setAttribute('aria-pressed', String(+b.dataset.q === a)); });
+        var go = $('#af_go'); go.disabled = !r.c; go.textContent = r.c ? 'Loggfør · ' + fmt(r.c.values.kcal) + ' kcal' : 'Loggfør';
       }
       function draw() {
-        var opts = unitOptions(prod(), true);
-        if (!opts.some(function (u) { return u[0] === unit; })) unit = opts[0][0];
-        var sw = E.stkWeight(prod());
-        body.innerHTML = '<div class="stack addsheet">' +
-          '<div class="afhead"><div><div class="afname">' + esc(picked.name) + '</div><div class="small muted">' + esc([picked.brand, fmt(picked.per100.kcal) + ' kcal per 100 ' + (picked.basis === 'ml' ? 'ml' : 'g')].filter(Boolean).join(' · ')) + '</div></div><button type="button" class="btn ghost sm" id="af_other">Bytt</button></div>' +
-          '<div class="afamt"><input class="input" id="af_amt" inputmode="decimal" aria-label="Mengde" value="' + esc(numStr(amount)) + '"><div class="seg afunits" role="group" aria-label="Enhet">' +
-            opts.map(function (u) { return '<button type="button" data-u="' + u[0] + '" aria-pressed="' + (u[0] === unit) + '">' + esc(u[0] === 'stk' ? 'stk' : u[0] === 'g_med_skall' ? 'm/skall' : u[0]) + '</button>'; }).join('') + '</div></div>' +
-          (unit === 'stk' ? '<div class="stkw"><span>1 stk =</span><input class="input" id="af_stk" inputmode="decimal" value="' + esc(numStr(stkG)) + '" placeholder="vekt"><span>' + (sw && sw.src === 'pakning' && picked.basis === 'ml' ? 'ml' : 'g') + '</span><em>' + (stkTouched ? 'lagres på varen' : (sw = E.stkWeight(picked)) ? (sw.src === 'typisk' ? 'typisk vekt – endre om din er større/mindre' : sw.src === 'pakning' ? 'én pakning' : 'lagret på varen') : 'skriv inn hvor mye én veier') + '</em></div>' : '') +
-          '<div class="afres" id="af_res"></div>' +
-          '<div class="seg afmt" role="group" aria-label="Måltid">' + MT.map(function (m) { return '<button type="button" data-mt="' + m[0] + '" aria-pressed="' + (m[0] === mt) + '">' + m[1] + '</button>'; }).join('') + '</div>' +
-          '<div id="af_msg"></div><button type="button" class="btn primary" id="af_go">Loggfør</button></div>';
-        $('#af_amt').addEventListener('input', function (e) { amount = E.num(e.target.value); preview(); });
-        var si = $('#af_stk'); if (si) si.addEventListener('input', function (e) { stkG = E.num(e.target.value); stkTouched = true; preview(); });
+        var opts2 = unitOptions(prod(), true);
+        if (!opts2.some(function (u) { return u[0] === unit; })) unit = opts2[0][0];
+        var src = picked.source && picked.source.name;
+        body.innerHTML = '<div class="addsheet">' +
+          '<div class="afhead">' + foodAv(picked) + '<div class="grow"><div class="afname">' + esc(foodParts(picked)[0]) + '</div><div class="afsub">' + esc([foodParts(picked)[1], picked.brand, fmt(picked.per100.kcal) + ' kcal per 100 ' + (picked.basis === 'ml' ? 'ml' : 'g')].filter(Boolean).join(' · ')) + '</div></div><button type="button" class="btn ghost sm" id="af_other">Bytt</button></div>' +
+          (opts.note ? '<div class="notice small">' + esc(opts.note) + '</div>' : opts.fresh && src ? '<div class="afsrc">Hentet fra ' + esc(src) + ' og lagret i matvarene dine. Sjekk gjerne tallene mot pakken.</div>' : '') +
+          '<div class="afcard"><button type="button" class="afamtv" id="af_v" aria-label="Mengde"></button><div class="afresr" id="af_res"></div></div>' +
+          (opts2.length > 1 ? '<div class="seg afunits" role="group" aria-label="Enhet">' + opts2.map(function (u) { return '<button type="button" data-u="' + u[0] + '" aria-pressed="' + (u[0] === unit) + '">' + esc(u[0] === 'stk' ? 'stk' : u[0] === 'g_med_skall' ? 'm/skall' : u[0]) + '</button>'; }).join('') + '</div>' : '') +
+          (unit === 'stk' ? '<button type="button" class="stkw" id="af_stk"></button>' : '') +
+          '<div class="afchips">' + quickAmounts(picked, unit).map(function (q) { return '<button type="button" data-q="' + q + '" aria-pressed="false">' + halfTxt(q) + (unit === 'stk' || unit === 'porsjon' || unit === 'pakke' ? '' : ' ' + esc(short(unit))) + '</button>'; }).join('') + '</div>' +
+          mealSeg(mt) + numpadHtml() +
+          '<div id="af_msg"></div><button type="button" class="btn primary afgo" id="af_go">Loggfør</button></div>';
+        $('#af_v').onclick = function () { target = 'amt'; fresh = true; upd(); };
+        var sk = $('#af_stk'); if (sk) sk.onclick = function () { if (target === 'stk') target = 'amt'; else { target = 'stk'; } fresh = true; upd(); };
         body.querySelectorAll('[data-u]').forEach(function (b) { b.onclick = function () {
           var nu = b.dataset.u; if (nu === unit) return;
-          if (amount !== null) amount = convertAmount(nu === 'stk' && stkG ? withStk(picked, stkG) : prod(), amount, unit, nu);
-          unit = nu; draw();
+          var a = amount();
+          if (a !== null) amtStr = numStr(convertAmount(nu === 'stk' && stkG() ? withStk(picked, stkG()) : prod(), a, unit, nu));
+          unit = nu; target = 'amt'; fresh = true; draw();
         }; });
+        body.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { amtStr = numStr(+b.dataset.q); target = 'amt'; fresh = true; upd(); }; });
         body.querySelectorAll('[data-mt]').forEach(function (b) { b.onclick = function () { mt = b.dataset.mt; body.querySelectorAll('[data-mt]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); }; });
-        $('#af_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt }); }, 230); };
+        $('#af_other').onclick = function () { closeSheet(); setTimeout(function () { openFoodFinder({ date: date, mealType: mt, q: S.lastFoodQ }); }, 230); };
         $('#af_go').onclick = save;
-        preview();
+        upd();
       }
+      bindPad(body, function (k) {
+        if (k === 'ok') { save(); return; }
+        if (target === 'stk') { stkStr = npType(stkStr, k, fresh, 4); stkTouched = true; }
+        else amtStr = npType(amtStr, k, fresh, 5);
+        fresh = false; upd();
+      });
       async function save() {
-        var btn = $('#af_go'); btn.disabled = true;
+        var btn = $('#af_go'); if (!btn || btn.disabled) return; btn.disabled = true;
+        var amt = amount(), sg = stkG();
         try {
           var p = picked;
           var stored = p.unitWeights && p.unitWeights.stk;
-          if (unit === 'stk' && stkG && (stkTouched || !E.stkWeight(p)) && stored !== stkG) {
-            var r = await C.saveProduct(ctx, Object.assign({}, p, { unitWeights: { stk: stkG } }), { id: p.id, reason: 'Vekt per stk', override: true });
+          if (unit === 'stk' && sg && (stkTouched || !E.stkWeight(p)) && stored !== sg) {
+            var r = await C.saveProduct(ctx, Object.assign({}, p, { unitWeights: { stk: sg } }), { id: p.id, reason: 'Vekt per stk', override: true });
             p = r.product;
           }
-          await C.logMeal(ctx, { date: date, meal_type: mt, items: [{ product_id: p.id, amount: amount, unit: unit }] });
-          rememberUnit(p.id, unit, amount);
-          closeSheet(); toast('Loggført ' + fmt(amount, 2) + ' ' + (unit === 'g_med_skall' ? 'g' : unit) + ' ' + p.name);
+          await C.logMeal(ctx, { date: date, meal_type: mt, items: [{ product_id: p.id, amount: amt, unit: unit }] });
+          rememberUnit(p.id, unit, amt);
+          closeSheet();
+          afterLogToast('Loggført ' + halfTxt(amt) + ' ' + (unit === 'g_med_skall' ? 'g' : unit) + ' ' + foodParts(p)[0], { date: date, mealType: mt, scanned: opts.scanned });
         } catch (er) { $('#af_msg').innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; btn.disabled = false; }
       }
       draw();
-    });
+    }, { cls: 'tall' });
   }
 
   /* ---------- Oppskrifter ---------- */

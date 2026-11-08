@@ -45,10 +45,14 @@
   function stkWeight(product) {
     if (!product) return null;
     if (product.unitWeights && isNum(product.unitWeights.stk)) return { g: product.unitWeights.stk, src: 'lagret' };
-    var first = String(product.name || '').toLowerCase().replace(/[^a-zæøå ]+/g, ' ').trim().split(/\s+/)[0];
-    if (first && STK_DEFAULTS[first]) return { g: STK_DEFAULTS[first], src: 'typisk' };
-    if (isNum(product.packageSize) && product.packageSize > 0 && product.packageSize <= 1000) return { g: product.packageSize, src: 'pakning' };
-    return null;
+    /* Typisk vekt (banan, paprika …) gjelder hele råvarer. Ferdigvarer med merke/strekkode bruker pakningen først,
+     * og bearbeidet mat («bananchips», «smoothie», «kake») får ingen typisk stk-vekt. */
+    var name = String(product.name || '').toLowerCase();
+    var first = name.replace(/[^a-zæøå ]+/g, ' ').trim().split(/\s+/)[0];
+    var typical = first && STK_DEFAULTS[first] && !/tørket|chips|kake|smoothie|juice|saft|syltet|hermetisk|pulver|mos\b|puré|is\b|yoghurt|skyr|muffins|brød/.test(name) ? { g: STK_DEFAULTS[first], src: 'typisk' } : null;
+    var pack = isNum(product.packageSize) && product.packageSize > 0 && product.packageSize <= 1000 ? { g: product.packageSize, src: 'pakning' } : null;
+    if (product.barcode || product.brand) return pack || typical;
+    return typical || pack;
   }
 
   /* Gjør om en mengde til produktets basisenhet (g eller ml), med spiselig del.

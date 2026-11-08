@@ -98,6 +98,7 @@
     if (data.unitWeights && E.num(data.unitWeights.stk) !== null) p.unitWeights = { stk: E.num(data.unitWeights.stk) };
     if (data.barcode && /^\d{8,14}$/.test(String(data.barcode))) p.barcode = String(data.barcode);
     var pk = E.num(data.packageSize); if (pk !== null && pk > 0) p.packageSize = pk;
+    if (typeof data.image === 'string' && /^https:\/\/[^\s"'<>]+$/.test(data.image) && data.image.length < 400) p.image = data.image;
     if (Array.isArray(data.labelAssets)) p.labelAssets = data.labelAssets.filter(function (x) { return /^[0-9a-f]{32}$/.test(x); });
     if (Array.isArray(data.commonPortions)) p.commonPortions = data.commonPortions.map(E.num).filter(function (x) { return x !== null; });
     return p;
