@@ -3034,6 +3034,22 @@
   }
   function draftHasValues(d) { return d.exercises.some(function (e) { return e.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }); }); }
 
+  /* Hvilken økttype øvelsene faktisk er: bryst, triceps og fremre/side-skulder = Push; rygg, biceps og bakre skulder = Pull;
+   * lår, sete og legger = Bein. Brukes til å varsle hvis økta er merket feil (f.eks. push-øvelser lagret som Pull). */
+  function guessSplit(exs) {
+    var n = { Push: 0, Pull: 0, Bein: 0 }, tot = 0;
+    (exs || []).forEach(function (e) {
+      var lx = libFor(e.name); if (!lx) return;
+      var prim = (lx.muscles && lx.muscles[0]) || [], g = lx.group, k = null;
+      if (g === 'bryst' || g === 'triceps' || prim.indexOf('FRONT_DELTOIDS') >= 0) k = 'Push';
+      else if (g === 'rygg' || g === 'biceps' || g === 'trapes' || prim.indexOf('BACK_DELTOIDS') >= 0 || prim.indexOf('UPPER_BACK') >= 0) k = 'Pull';
+      else if (g === 'forside' || g === 'bakside' || g === 'legger') k = 'Bein';
+      if (k) { n[k]++; tot++; }
+    });
+    if (tot < 3) return null;
+    var best = Object.keys(n).sort(function (a, b) { return n[b] - n[a]; })[0];
+    return n[best] / tot >= 0.7 ? best : null;
+  }
   function strengthLoggerHtml() {
     var d = loadDraft();
     var html = '<div class="gcard logger">' +
@@ -3042,6 +3058,8 @@
       '<button type="button" class="voltoggle' + (d.volume ? ' on' : '') + '" id="lg_vol" aria-pressed="' + (!!d.volume) + '"><i></i>Volum</button></div>' +
       (d.volume ? '<div class="small faint" style="margin:-4px 2px 0">Volumøkt: «Sist» og forslag hentes fra tidligere volumøkter.</div>' : '') +
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
+    var guess = guessSplit(d.exercises);
+    if (guess && d.split && d.split !== guess && /^(Push|Pull|Bein)$/.test(d.split)) html += '<div class="notice splitwarn"><span>Øvelsene ser ut som en <b>' + esc(guess.toLowerCase()) + '</b>-økt, men økta er merket ' + esc(d.split) + '.</span><button type="button" class="btn sm primary" data-fixsplit="' + esc(guess) + '">Bytt til ' + esc(guess) + '</button></div>';
     var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
     d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
     if (d.split) {
@@ -3096,6 +3114,7 @@
       if (!draftHasValues(d)) d.exercises = [];
       rerender();
     }; });
+    var fx = box.querySelector('[data-fixsplit]'); if (fx) fx.onclick = function () { d.split = fx.dataset.fixsplit; d.title = ''; saveDraft(true); rerender(); };
     box.querySelectorAll('[data-pick]').forEach(function (b) { b.onclick = function () {
       var k = b.dataset.pick, have = d.exercises.find(function (e) { return exKey(e.name) === k; });
       var c = splitCatalog(d.split, d.editId, d.volume).find(function (x) { return x.key === k; }); if (!c) return;

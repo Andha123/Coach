@@ -1255,16 +1255,18 @@ html.kb .sheet { padding-bottom: 12px; max-height: 96%; }
 @keyframes mmIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---------- Toppen: tydelig hilsen og «Coach» i blankt metall med lys som glir over ---------- */
-.topbar .brand small { color: rgba(251, 246, 241, .74); font-weight: 600; font-size: 13px; letter-spacing: .005em; }
+.topbar .brand small { color: rgba(251, 246, 241, .82); font-weight: 600; font-size: 13px; letter-spacing: .005em; -webkit-font-smoothing: antialiased; }
 .brand .bt {
   font-weight: 800; letter-spacing: -.035em; padding-right: 2px;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, .05) 0%, rgba(255, 255, 255, 0) 40%, rgba(30, 18, 10, .45) 100%),
     linear-gradient(100deg, #8c817a 0%, #b0a59e 18%, #ece5df 30%, #ffffff 37%, #fffaf5 41%, #ddd4cd 48%, #a69a93 60%, #8a7e77 72%, #b6aba4 86%, #efe8e2 100%);
   background-size: 100% 100%, 320% 100%; background-position: 0 0, 100% 0; background-repeat: no-repeat;
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .35));
+  -webkit-font-smoothing: antialiased;
 }
 @media (prefers-reduced-motion: no-preference) {
   .brand .bt { animation: btShine 5.5s cubic-bezier(.45, 0, .25, 1) infinite alternate; }
 }
 @keyframes btShine { from { background-position: 0 0, 100% 0; } to { background-position: 0 0, 0% 0; } }
+.splitwarn { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; border-color: rgba(244, 162, 97, .4); background: rgba(244, 162, 97, .1); }
+.splitwarn span { flex: 1 1 200px; }
