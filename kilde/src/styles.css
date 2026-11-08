@@ -1485,3 +1485,33 @@ html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-siz
 @keyframes sheetUp2 { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
 @keyframes toastIn2 { from { opacity: 0; transform: translate(-50%, 24px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
 .page, .sheet, .view, nav.tabs .tabind { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
+/* ---------- Ro på Fremgang og faneskift ----------
+   Ingen trinnvis inngang eller animasjon per muskel (det hakket og blinket). Fanebytte bruker View Transitions der det finnes. */
+.view.enter > *, .view.enter > .section > *, .view.enter > div > .gcard { animation: none !important; }
+.mmfig .bact { animation: none !important; }
+.mmfig .bshade { fill: url(#bShade); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .view.enter.fromR, .view.enter.fromL, .view.enter:not(.fromR):not(.fromL) { animation: viewFade .26s ease-out; }
+}
+@keyframes viewFade { from { opacity: 0; } to { opacity: 1; } }
+nav.tabs { view-transition-name: tabs; }
+header.topbar { view-transition-name: topbar; }
+::view-transition-group(tabs), ::view-transition-group(topbar) { animation: none; }
+::view-transition-old(tabs), ::view-transition-new(tabs), ::view-transition-old(topbar), ::view-transition-new(topbar) { animation: none; }
+::view-transition-old(root) { animation: vtOut .22s ease-in both; }
+::view-transition-new(root) { animation: vtInR .36s cubic-bezier(.22, 1, .36, 1) both; }
+html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
+@keyframes vtOut { to { opacity: 0; } }
+@keyframes vtInR { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes vtInL { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Jevn dra-ned ----------
+   Ark og meldinger har ikke glass-uskarphet (den må regnes ut på nytt for hvert bilde og gjør at det hakker).
+   De er nesten helt dekkende uansett, så de ser like ut. */
+.sheet { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: linear-gradient(170deg, #3a2c22 0%, #251c16 40%, #1a1410 100%) !important; contain: layout paint; }
+.sheet.dragging { will-change: transform; }
+.sheet-bg.fading { opacity: 0; }
+.sheet-bg.dragging { transition: none; }
+.toast { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(44, 35, 28, .97) !important; will-change: transform; }
+.page { contain: layout paint; }

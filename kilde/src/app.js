@@ -444,6 +444,27 @@
   }
   /* Bytt innhold bare når det faktisk er endret, og la ringer og stolper gli fra gammel til ny verdi. */
   var MOTION = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  /* Bytt bare ut de delene av siden som faktisk er endret (brukes på Fremgang), så figur og grafer ikke tegnes på nytt
+   * og ingenting blinker når data kommer inn. Returnerer true hvis noe ble endret. */
+  function patchHTML(el, html) {
+    if (!el) return false;
+    if (el._html === html) return false;
+    var tpl = document.createElement('template'); tpl.innerHTML = html;
+    var nk = tpl.content.childNodes, oc = el.children;
+    var ok = el._html !== undefined && nk.length === tpl.content.children.length && nk.length === oc.length;
+    el._html = html;
+    if (!ok) {
+      var st0 = el.scrollTop; el.innerHTML = ''; Array.prototype.slice.call(tpl.content.children).forEach(function (c) { c._h = c.outerHTML; el.appendChild(c); }); el.scrollTop = st0;
+      return true;
+    }
+    var st = el.scrollTop, news = Array.prototype.slice.call(tpl.content.children);
+    for (var i = 0; i < news.length; i++) {
+      var h = news[i].outerHTML;
+      if (oc[i]._h !== h) { news[i]._h = h; el.replaceChild(news[i], oc[i]); }
+    }
+    if (el.scrollTop !== st) el.scrollTop = st;
+    return true;
+  }
   function setHTML(el, html) {
     if (!el) return false;
     if (el._html === html) return false;
@@ -483,15 +504,30 @@
   }
   window.addEventListener('resize', function () { placeTabInd(true); });
   function go(view, silent) {
+    var from0 = TAB_ORDER.indexOf(S.view), to0 = TAB_ORDER.indexOf(view);
+    /* Myk fanebytte med View Transitions (Safari 18+): gammel og ny side tas som bilder og tones over i hverandre,
+     * så glasskort og figurer ikke må tegnes på nytt for hvert bilde i animasjonen. */
+    if (MOTION && document.startViewTransition && S.view !== view && from0 >= 0 && to0 >= 0 && !go._vt) {
+      document.documentElement.dataset.vdir = to0 > from0 ? 'r' : 'l';
+      go._vt = true;
+      try {
+        var vt = document.startViewTransition(function () { goNow(view, silent, true); });
+        vt.finished.then(function () { go._vt = false; }, function () { go._vt = false; });
+        return;
+      } catch (e) { go._vt = false; }
+    }
+    goNow(view, silent, false);
+  }
+  function goNow(view, silent, viaVT) {
     var changed = S.view !== view, from = TAB_ORDER.indexOf(S.view), to = TAB_ORDER.indexOf(view);
     if (changed && S.view && from >= 0 && to >= 0) haptic();
     S.view = view;
-    if (view === 'fremgang') S.plan = null;
+    if (view === 'fremgang' && S.plan && Date.now() - (S.planAt || 0) > 120000) S.plan = null;
     render();
     document.querySelectorAll('.view').forEach(function (v) {
       var on = v.id === 'v-' + view;
       v.hidden = !on;
-      if (on && changed && MOTION) {
+      if (on && changed && MOTION && !viaVT) {
         v.classList.remove('enter', 'fromL', 'fromR'); void v.offsetWidth;
         v.classList.add('enter'); if (from >= 0 && to >= 0) v.classList.add(to > from ? 'fromR' : 'fromL');
         clearTimeout(v._enterT); v._enterT = setTimeout(function () { v.classList.remove('enter', 'fromL', 'fromR'); }, 700);
@@ -1837,31 +1873,43 @@
       hapticEl.click();
     } catch (e) {}
   }
-  /* Dra et ark ned for å lukke det (som på iPhone). Starter bare når arket er rullet helt opp og du drar nedover. */
+  /* Dra et ark ned for å lukke det (som på iPhone). Arket følger fingeren via requestAnimationFrame (ett bilde om gangen),
+   * uten at bakgrunnen tegnes på nytt underveis. Starter bare når arket er rullet helt opp og du drar nedover. */
   function sheetDrag(bg) {
     var sh = bg.querySelector('.sheet'); if (!sh) return;
-    var y0 = 0, x0 = 0, dy = 0, t0 = 0, mode = 0;
+    var y0 = 0, x0 = 0, dy = 0, lastY = 0, lastT = 0, vel = 0, mode = 0, raf = 0;
+    function paint() { raf = 0; sh.style.transform = 'translate3d(0,' + dy + 'px,0)'; }
     sh.addEventListener('touchstart', function (e) {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1) { mode = -1; return; }
       var t = e.target;
-      if (t.closest('input, textarea, select, .afchips, .mmscope, .ffbar')) { mode = -1; return; }
-      y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; t0 = Date.now(); mode = sh.scrollTop <= 0 ? 0 : -1;
+      if (t.closest('input, textarea, select, .afchips, .mmscope, .numpad')) { mode = -1; return; }
+      y0 = lastY = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; vel = 0; lastT = e.timeStamp; mode = sh.scrollTop <= 0 ? 0 : -1;
     }, { passive: true });
     sh.addEventListener('touchmove', function (e) {
       if (mode < 0) return;
-      var y = e.touches[0].clientY - y0, x = e.touches[0].clientX - x0;
-      if (mode === 0) { if (Math.abs(y) < 8 && Math.abs(x) < 8) return; if (y > 0 && y > Math.abs(x) && sh.scrollTop <= 0) { mode = 1; sh.classList.add('dragging'); } else { mode = -1; return; } }
-      dy = Math.max(0, y); var d = dy < 0 ? 0 : dy;
-      sh.style.transform = 'translateY(' + d + 'px)';
-      bg.style.backgroundColor = 'rgba(0,0,0,' + Math.max(0, .45 - d / 900) + ')';
+      var cy = e.touches[0].clientY, y = cy - y0, x = e.touches[0].clientX - x0;
+      if (mode === 0) {
+        if (Math.abs(y) < 4 && Math.abs(x) < 4) return;
+        if (y > 0 && y >= Math.abs(x) && sh.scrollTop <= 0) { mode = 1; y0 = cy; sh.classList.add('dragging'); bg.classList.add('dragging'); }
+        else { mode = -1; return; }
+      }
       e.preventDefault();
+      var dt = Math.max(1, e.timeStamp - lastT); vel = .8 * ((cy - lastY) / dt) + .2 * vel; lastY = cy; lastT = e.timeStamp;
+      dy = Math.max(0, cy - y0);
+      if (!raf) raf = requestAnimationFrame(paint);
     }, { passive: false });
     function end() {
       if (mode !== 1) { mode = 0; return; }
-      mode = 0; sh.classList.remove('dragging');
-      var v = dy / Math.max(1, Date.now() - t0);
-      if (dy > Math.min(160, sh.offsetHeight * .3) || (v > .55 && dy > 40)) { haptic(); closeSheet(true); }
-      else { sh.style.transform = ''; bg.style.backgroundColor = ''; }
+      mode = 0; if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      sh.classList.remove('dragging'); bg.classList.remove('dragging');
+      if (dy > Math.min(150, sh.offsetHeight * .28) || (vel > .5 && dy > 30)) {
+        haptic();
+        var ms = Math.max(160, Math.min(300, (sh.offsetHeight - dy) / Math.max(1.2, vel)));
+        closeSheet(true, ms);
+      } else {
+        sh.style.transition = 'transform .42s cubic-bezier(.22, 1, .36, 1)'; sh.style.transform = '';
+        setTimeout(function () { sh.style.transition = ''; }, 440);
+      }
     }
     sh.addEventListener('touchend', end); sh.addEventListener('touchcancel', end);
   }
@@ -1904,16 +1952,17 @@
     document.addEventListener('keydown', escClose);
   }
   function escClose(e) { if (e.key === 'Escape') closeSheet(); }
-  function closeSheet() {
+  function closeSheet(dragged, ms) {
     var bg = $('#sheetBg'); S.sheet = null; document.removeEventListener('keydown', escClose);
     if (!bg) return;
     if (!MOTION) { bg.remove(); return; }
     bg.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); }); bg.removeAttribute('id');
     var sh = bg.querySelector('.sheet');
     if (sh && sh.style.transform) {
-      sh.style.transition = 'transform .24s cubic-bezier(.3, 0, .8, .15)'; sh.style.transform = 'translateY(110%)';
-      bg.style.transition = 'background-color .24s'; bg.style.backgroundColor = 'rgba(0,0,0,0)';
-      setTimeout(function () { bg.remove(); }, 250); return;
+      var d = ms || 240;
+      sh.style.transition = 'transform ' + d + 'ms cubic-bezier(.25, .6, .4, 1)'; sh.style.transform = 'translate3d(0,110%,0)';
+      bg.style.transition = 'opacity ' + d + 'ms ease'; bg.classList.add('fading');
+      setTimeout(function () { bg.remove(); }, d + 20); return;
     }
     bg.classList.add('closing');
     setTimeout(function () { bg.remove(); }, 220);
@@ -3656,6 +3705,7 @@
       '<radialGradient id="bRound" cx=".4" cy=".34" r=".78"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#3a0503" stop-opacity=".42"/></radialGradient>' +
       '<radialGradient id="bRoundPale" cx=".4" cy=".34" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#6b4a3c" stop-opacity=".22"/></radialGradient>' +
       '<linearGradient id="bSkin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6ebe4"/><stop offset=".55" stop-color="#e9d8ce"/><stop offset="1" stop-color="#cdb4a6"/></linearGradient>' +
+      '<radialGradient id="bShade" cx=".38" cy=".25" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#2a0e06" stop-opacity=".3"/></radialGradient>' +
       '<radialGradient id="bFloor"><stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>';
   }
   function bodyFigure(side, M, o) {
@@ -3665,18 +3715,17 @@
     G[side].forEach(function (p) {
       var slug = p[0], d = p[2], k = map[slug], skin = BODY_SKIN[slug];
       base += '<path d="' + d + '" class="' + (skin ? 'bsk' : 'bmu') + '"/>';
-      if (!skin) base += '<path d="' + d + '" fill="url(#bRoundPale)"/>';
       var col = k ? o.color(k) : null;
       if (col) {
         var ang = (BODY_FIB[slug] || [0, 0])[p[1] === 'r' ? 1 : 0];
-        act += '<path d="' + d + '" fill="' + col + '" class="bact"/><path d="' + d + '" fill="url(#bfib' + ang + ')"/><path d="' + d + '" fill="url(#bRound)"/>';
+        act += '<path d="' + d + '" fill="' + col + '" class="bact"/><path d="' + d + '" fill="url(#bfib' + ang + ')"/>';
       }
       if (k) hit += '<path d="' + d + '" data-m="' + k + '" class="mz' + (o.sel === k ? ' sel' : '') + '"/>';
     });
     var cx = vb[0] + vb[2] / 2;
     return '<svg x="' + o.x + '" y="0" width="100" height="200" viewBox="' + vb.join(' ') + '" overflow="visible">' +
       '<ellipse cx="' + cx + '" cy="' + (vb[1] + vb[3] - 14) + '" rx="190" ry="22" fill="url(#bFloor)"/>' +
-      '<path d="' + G.outline[side] + '" class="bout"/><g>' + base + '</g><g>' + act + '</g><g class="bhit">' + hit + '</g></svg>';
+      '<path d="' + G.outline[side] + '" class="bout"/><g>' + base + '</g><g>' + act + '</g><path d="' + G.outline[side] + '" class="bshade"/><g class="bhit">' + hit + '</g></svg>';
   }
   function muscleMapCard(M, o) {
     o = o || {};
@@ -3720,7 +3769,7 @@
     var more = v.querySelector('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; rerender(); };
     v.querySelectorAll('[data-mscope]').forEach(function (b) { b.onclick = function () { S.musScope = b.dataset.mscope; S.musSel = null; rerender(); }; });
     v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; rerender(); }; });
-    v.querySelectorAll('.musmap [data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }); });
+    v.querySelectorAll('.musmap [data-m]').forEach(function (pg) { pg.onclick = function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }; });
   }
   /* Velg: hele perioden, en økttype (Push viser alle muskler brukt på push) eller én bestemt økt */
   function muscleSectionHtml(cur, opts) {
@@ -4103,7 +4152,7 @@
       weightCard() + weekSummary() +
       '<div class="section pgstats"><h3>Trening: historikk og tall</h3><div class="small faint" style="margin:-6px 2px 10px">For perioden du har valgt øverst.</div>' + trainingStatsHtml({ noMuscles: true, noPeriod: true }) + '</div>' +
       goalsCard() + waistCard() + weeksList();
-    var changedP = setHTML(v, html);
+    var changedP = patchHTML(v, html);
     if (!S.plan && !S.planLoading) refreshPlan();
     if (!changedP) return;
     v.querySelectorAll('[data-calc]').forEach(function (b) { b.onclick = openCalculator; });
@@ -4116,7 +4165,7 @@
     if (S.status !== 'ready') return;
     S.planLoading = true;
     try { S.plan = await C.targetPlan(ctx); } catch (e) { S.plan = { ok: false, error: e.message }; }
-    S.planLoading = false;
+    S.planLoading = false; S.planAt = Date.now();
     if (S.view === 'fremgang') renderProgress();
   }
 
@@ -4676,8 +4725,9 @@
     if (actionLabel) $('#toastAct').onclick = async function () { host.innerHTML = ''; try { await action(); } catch (e) { toast(e.message); } };
     var tEl = host.firstChild, ty0 = 0;
     tEl.addEventListener('touchstart', function (e) { ty0 = e.touches[0].clientY; }, { passive: true });
-    tEl.addEventListener('touchmove', function (e) { var d = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.transform = 'translate(-50%, ' + d + 'px)'; tEl.style.opacity = String(Math.max(0, 1 - d / 90)); }, { passive: true });
-    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate(-50%, 120px)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
+    var tRaf = 0, tD = 0;
+    tEl.addEventListener('touchmove', function (e) { tD = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.animation = 'none'; if (!tRaf) tRaf = requestAnimationFrame(function () { tRaf = 0; tEl.style.transform = 'translate3d(-50%,' + tD + 'px,0)'; tEl.style.opacity = String(Math.max(0, 1 - tD / 90)); }); }, { passive: true });
+    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 7000 : 3500);
   }
