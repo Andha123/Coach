@@ -1336,3 +1336,23 @@ main::before { content: ""; position: absolute; left: 0; right: 0; top: 0; heigh
 .pgcard { border-radius: 18px; border: 1px solid var(--lg-edge, var(--glass-edge)); background: var(--lg-fill, var(--surface)); box-shadow: var(--lg-shadow, none); padding: 14px; }
 .pgform .pggt { margin-top: 12px; }
 .pgsave { width: 100%; min-height: 50px; margin-top: 6px; }
+
+/* ---------- Måltider som kan lukkes ---------- */
+.slottog { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 4px 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.slottog .st { display: flex; flex-direction: column; gap: 1px; flex: 0 1 auto; }
+.slottog .st small { font-family: var(--f-body); font-size: 12px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+.slottog .st small:empty { display: none; }
+.slchev { display: grid; place-items: center; width: 22px; height: 22px; margin-right: auto; opacity: .6; transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+.slchev svg { width: 18px; height: 18px; fill: none; stroke: var(--ink-2); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.slot.closed .slchev { transform: rotate(-90deg); }
+.slot .sd svg { display: none; }
+.slot.closed .sd { width: 20px; height: 20px; display: grid; place-items: center; box-shadow: 0 0 0 4px rgba(255, 255, 255, .04); }
+.slot.closed .sd svg { display: block; width: 13px; height: 13px; fill: none; stroke: #1b1511; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.slot.closed { padding-block: 10px; }
+.slot.closed .slotsum { font-size: 13px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 30px; margin-top: -4px; }
+.slotbody { display: flex; flex-direction: column; gap: 6px; }
+.slotdone { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; border: 1px solid var(--glass-edge); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 7px 13px 7px 10px; font: inherit; font-size: 13.5px; font-weight: 600; -webkit-tap-highlight-color: transparent; }
+.slotdone svg { width: 15px; height: 15px; fill: none; stroke: var(--ok, #7cc4a6); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.slotdone:active { transform: scale(.96); }
+.meal.single { padding-top: 2px; }
+@media (prefers-reduced-motion: no-preference) { .slotbody { animation: rise .22s ease-out; } }

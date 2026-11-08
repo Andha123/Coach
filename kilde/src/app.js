@@ -66,6 +66,8 @@
     right: '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    chevDown: '<svg viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></svg>',
     del: '<svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'
   };
 
@@ -1578,6 +1580,15 @@
       '<ul class="dleg">' + parts.map(function (x) { return '<li><i style="background:' + x.c + '"></i><span>' + x.k + '</span><b>' + Math.round(x.kcal / tot * 100) + ' %</b><em>' + fmt(x.g) + ' g</em></li>'; }).join('') + '</ul></div></div>';
   }
 
+  /* Lukkede måltider huskes per dag på denne enheten (de siste to ukene). */
+  function slotMem() { try { return JSON.parse(localStorage.getItem('coach.closedSlots') || '{}') || {}; } catch (e) { return {}; } }
+  function slotClosed(date, type) { var m = slotMem(); return !!(m[date] && m[date][type]); }
+  function setSlotClosed(date, type, on) {
+    var m = slotMem(), cut = C.addDays(today(), -14);
+    Object.keys(m).forEach(function (d) { if (d < cut) delete m[d]; });
+    m[date] = m[date] || {}; if (on) m[date][type] = 1; else delete m[date][type];
+    try { localStorage.setItem('coach.closedSlots', JSON.stringify(m)); } catch (e) {}
+  }
   function renderToday() {
     S.dirtyToday = false;
     var v = $('#v-idag');
@@ -1625,22 +1636,32 @@
     slots.forEach(function (type) {
       var ms = meals.filter(function (m) { return m.type === type; });
       var sum = E.sum([].concat.apply([], ms.map(function (m) { return m.items.map(function (i) { return i.values; }); }))).values;
-      html += '<div class="slot' + (ms.length ? '' : ' isempty') + '"><header><span class="sd ' + esc(type) + '"></span><span class="st">' + esc(SLOT_LABEL[type] || type) + '</span>' +
+      var closed = ms.length && slotClosed(date, type), nItems = ms.reduce(function (n, m) { return n + m.items.length; }, 0);
+      html += '<div class="slot' + (ms.length ? '' : ' isempty') + (closed ? ' closed' : '') + '"><header>' +
+        (ms.length ? '<button type="button" class="slottog" data-togslot="' + esc(type) + '" aria-expanded="' + !closed + '" aria-label="' + (closed ? 'Åpne ' : 'Lukk ') + esc(SLOT_LABEL[type] || type) + '">' : '<span class="slottog">') +
+        '<span class="sd ' + esc(type) + '">' + (closed ? ICON.check : '') + '</span><span class="st">' + esc(SLOT_LABEL[type] || type) +
+        (ms.length ? '<small>' + (closed ? esc(nItems + (nItems === 1 ? ' vare' : ' varer') + ' · trykk for å åpne') : '') + '</small>' : '') + '</span>' +
+        (ms.length ? '<span class="slchev">' + ICON.chevDown + '</span></button>' : '</span>') +
         (ms.length ? '<span class="mk">' + fmt(sum.kcal) + ' kcal<em>' + fmt(sum.protein) + ' g protein</em></span>' : '<span class="mk faint">–</span>') +
         '<button class="addbtn" data-addslot="' + esc(type) + '" aria-label="Legg til i ' + esc(SLOT_LABEL[type] || type) + '">+</button></header>';
+      if (closed) { html += '<div class="slotsum">' + esc(ms.map(function (m) { return m.items.length === 1 ? m.items[0].name : m.name; }).join(' · ')) + '</div></div>'; return; }
+      if (ms.length) html += '<div class="slotbody">';
       ms.forEach(function (m) {
-        html += '<div class="meal" data-meal="' + esc(m.id) + '"><div class="mhead"><span class="mn">' + esc(m.name) + '</span>' +
+        /* Ett måltid med én vare: bare varelinjen (ingen ekstra overskrift med samme navn). Krysset sletter da hele måltidet. */
+        var single = m.items.length === 1 && m.status === 'bekreftet' && !m.recipeRef;
+        html += '<div class="meal' + (single ? ' single' : '') + '" data-meal="' + esc(m.id) + '">' + (single ? '' : '<div class="mhead"><span class="mn">' + esc(m.name) + '</span>' +
           (m.status !== 'bekreftet' ? '<span class="pill ' + esc(m.status) + '">' + esc(m.status) + '</span>' : '') +
-          '<button class="xbtn" data-delmeal="' + esc(m.id) + '" aria-label="Slett ' + esc(m.name) + '">×</button></div>' +
+          '<button class="xbtn" data-delmeal="' + esc(m.id) + '" aria-label="Slett ' + esc(m.name) + '">×</button></div>') +
           '<table class="items"><tbody>' + m.items.map(function (i) {
             return '<tr data-item="' + esc(i.id) + '"><td class="n"><span class="nm">' + esc(i.name) + (i.estimated ? '<span class="est" title="Estimat">*</span>' : '') + '</span>' +
               '<span class="sub">' + esc([i.state, STATUS_TEXT[i.sourceStatus], i.amountSource === 'bilde-anslag' ? 'mengde anslått fra bilde' : ''].filter(Boolean).join(' · ')) + '</span></td>' +
               '<td class="a"><div class="amt"><input inputmode="decimal" aria-label="Mengde ' + esc(i.name) + '" value="' + esc(String(E.round(i.amount, 1)).replace('.', ',')) + '" data-old="' + esc(String(E.round(i.amount, 1))) + '"><span>' + esc(i.unit === 'g_med_skall' ? 'g m/skall' : i.unit) + '</span></div></td>' +
               '<td class="k">' + fmt(i.values.kcal) + '<span>kcal</span><em>' + fmt(i.values.protein, 1) + ' g P</em></td>' +
-              '<td class="x"><button class="xbtn" data-delitem="' + esc(i.id) + '" aria-label="Fjern ' + esc(i.name) + '">×</button></td></tr>';
+              '<td class="x"><button class="xbtn" ' + (single ? 'data-delmeal="' + esc(m.id) + '"' : 'data-delitem="' + esc(i.id) + '"') + ' aria-label="Fjern ' + esc(i.name) + '">×</button></td></tr>';
           }).join('') + '</tbody></table>' + (m.recipeRef ? '<div class="small faint">Fra oppskrift ' + esc(m.recipeRef.name) + ' v' + m.recipeRef.version + (m.recipeRef.variant ? ' · ' + esc(m.recipeRef.variant) : '') + '</div>' : '') + '</div>';
       });
       if (!ms.length) html += '<button class="slotempty" data-addslot="' + esc(type) + '">Legg til ' + esc((SLOT_LABEL[type] || type).toLowerCase()) + '</button>';
+      else html += '<button type="button" class="slotdone" data-togslot="' + esc(type) + '">' + ICON.check + 'Ferdig med ' + esc((SLOT_LABEL[type] || type).toLowerCase()) + '</button></div>';
       html += '</div>';
     });
     html += '<label class="row small muted" style="margin-top:14px"><input type="checkbox" id="dayComplete"' + (day.complete ? ' checked' : '') + '> Alt jeg spiste denne dagen er registrert</label></div>';
@@ -1657,6 +1678,7 @@
     if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
     if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
+    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () { setSlotClosed(date, b.dataset.togslot, !slotClosed(date, b.dataset.togslot)); renderToday(); }; });
     $('#dayComplete').onchange = async function (e) {
       var d = clone(S.days.get(date)) || { date: date, meals: [] };
       d.complete = e.target.checked;
