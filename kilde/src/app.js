@@ -3437,43 +3437,67 @@
     }); });
     return M;
   }
+  /* Muskelrød fra lys laks (lite trent) til dyp rød (mye trent), som på en anatomiplansje. */
   function heatColor(t) {
-    var stops = [[0, [255, 226, 196]], [.3, [255, 196, 140]], [.55, [244, 162, 97]], [.8, [232, 104, 58]], [1, [201, 55, 44]]];
+    var stops = [[0, [242, 168, 146]], [.35, [230, 112, 86]], [.7, [204, 60, 46]], [1, [158, 28, 22]]];
     for (var i = 1; i < stops.length; i++) if (t <= stops[i][0]) { var a = stops[i - 1], b = stops[i], f = (t - a[0]) / (b[0] - a[0]); return 'rgb(' + a[1].map(function (v, j) { return Math.round(v + (b[1][j] - v) * f); }).join(',') + ')'; }
-    return 'rgb(201,55,44)';
+    return 'rgb(158,28,22)';
+  }
+  /* Kroppsfiguren (se body.js): delene kobles til musklene i øvelsesbiblioteket. */
+  var BODY_KEY = {
+    front: { chest: 'CHEST', obliques: 'OBLIQUES', abs: 'ABS', biceps: 'BICEPS', triceps: 'TRICEPS', deltoids: 'FRONT_DELTOIDS', forearm: 'FOREARM', quadriceps: 'QUADRICEPS', adductors: 'ABDUCTORS', calves: 'CALVES', trapezius: 'TRAPEZIUS' },
+    back: { deltoids: 'BACK_DELTOIDS', trapezius: 'TRAPEZIUS', 'upper-back': 'UPPER_BACK', 'lower-back': 'LOWER_BACK', triceps: 'TRICEPS', forearm: 'FOREARM', gluteal: 'GLUTEAL', hamstring: 'HAMSTRING', adductors: 'ABDUCTOR', calves: 'CALVES' }
+  };
+  var BODY_SKIN = { head: 1, hair: 1, hands: 1, feet: 1, ankles: 1, knees: 1 };
+  /* Retning på muskelfibrene (grader fra loddrett) for venstre og høyre side. */
+  var BODY_FIB = { chest: [64, -64], obliques: [32, -32], adductors: [-20, 20], gluteal: [48, -48], 'upper-back': [36, -36], trapezius: [46, -46], quadriceps: [7, -7], deltoids: [6, -6], 'lower-back': [8, -8] };
+  function bodyDefs() {
+    var angs = {}; angs[0] = 1; Object.keys(BODY_FIB).forEach(function (k) { angs[BODY_FIB[k][0]] = 1; angs[BODY_FIB[k][1]] = 1; });
+    return '<defs>' + Object.keys(angs).map(function (a) {
+      return '<pattern id="bfib' + a + '" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(' + a + ')"><path d="M2 0V12" stroke="#4a0804" stroke-opacity=".26" stroke-width="2.4"/><path d="M8 0V12" stroke="#ffd9cc" stroke-opacity=".16" stroke-width="1.4"/></pattern>';
+    }).join('') +
+      '<radialGradient id="bRound" cx=".4" cy=".34" r=".78"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#3a0503" stop-opacity=".42"/></radialGradient>' +
+      '<radialGradient id="bRoundPale" cx=".4" cy=".34" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#6b4a3c" stop-opacity=".22"/></radialGradient>' +
+      '<linearGradient id="bSkin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6ebe4"/><stop offset=".55" stop-color="#e9d8ce"/><stop offset="1" stop-color="#cdb4a6"/></linearGradient>' +
+      '<radialGradient id="bFloor"><stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>';
+  }
+  function bodyFigure(side, M, o) {
+    var BD = window.COACH_BODY || {}, G = BD[o.female ? 'female' : 'male'] || BD.male; if (!G) return '';
+    var vb = G.vb[side === 'front' ? 0 : 1].split(' ').map(Number), map = BODY_KEY[side];
+    var base = '', act = '', hit = '';
+    G[side].forEach(function (p) {
+      var slug = p[0], d = p[2], k = map[slug], skin = BODY_SKIN[slug];
+      base += '<path d="' + d + '" class="' + (skin ? 'bsk' : 'bmu') + '"/>';
+      if (!skin) base += '<path d="' + d + '" fill="url(#bRoundPale)"/>';
+      var col = k ? o.color(k) : null;
+      if (col) {
+        var ang = (BODY_FIB[slug] || [0, 0])[p[1] === 'r' ? 1 : 0];
+        act += '<path d="' + d + '" fill="' + col + '" class="bact"/><path d="' + d + '" fill="url(#bfib' + ang + ')"/><path d="' + d + '" fill="url(#bRound)"/>';
+      }
+      if (k) hit += '<path d="' + d + '" data-m="' + k + '" class="mz' + (o.sel === k ? ' sel' : '') + '"/>';
+    });
+    var cx = vb[0] + vb[2] / 2;
+    return '<svg x="' + o.x + '" y="0" width="100" height="200" viewBox="' + vb.join(' ') + '" overflow="visible">' +
+      '<ellipse cx="' + cx + '" cy="' + (vb[1] + vb[3] - 14) + '" rx="190" ry="22" fill="url(#bFloor)"/>' +
+      '<path d="' + G.outline[side] + '" class="bout"/><g>' + base + '</g><g>' + act + '</g><g class="bhit">' + hit + '</g></svg>';
   }
   function muscleMapCard(M, o) {
     o = o || {};
-    var B = EXLIB.body || { front: [], back: [] }, N = EXLIB.muscleNames || {}, keys = Object.keys(M);
+    var N = EXLIB.muscleNames || {}, keys = Object.keys(M);
     var mx = Math.max.apply(null, keys.map(function (k) { return M[k].score; }).concat([1]));
     var sel = o.sel || null;
     function heatOf(k) { var d = M[k]; return d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : null; }
-    function layer(arr, kind) {
-      return arr.map(function (m) {
-        var k = mkey(m[0]), skel = /HEAD|KNEES|NECK/.test(m[0]), h = skel ? null : heatOf(k);
-        return m[1].map(function (pts) {
-          if (kind === 'base') return '<polygon points="' + pts + '"/>';
-          if (kind === 'heat') return h ? '<polygon points="' + pts + '" fill="' + h + '" stroke="' + h + '"/>' : '';
-          if (kind === 'line') return skel ? '' : '<polygon points="' + pts + '"/>';
-          if (kind === 'hit') return skel ? '' : '<polygon points="' + pts + '" data-m="' + k + '" class="mz' + (sel === k ? ' sel' : '') + '"/>';
-          return '';
-        }).join('');
-      }).join('');
-    }
-    function figure(arr, dx) {
-      return '<g transform="translate(' + dx + ' 0)"><ellipse class="mmfloor" cx="50" cy="197" rx="30" ry="3.2"/>' +
-        '<g class="mmbase">' + layer(arr, 'base') + '</g><g class="mmheat">' + layer(arr, 'heat') + '</g>' +
-        '<g class="mmline">' + layer(arr, 'line') + '</g><g class="mmgloss">' + layer(arr, 'base') + '</g><g class="mmhit">' + layer(arr, 'hit') + '</g></g>';
-    }
+    /* Valgt muskel: bare den farges. Ellers farges bare musklene som er trent i det du har valgt. */
+    function colorOf(k) { if (sel) return k === sel ? (heatOf(k) || 'rgb(230,112,86)') : null; return heatOf(k); }
+    var female = (S.profile || {}).sex === 'kvinne';
+    function figures() { return bodyDefs() + bodyFigure('front', M, { x: 0, sel: sel, color: colorOf, female: female }) + bodyFigure('back', M, { x: 100, sel: sel, color: colorOf, female: female }); }
     var ranked = keys.sort(function (a, b) { return M[b].score - M[a].score; });
     var ORDER = ['CHEST', 'FRONT_DELTOIDS', 'BACK_DELTOIDS', 'TRICEPS', 'BICEPS', 'FOREARM', 'UPPER_BACK', 'TRAPEZIUS', 'LOWER_BACK', 'ABS', 'OBLIQUES', 'GLUTEAL', 'QUADRICEPS', 'HAMSTRING', 'ABDUCTORS', 'ABDUCTOR', 'CALVES'];
     var html = '<div class="gcard musmap' + (o.compact ? ' compact' : '') + '">' +
       (o.picker ? '<div class="mmscope mmmus">' + ORDER.map(function (k) { var d = M[k]; return '<button type="button" class="mmpill' + (sel === k ? ' on' : '') + (d ? '' : ' cold') + '" data-msel="' + (sel === k ? '' : k) + '"><i style="background:' + (d ? heatColor(Math.min(1, .12 + .88 * d.score / mx)) : '#fff') + '"></i>' + esc(N[k] || k) + '</button>'; }).join('') + '</div>' : '') +
-      '<div class="mmfig"><svg viewBox="0 -4 215 206" aria-label="Muskelkart"><defs><linearGradient id="mmGloss" gradientUnits="userSpaceOnUse" x1="10" y1="0" x2="95" y2="200"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="#fff" stop-opacity=".08"/><stop offset=".7" stop-color="#000" stop-opacity=".05"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></linearGradient>' +
-      '<radialGradient id="mmFloor"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>' +
-      figure(B.front, 0) + figure(B.back, 115) + '</svg>' +
+      '<div class="mmfig' + (sel ? ' focus' : '') + '"><svg viewBox="0 -2 200 206" aria-label="Muskelkart">' + figures() + '</svg>' +
       '<div class="mmlbl"><span>Forfra</span><span>Bakfra</span></div></div>' +
-      '<div class="mmscale"><span>Ikke trent</span><i></i><span>Mye</span></div>';
+      (sel ? '' : '<div class="mmscale"><span>Lite</span><i></i><span>Mye</span></div>');
     if (!o.compact) {
       if (sel && !M[sel]) {
         html += '<div class="mmsel"><div class="mmselh"><span class="mmdot" style="background:#fff"></span><b>' + esc(N[sel] || sel) + '</b><button type="button" class="btn ghost sm" data-msel="">Alle muskler</button></div><p class="small muted" style="margin:0">Ikke trent i det du har valgt. Velg en annen periode eller økt over.</p></div>';
@@ -3499,7 +3523,7 @@
     var more = v.querySelector('#ts_more'); if (more) more.onclick = function () { S.trShowAll = true; rerender(); };
     v.querySelectorAll('[data-mscope]').forEach(function (b) { b.onclick = function () { S.musScope = b.dataset.mscope; S.musSel = null; rerender(); }; });
     v.querySelectorAll('[data-msel]').forEach(function (b) { b.onclick = function () { S.musSel = b.dataset.msel || null; rerender(); }; });
-    v.querySelectorAll('.musmap polygon[data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }); });
+    v.querySelectorAll('.musmap [data-m]').forEach(function (pg) { pg.addEventListener('click', function () { var k = pg.getAttribute('data-m'); S.musSel = S.musSel === k ? null : k; rerender(); }); });
   }
   /* Velg: hele perioden, en økttype (Push viser alle muskler brukt på push) eller én bestemt økt */
   function muscleSectionHtml(cur, opts) {

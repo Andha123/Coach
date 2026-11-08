@@ -19,6 +19,9 @@ ${src('logo.js')}
 ${src('exercises.js')}
 </script>
 <script>
+${src('body.js')}
+</script>
+<script>
 ${src('engine.js')}
 </script>
 <script>
@@ -77,6 +80,9 @@ ${src('standalone.js')}
 </script>
 <script>
 ${src('exercises.js')}
+</script>
+<script>
+${src('body.js')}
 </script>
 <script>
 ${src('engine.js')}

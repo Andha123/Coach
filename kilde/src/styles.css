@@ -1238,3 +1238,33 @@ html.kb .sheet { padding-bottom: 12px; max-height: 96%; }
   .addsheet { gap: 8px; }
   .afunits button, .afmt button { padding-block: 6px; }
 }
+
+/* ---------- Muskelkart: anatomisk figur ----------
+   Lys «hud» og hvite seneskiller som på en anatomiplansje; trente muskler i muskelrødt med fibre og volum. */
+.mmfig { padding: 16px 6px 6px; background: radial-gradient(60% 55% at 50% 38%, rgba(255, 226, 200, .14), rgba(255, 226, 200, 0) 72%), radial-gradient(120% 80% at 50% 100%, rgba(0, 0, 0, .4), rgba(0, 0, 0, 0)); }
+.mmfig svg { max-width: 400px; overflow: visible; }
+.mmfig .bout { fill: url(#bSkin); stroke: rgba(255, 240, 230, .35); stroke-width: 3; }
+.mmfig .bsk { fill: #efe2da; stroke: #d8c3b7; stroke-width: 2; stroke-linejoin: round; }
+.mmfig .bmu { fill: #ecdcd2; stroke: #fbf6f2; stroke-width: 3.2; stroke-linejoin: round; }
+.mmfig .bact { stroke: #fbeee8; stroke-width: 3; stroke-linejoin: round; }
+.mmfig .mz { fill: transparent; stroke: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mmfig .mz.sel { stroke: #fff; stroke-width: 7; stroke-linejoin: round; filter: drop-shadow(0 0 10px rgba(255, 120, 90, .9)); }
+.mmfig.focus .bmu { fill: #e6d6cc; }
+.mmscale i { background: linear-gradient(90deg, rgb(242, 168, 146), rgb(230, 112, 86), rgb(204, 60, 46), rgb(158, 28, 22)); }
+@media (prefers-reduced-motion: no-preference) { .mmfig .bact { animation: mmIn .5s ease-out both; } }
+@keyframes mmIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Toppen: tydelig hilsen og «Coach» i blankt metall med lys som glir over ---------- */
+.topbar .brand small { color: rgba(251, 246, 241, .74); font-weight: 600; font-size: 13px; letter-spacing: .005em; }
+.brand .bt {
+  font-weight: 800; letter-spacing: -.035em; padding-right: 2px;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .05) 0%, rgba(255, 255, 255, 0) 40%, rgba(30, 18, 10, .45) 100%),
+    linear-gradient(100deg, #8c817a 0%, #b0a59e 18%, #ece5df 30%, #ffffff 37%, #fffaf5 41%, #ddd4cd 48%, #a69a93 60%, #8a7e77 72%, #b6aba4 86%, #efe8e2 100%);
+  background-size: 100% 100%, 320% 100%; background-position: 0 0, 100% 0; background-repeat: no-repeat;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, .35));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .brand .bt { animation: btShine 5.5s cubic-bezier(.45, 0, .25, 1) infinite alternate; }
+}
+@keyframes btShine { from { background-position: 0 0, 100% 0; } to { background-position: 0 0, 0% 0; } }
