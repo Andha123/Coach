@@ -43,7 +43,7 @@ const web = `<!doctype html>
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Coach</title>
 <meta name="description" content="Coach – mat, trening og fremgang.">
 <meta name="theme-color" content="#120e0b">

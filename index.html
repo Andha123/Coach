@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Coach</title>
 <meta name="description" content="Coach – mat, trening og fremgang.">
 <meta name="theme-color" content="#120e0b">
@@ -1476,12 +1476,18 @@ nav.tabs button[aria-current="page"] svg { transform: translateY(-1px) scale(1.0
 .scanner.hit .scanhint { color: #b8f5cf; }
 .scanbot .btn { background: rgba(30, 24, 20, .55); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, .16); color: #fff; }
 
+/* iPhone zoomer inn når man trykker i et tekstfelt med skrift under 16 px. Alle felt er minst 16 px på mobil. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: max(16px, 1em) !important; }
+  .amt input { font-size: 16px !important; }
+}
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794125497464';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794126336005';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -3641,7 +3647,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
       function rootH() { return root.getBoundingClientRect().height; }
       function fix() {
-        if (typing()) return;
+        if (typing() || zoomed()) return;
         if (window.innerHeight < maxH - 4) {
           var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
           root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
@@ -3698,7 +3704,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       function set() {
         de.style.setProperty('--vvh', Math.round(vv.height) + 'px');
         de.style.setProperty('--vvt', Math.round(Math.max(0, vv.offsetTop)) + 'px');
-        de.classList.toggle('kb', window.innerHeight - vv.height > 120);
+        de.classList.toggle('kb', vv.scale < 1.01 && window.innerHeight - vv.height > 120);
       }
       vv.addEventListener('resize', set); vv.addEventListener('scroll', set); set();
       document.addEventListener('focusin', function (e) {
@@ -3707,7 +3713,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       });
     })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
-    document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
+    document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { unzoom(); resetPageScroll(); } }, 60); });
     window.addEventListener('scroll', function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, { passive: true });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (window.visualViewport.height > window.innerHeight * 0.85) resetPageScroll(); });
     window.addEventListener('orientationchange', function () { setTimeout(resetPageScroll, 300); });
@@ -4311,7 +4317,17 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     v.scrollTo({ top: Math.max(0, y), behavior: MOTION ? 'smooth' : 'auto' });
     resetPageScroll();
   }
-  function resetPageScroll() { if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
+  /* Er siden zoomet inn (iPhone zoomer når man trykker i et lite felt), skal appen ikke flytte på noe. */
+  function zoomed() { return !!(window.visualViewport && window.visualViewport.scale > 1.01); }
+  /* Tilbakestill zoom: bytt viewport-taggen kort, så iPhone hopper tilbake til normal størrelse. */
+  function unzoom() {
+    if (!zoomed()) return;
+    var m = document.querySelector('meta[name="viewport"]'); if (!m) return;
+    var c = m.getAttribute('content');
+    m.setAttribute('content', 'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover');
+    setTimeout(function () { m.setAttribute('content', c); window.scrollTo(0, 0); }, 60);
+  }
+  function resetPageScroll() { if (zoomed()) return; if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
 
   /* ---------- Enheter: gram eller stk ----------
    * Frukt, grønnsaker og ferdigvarer kan registreres som stk. Vekten per stk er lagret på varen, en typisk vekt

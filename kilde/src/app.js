@@ -352,7 +352,7 @@
       function typing() { var a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && a.type !== 'button'; }
       function rootH() { return root.getBoundingClientRect().height; }
       function fix() {
-        if (typing()) return;
+        if (typing() || zoomed()) return;
         if (window.innerHeight < maxH - 4) {
           var sc = Array.prototype.map.call(document.querySelectorAll('.view, .sheet'), function (el) { return [el, el.scrollTop]; });
           root.style.display = 'none'; void root.offsetHeight; root.style.display = '';
@@ -409,7 +409,7 @@
       function set() {
         de.style.setProperty('--vvh', Math.round(vv.height) + 'px');
         de.style.setProperty('--vvt', Math.round(Math.max(0, vv.offsetTop)) + 'px');
-        de.classList.toggle('kb', window.innerHeight - vv.height > 120);
+        de.classList.toggle('kb', vv.scale < 1.01 && window.innerHeight - vv.height > 120);
       }
       vv.addEventListener('resize', set); vv.addEventListener('scroll', set); set();
       document.addEventListener('focusin', function (e) {
@@ -418,7 +418,7 @@
       });
     })();
     /* iPhone: tastatur og rulling kan skyve hele appen opp og la en stripe stå igjen nederst. Hold siden i ro. */
-    document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, 60); });
+    document.addEventListener('focusout', function () { setTimeout(function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { unzoom(); resetPageScroll(); } }, 60); });
     window.addEventListener('scroll', function () { if (!document.activeElement || !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) resetPageScroll(); }, { passive: true });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (window.visualViewport.height > window.innerHeight * 0.85) resetPageScroll(); });
     window.addEventListener('orientationchange', function () { setTimeout(resetPageScroll, 300); });
@@ -1022,7 +1022,17 @@
     v.scrollTo({ top: Math.max(0, y), behavior: MOTION ? 'smooth' : 'auto' });
     resetPageScroll();
   }
-  function resetPageScroll() { if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
+  /* Er siden zoomet inn (iPhone zoomer når man trykker i et lite felt), skal appen ikke flytte på noe. */
+  function zoomed() { return !!(window.visualViewport && window.visualViewport.scale > 1.01); }
+  /* Tilbakestill zoom: bytt viewport-taggen kort, så iPhone hopper tilbake til normal størrelse. */
+  function unzoom() {
+    if (!zoomed()) return;
+    var m = document.querySelector('meta[name="viewport"]'); if (!m) return;
+    var c = m.getAttribute('content');
+    m.setAttribute('content', 'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover');
+    setTimeout(function () { m.setAttribute('content', c); window.scrollTo(0, 0); }, 60);
+  }
+  function resetPageScroll() { if (zoomed()) return; if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
 
   /* ---------- Enheter: gram eller stk ----------
    * Frukt, grønnsaker og ferdigvarer kan registreres som stk. Vekten per stk er lagret på varen, en typisk vekt
