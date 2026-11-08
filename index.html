@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Coach</title>
 <meta name="description" content="Coach – mat, trening og fremgang.">
 <meta name="theme-color" content="#120e0b">
@@ -1482,12 +1482,42 @@ nav.tabs button[aria-current="page"] svg { transform: translateY(-1px) scale(1.0
   .amt input { font-size: 16px !important; }
 }
 
+/* Ingen knipe- eller dobbelttrykk-zoom noe sted i appen; rulling og trykk virker som vanlig. */
+html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ---------- Mykere overganger ----------
+   Én felles, myk kurve (rask start, lang og rolig slutt) for faner, ark, sider og kort. */
+:root { --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.3, 1.25, .45, 1); }
+@media (prefers-reduced-motion: no-preference) {
+  .view.enter.fromR { animation: viewInR .44s var(--ease-out); }
+  .view.enter.fromL { animation: viewInL .44s var(--ease-out); }
+  .view.enter:not(.fromR):not(.fromL) { animation: viewIn .4s var(--ease-out); }
+  /* Innholdet kommer inn litt etter hverandre, så siden «bygger seg opp» mykt */
+  .view.enter > *, .view.enter > .section > *, .view.enter > div > .gcard { animation: riseIn .5s var(--ease-out) both; }
+  .view.enter > *:nth-child(2) { animation-delay: .03s; } .view.enter > *:nth-child(3) { animation-delay: .06s; }
+  .view.enter > *:nth-child(4) { animation-delay: .09s; } .view.enter > *:nth-child(5) { animation-delay: .12s; }
+  .view.enter > *:nth-child(n+6) { animation-delay: .14s; }
+  .page { transition: transform .46s var(--ease-out), filter .46s var(--ease-out); }
+  .page.out { transition: transform .32s cubic-bezier(.4, 0, .9, .4); }
+  .sheet-bg .sheet { animation: sheetUp2 .5s var(--ease-out); }
+  .sheet-bg.closing .sheet { animation: sheetDown .26s cubic-bezier(.4, 0, .9, .4) forwards; }
+  .toast { animation: toastIn2 .42s var(--ease-spring); }
+  .slot, .gcard, .li, .tile { transition: transform .2s var(--ease-out), background-color .25s, box-shadow .25s; }
+  .afcard .afkc b, .afamtv b { transition: background .12s; }
+}
+@keyframes viewInR { from { opacity: 0; transform: translate3d(22px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes viewInL { from { opacity: 0; transform: translate3d(-22px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes riseIn { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+@keyframes sheetUp2 { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
+@keyframes toastIn2 { from { opacity: 0; transform: translate(-50%, 24px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
+.page, .sheet, .view, nav.tabs .tabind { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794126336005';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794126492173';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -3789,6 +3819,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       if (on && changed && MOTION) {
         v.classList.remove('enter', 'fromL', 'fromR'); void v.offsetWidth;
         v.classList.add('enter'); if (from >= 0 && to >= 0) v.classList.add(to > from ? 'fromR' : 'fromL');
+        clearTimeout(v._enterT); v._enterT = setTimeout(function () { v.classList.remove('enter', 'fromL', 'fromR'); }, 700);
       }
     });
     document.querySelectorAll('#tabs button').forEach(function (b) { if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -4327,6 +4358,13 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     m.setAttribute('content', 'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover');
     setTimeout(function () { m.setAttribute('content', c); window.scrollTo(0, 0); }, 60);
   }
+  /* Ingen zoom i appen: Safari overser «user-scalable=no», så knip og dobbelttrykk stoppes her (og med touch-action i CSS). */
+  (function () {
+    function stop(e) { e.preventDefault(); }
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, stop, { passive: false }); });
+    document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (zoomed() && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) unzoom(); });
+  })();
   function resetPageScroll() { if (zoomed()) return; if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
 
   /* ---------- Enheter: gram eller stk ----------
@@ -5000,7 +5038,27 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
     if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
-    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () { haptic(); setSlotClosed(date, b.dataset.togslot, !slotClosed(date, b.dataset.togslot)); renderToday(); }; });
+    /* Lukk/åpne måltid med glidende høyde i stedet for et hopp. */
+    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () {
+      haptic();
+      var type = b.dataset.togslot, closing = !slotClosed(date, type), slot = b.closest('.slot'), body = slot && slot.querySelector('.slotbody');
+      if (!MOTION || !slot) { setSlotClosed(date, type, closing); renderToday(); return; }
+      if (closing && body) {
+        var h0 = slot.offsetHeight; slot.style.height = h0 + 'px'; slot.style.overflow = 'hidden';
+        body.style.transition = 'opacity .18s ease'; body.style.opacity = '0';
+        var hd = slot.querySelector('header'), h1 = hd ? hd.offsetHeight + 28 : 70;
+        requestAnimationFrame(function () { slot.style.transition = 'height .32s cubic-bezier(.22, 1, .36, 1)'; slot.style.height = h1 + 'px'; });
+        setTimeout(function () { setSlotClosed(date, type, true); renderToday(); }, 300);
+        return;
+      }
+      var hc = slot.offsetHeight;
+      setSlotClosed(date, type, false); renderToday();
+      var idx = Array.prototype.indexOf.call(v.querySelectorAll('.slot'), slot), ns = v.querySelectorAll('.slot')[idx];
+      if (!ns) return;
+      var hn = ns.offsetHeight; ns.style.height = hc + 'px'; ns.style.overflow = 'hidden';
+      requestAnimationFrame(function () { ns.style.transition = 'height .38s cubic-bezier(.22, 1, .36, 1)'; ns.style.height = hn + 'px'; });
+      setTimeout(function () { ns.style.height = ''; ns.style.overflow = ''; ns.style.transition = ''; }, 420);
+    }; });
     $('#dayComplete').onchange = async function (e) {
       var d = clone(S.days.get(date)) || { date: date, meals: [] };
       d.complete = e.target.checked;

@@ -494,6 +494,7 @@
       if (on && changed && MOTION) {
         v.classList.remove('enter', 'fromL', 'fromR'); void v.offsetWidth;
         v.classList.add('enter'); if (from >= 0 && to >= 0) v.classList.add(to > from ? 'fromR' : 'fromL');
+        clearTimeout(v._enterT); v._enterT = setTimeout(function () { v.classList.remove('enter', 'fromL', 'fromR'); }, 700);
       }
     });
     document.querySelectorAll('#tabs button').forEach(function (b) { if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -1032,6 +1033,13 @@
     m.setAttribute('content', 'width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,viewport-fit=cover');
     setTimeout(function () { m.setAttribute('content', c); window.scrollTo(0, 0); }, 60);
   }
+  /* Ingen zoom i appen: Safari overser «user-scalable=no», så knip og dobbelttrykk stoppes her (og med touch-action i CSS). */
+  (function () {
+    function stop(e) { e.preventDefault(); }
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, stop, { passive: false }); });
+    document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { if (zoomed() && !(document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName))) unzoom(); });
+  })();
   function resetPageScroll() { if (zoomed()) return; if (window.scrollY || window.scrollX || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } }
 
   /* ---------- Enheter: gram eller stk ----------
@@ -1705,7 +1713,27 @@
     if ($('#btnSetup')) $('#btnSetup').onclick = function () { openOnboarding(true); };
     if ($('#btnGoals')) $('#btnGoals').onclick = openCalculator;
     v.querySelectorAll('[data-addslot]').forEach(function (b) { b.onclick = function () { openAddItem(date, null, b.dataset.addslot); }; });
-    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () { haptic(); setSlotClosed(date, b.dataset.togslot, !slotClosed(date, b.dataset.togslot)); renderToday(); }; });
+    /* Lukk/åpne måltid med glidende høyde i stedet for et hopp. */
+    v.querySelectorAll('[data-togslot]').forEach(function (b) { b.onclick = function () {
+      haptic();
+      var type = b.dataset.togslot, closing = !slotClosed(date, type), slot = b.closest('.slot'), body = slot && slot.querySelector('.slotbody');
+      if (!MOTION || !slot) { setSlotClosed(date, type, closing); renderToday(); return; }
+      if (closing && body) {
+        var h0 = slot.offsetHeight; slot.style.height = h0 + 'px'; slot.style.overflow = 'hidden';
+        body.style.transition = 'opacity .18s ease'; body.style.opacity = '0';
+        var hd = slot.querySelector('header'), h1 = hd ? hd.offsetHeight + 28 : 70;
+        requestAnimationFrame(function () { slot.style.transition = 'height .32s cubic-bezier(.22, 1, .36, 1)'; slot.style.height = h1 + 'px'; });
+        setTimeout(function () { setSlotClosed(date, type, true); renderToday(); }, 300);
+        return;
+      }
+      var hc = slot.offsetHeight;
+      setSlotClosed(date, type, false); renderToday();
+      var idx = Array.prototype.indexOf.call(v.querySelectorAll('.slot'), slot), ns = v.querySelectorAll('.slot')[idx];
+      if (!ns) return;
+      var hn = ns.offsetHeight; ns.style.height = hc + 'px'; ns.style.overflow = 'hidden';
+      requestAnimationFrame(function () { ns.style.transition = 'height .38s cubic-bezier(.22, 1, .36, 1)'; ns.style.height = hn + 'px'; });
+      setTimeout(function () { ns.style.height = ''; ns.style.overflow = ''; ns.style.transition = ''; }, 420);
+    }; });
     $('#dayComplete').onchange = async function (e) {
       var d = clone(S.days.get(date)) || { date: date, meals: [] };
       d.complete = e.target.checked;

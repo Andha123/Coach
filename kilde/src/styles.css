@@ -1455,3 +1455,33 @@ nav.tabs button[aria-current="page"] svg { transform: translateY(-1px) scale(1.0
   input, select, textarea { font-size: max(16px, 1em) !important; }
   .amt input { font-size: 16px !important; }
 }
+
+/* Ingen knipe- eller dobbelttrykk-zoom noe sted i appen; rulling og trykk virker som vanlig. */
+html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ---------- Mykere overganger ----------
+   Én felles, myk kurve (rask start, lang og rolig slutt) for faner, ark, sider og kort. */
+:root { --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.3, 1.25, .45, 1); }
+@media (prefers-reduced-motion: no-preference) {
+  .view.enter.fromR { animation: viewInR .44s var(--ease-out); }
+  .view.enter.fromL { animation: viewInL .44s var(--ease-out); }
+  .view.enter:not(.fromR):not(.fromL) { animation: viewIn .4s var(--ease-out); }
+  /* Innholdet kommer inn litt etter hverandre, så siden «bygger seg opp» mykt */
+  .view.enter > *, .view.enter > .section > *, .view.enter > div > .gcard { animation: riseIn .5s var(--ease-out) both; }
+  .view.enter > *:nth-child(2) { animation-delay: .03s; } .view.enter > *:nth-child(3) { animation-delay: .06s; }
+  .view.enter > *:nth-child(4) { animation-delay: .09s; } .view.enter > *:nth-child(5) { animation-delay: .12s; }
+  .view.enter > *:nth-child(n+6) { animation-delay: .14s; }
+  .page { transition: transform .46s var(--ease-out), filter .46s var(--ease-out); }
+  .page.out { transition: transform .32s cubic-bezier(.4, 0, .9, .4); }
+  .sheet-bg .sheet { animation: sheetUp2 .5s var(--ease-out); }
+  .sheet-bg.closing .sheet { animation: sheetDown .26s cubic-bezier(.4, 0, .9, .4) forwards; }
+  .toast { animation: toastIn2 .42s var(--ease-spring); }
+  .slot, .gcard, .li, .tile { transition: transform .2s var(--ease-out), background-color .25s, box-shadow .25s; }
+  .afcard .afkc b, .afamtv b { transition: background .12s; }
+}
+@keyframes viewInR { from { opacity: 0; transform: translate3d(22px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes viewInL { from { opacity: 0; transform: translate3d(-22px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes riseIn { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+@keyframes sheetUp2 { from { transform: translate3d(0, 100%, 0); } to { transform: none; } }
+@keyframes toastIn2 { from { opacity: 0; transform: translate(-50%, 24px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
+.page, .sheet, .view, nav.tabs .tabind { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
