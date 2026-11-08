@@ -1877,23 +1877,29 @@
    * uten at bakgrunnen tegnes på nytt underveis. Starter bare når arket er rullet helt opp og du drar nedover. */
   function sheetDrag(bg) {
     var sh = bg.querySelector('.sheet'); if (!sh) return;
-    var y0 = 0, x0 = 0, dy = 0, lastY = 0, lastT = 0, vel = 0, mode = 0, raf = 0;
+    /* Åpne-animasjonen skal bare gå én gang; ellers starter den på nytt når draget slippes og arket hopper. */
+    sh.addEventListener('animationend', function () { sh.style.animation = 'none'; }, { once: true });
+    setTimeout(function () { sh.style.animation = 'none'; }, 700);
+    var y0 = 0, x0 = 0, dy = 0, lastY = 0, lastT = 0, vel = 0, mode = 0, raf = 0, grab = false;
     function paint() { raf = 0; sh.style.transform = 'translate3d(0,' + dy + 'px,0)'; }
     sh.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) { mode = -1; return; }
       var t = e.target;
-      if (t.closest('input, textarea, select, .afchips, .mmscope, .numpad')) { mode = -1; return; }
-      y0 = lastY = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; vel = 0; lastT = e.timeStamp; mode = sh.scrollTop <= 0 ? 0 : -1;
+      grab = !!t.closest('.sh') || (e.touches[0].clientY - sh.getBoundingClientRect().top) < 34;
+      if (!grab && t.closest('input, textarea, select, .afchips, .mmscope, .numpad')) { mode = -1; return; }
+      y0 = lastY = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; vel = 0; lastT = e.timeStamp; mode = grab || sh.scrollTop <= 0 ? 0 : -1;
     }, { passive: true });
     sh.addEventListener('touchmove', function (e) {
       if (mode < 0) return;
       var cy = e.touches[0].clientY, y = cy - y0, x = e.touches[0].clientX - x0;
       if (mode === 0) {
-        if (Math.abs(y) < 4 && Math.abs(x) < 4) return;
-        if (y > 0 && y >= Math.abs(x) && sh.scrollTop <= 0) { mode = 1; y0 = cy; sh.classList.add('dragging'); bg.classList.add('dragging'); }
+        /* Hindre at iPhone begynner å rulle/strekke innholdet før vi har bestemt oss: da følger bare arket fingeren. */
+        if (y >= 0 && (grab || sh.scrollTop <= 0) && e.cancelable) e.preventDefault();
+        if (Math.abs(y) < 5 && Math.abs(x) < 5) return;
+        if (y > 0 && y >= Math.abs(x) * .8 && (grab || sh.scrollTop <= 0)) { mode = 1; y0 = cy - 1; sh.classList.add('dragging'); bg.classList.add('dragging'); }
         else { mode = -1; return; }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       var dt = Math.max(1, e.timeStamp - lastT); vel = .8 * ((cy - lastY) / dt) + .2 * vel; lastY = cy; lastT = e.timeStamp;
       dy = Math.max(0, cy - y0);
       if (!raf) raf = requestAnimationFrame(paint);
@@ -1964,8 +1970,9 @@
       bg.style.transition = 'opacity ' + d + 'ms ease'; bg.classList.add('fading');
       setTimeout(function () { bg.remove(); }, d + 20); return;
     }
+    if (sh) sh.style.animation = '';
     bg.classList.add('closing');
-    setTimeout(function () { bg.remove(); }, 220);
+    setTimeout(function () { bg.remove(); }, 260);
   }
 
   /* ---------- Strekkode ----------

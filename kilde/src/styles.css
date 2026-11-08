@@ -1377,7 +1377,7 @@ nav.tabs button[aria-current="page"] svg { transform: translateY(-1px) scale(1.0
 @keyframes viewInR { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 @keyframes viewInL { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
 /* Ark og sider som dras */
-.sheet.dragging, .page.dragging { transition: none !important; animation: none !important; }
+.sheet.dragging, .page.dragging { transition: none !important; }
 .sheet { transition: transform .32s cubic-bezier(.2, .9, .25, 1); }
 .sheet-bg { transition: background-color .25s; }
 @media (prefers-reduced-motion: no-preference) {
@@ -1515,3 +1515,7 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 .sheet-bg.dragging { transition: none; }
 .toast { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(44, 35, 28, .97) !important; will-change: transform; }
 .page { contain: layout paint; }
+
+/* Håndtaket og tittelen øverst i arket tar alltid imot dra-ned (ingen rulling der). */
+.sheet::before, .sheet .sh { touch-action: none; }
+.sheet { overscroll-behavior-y: none; }

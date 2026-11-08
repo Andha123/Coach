@@ -1403,7 +1403,7 @@ nav.tabs button[aria-current="page"] svg { transform: translateY(-1px) scale(1.0
 @keyframes viewInR { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
 @keyframes viewInL { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
 /* Ark og sider som dras */
-.sheet.dragging, .page.dragging { transition: none !important; animation: none !important; }
+.sheet.dragging, .page.dragging { transition: none !important; }
 .sheet { transition: transform .32s cubic-bezier(.2, .9, .25, 1); }
 .sheet-bg { transition: background-color .25s; }
 @media (prefers-reduced-motion: no-preference) {
@@ -1542,12 +1542,16 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 .toast { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: rgba(44, 35, 28, .97) !important; will-change: transform; }
 .page { contain: layout paint; }
 
+/* Håndtaket og tittelen øverst i arket tar alltid imot dra-ned (ingen rulling der). */
+.sheet::before, .sheet .sh { touch-action: none; }
+.sheet { overscroll-behavior-y: none; }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794126744415';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794126946434';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -5232,23 +5236,29 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
    * uten at bakgrunnen tegnes på nytt underveis. Starter bare når arket er rullet helt opp og du drar nedover. */
   function sheetDrag(bg) {
     var sh = bg.querySelector('.sheet'); if (!sh) return;
-    var y0 = 0, x0 = 0, dy = 0, lastY = 0, lastT = 0, vel = 0, mode = 0, raf = 0;
+    /* Åpne-animasjonen skal bare gå én gang; ellers starter den på nytt når draget slippes og arket hopper. */
+    sh.addEventListener('animationend', function () { sh.style.animation = 'none'; }, { once: true });
+    setTimeout(function () { sh.style.animation = 'none'; }, 700);
+    var y0 = 0, x0 = 0, dy = 0, lastY = 0, lastT = 0, vel = 0, mode = 0, raf = 0, grab = false;
     function paint() { raf = 0; sh.style.transform = 'translate3d(0,' + dy + 'px,0)'; }
     sh.addEventListener('touchstart', function (e) {
       if (e.touches.length !== 1) { mode = -1; return; }
       var t = e.target;
-      if (t.closest('input, textarea, select, .afchips, .mmscope, .numpad')) { mode = -1; return; }
-      y0 = lastY = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; vel = 0; lastT = e.timeStamp; mode = sh.scrollTop <= 0 ? 0 : -1;
+      grab = !!t.closest('.sh') || (e.touches[0].clientY - sh.getBoundingClientRect().top) < 34;
+      if (!grab && t.closest('input, textarea, select, .afchips, .mmscope, .numpad')) { mode = -1; return; }
+      y0 = lastY = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; vel = 0; lastT = e.timeStamp; mode = grab || sh.scrollTop <= 0 ? 0 : -1;
     }, { passive: true });
     sh.addEventListener('touchmove', function (e) {
       if (mode < 0) return;
       var cy = e.touches[0].clientY, y = cy - y0, x = e.touches[0].clientX - x0;
       if (mode === 0) {
-        if (Math.abs(y) < 4 && Math.abs(x) < 4) return;
-        if (y > 0 && y >= Math.abs(x) && sh.scrollTop <= 0) { mode = 1; y0 = cy; sh.classList.add('dragging'); bg.classList.add('dragging'); }
+        /* Hindre at iPhone begynner å rulle/strekke innholdet før vi har bestemt oss: da følger bare arket fingeren. */
+        if (y >= 0 && (grab || sh.scrollTop <= 0) && e.cancelable) e.preventDefault();
+        if (Math.abs(y) < 5 && Math.abs(x) < 5) return;
+        if (y > 0 && y >= Math.abs(x) * .8 && (grab || sh.scrollTop <= 0)) { mode = 1; y0 = cy - 1; sh.classList.add('dragging'); bg.classList.add('dragging'); }
         else { mode = -1; return; }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       var dt = Math.max(1, e.timeStamp - lastT); vel = .8 * ((cy - lastY) / dt) + .2 * vel; lastY = cy; lastT = e.timeStamp;
       dy = Math.max(0, cy - y0);
       if (!raf) raf = requestAnimationFrame(paint);
@@ -5319,8 +5329,9 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       bg.style.transition = 'opacity ' + d + 'ms ease'; bg.classList.add('fading');
       setTimeout(function () { bg.remove(); }, d + 20); return;
     }
+    if (sh) sh.style.animation = '';
     bg.classList.add('closing');
-    setTimeout(function () { bg.remove(); }, 220);
+    setTimeout(function () { bg.remove(); }, 260);
   }
 
   /* ---------- Strekkode ----------
