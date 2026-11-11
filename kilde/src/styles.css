@@ -1519,3 +1519,8 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 /* Håndtaket og tittelen øverst i arket tar alltid imot dra-ned (ingen rulling der). */
 .sheet::before, .sheet .sh { touch-action: none; }
 .sheet { overscroll-behavior-y: none; }
+
+/* Kroppsvektøvelser */
+.bwhint { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); background: rgba(124, 196, 166, .08); border: 1px solid rgba(124, 196, 166, .22); border-radius: 12px; padding: 8px 10px; margin: 2px 0 4px; }
+.bwhint b { color: #9fd9bf; font-weight: 650; margin-right: 4px; }
+.setrow.bw input[data-f="w"]::placeholder { color: #9fd9bf; opacity: .8; }

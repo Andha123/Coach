@@ -181,9 +181,16 @@
   var MUSCLE_NAMES = { CHEST: 'Bryst', FRONT_DELTOIDS: 'Fremre skulder', BACK_DELTOIDS: 'Bakre skulder', TRICEPS: 'Triceps', BICEPS: 'Biceps', UPPER_BACK: 'Øvre rygg', LOWER_BACK: 'Korsrygg',
     TRAPEZIUS: 'Trapes', FOREARM: 'Underarm', GLUTEAL: 'Sete', HAMSTRING: 'Bakside lår', QUADRICEPS: 'Forside lår', CALVES: 'Legger', LEFT_SOLEUS: 'Legger', RIGHT_SOLEUS: 'Legger',
     ABS: 'Mage', OBLIQUES: 'Skrå magemuskler', ABDUCTORS: 'Innside lår', ABDUCTOR: 'Hofte', NECK: 'Nakke' };
+  /* Kroppsvektøvelser: hvor stor del av kroppsvekten du løfter (brukes til «totalt løftet»). Armhevinger ca. 64 %
+   * (Ebben mfl. 2011), opptrekk og dips nær hele kroppsvekten. Mageøvelser teller bare reps (0). Ekstra vekt legges til.
+   * TIMED: øvelser som måles i sekunder. */
+  var BW = { 'Pull-up': 1, 'Chin-up': 1, 'Dips': .95, 'Chest dips': .95, 'Bench dips': .5, 'Push-up': .64, 'Inverted row': .55, 'Back extension': .45, 'Nordic curl': .5,
+    'Hanging leg raise': 0, 'Captain\'s chair leg raise': 0, 'Plank': 0, 'Side plank': 0, 'Crunch': 0, 'Decline sit-up': 0, 'Dead bug': 0, 'Ab wheel rollout': 0, 'Russian twist': 0, 'Burpee': 0 };
+  var TIMED = { 'Plank': 1, 'Side plank': 1 };
   var list = L.map(function (x) {
     var core = x[0].charAt(0) === '*', name = core ? x[0].slice(1) : x[0];
-    return { name: name, aliases: x[1].split(',').map(function (a) { return a.trim(); }).filter(Boolean), group: x[2], core: core, art: ART[name] || null, muscles: MUSCLES[name] || GROUP_MUSCLES[x[2]] };
+    return { name: name, aliases: x[1].split(',').map(function (a) { return a.trim(); }).filter(Boolean), group: x[2], core: core, art: ART[name] || null, muscles: MUSCLES[name] || GROUP_MUSCLES[x[2]],
+      bw: BW.hasOwnProperty(name) ? BW[name] : null, timed: !!TIMED[name] };
   });
   var SPLIT_GROUPS = {
     Push: ['bryst', 'skuldre', 'triceps'],

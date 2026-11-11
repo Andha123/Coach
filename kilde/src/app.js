@@ -3232,7 +3232,8 @@
     return order.map(function (k) { var c = m[k], l = lastFor(c.name, excludeId, volume); c.last = l; if (l) c.name = l.name; return c; });
   }
   function shortDate(ds) { return new Date(ds + 'T12:00:00').toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace(/\./g, ''); }
-  function setTxt(x) { return (x.weightKg !== null && x.weightKg !== undefined ? fmt(x.weightKg, 2) : '–') + ' × ' + (x.reps !== null && x.reps !== undefined ? fmt(x.reps, 1) : '–'); }
+  /* Uten kg men med reps = kroppsvekt («KV × 12»). */
+  function setTxt(x) { var hw = x.weightKg !== null && x.weightKg !== undefined, hr = x.reps !== null && x.reps !== undefined; return (hw ? fmt(x.weightKg, 2) : hr ? 'KV' : '–') + ' × ' + (x.reps !== null && x.reps !== undefined ? fmt(x.reps, 1) : '–'); }
   function knownExercises() {
     var m = {};
     doneWorkouts().slice().reverse().forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (k) m[k] = e.name; }); });
@@ -3244,9 +3245,22 @@
     return w ? w.exercises.map(function (e) { return { name: e.name, sets: (e.sets && e.sets.length ? e.sets : [{}]).map(function () { return { w: '', r: '' }; }) }; }) : [];
   }
   /* Total vekt løftet = summen av kg × reps for alle sett. */
-  function setsVolume(sets) { return (sets || []).reduce(function (a, x) { var w = E.num(x.weightKg !== undefined ? x.weightKg : x.w), r = E.num(x.reps !== undefined ? x.reps : x.r); return a + (w && r ? w * r : 0); }, 0); }
-  function workoutVolume(w) { return (w.exercises || []).reduce(function (a, e) { return a + setsVolume(e.sets); }, 0); }
-  function draftVolume(d) { return d.exercises.reduce(function (a, e) { return a + setsVolume(e.sets); }, 0); }
+  /* Kroppsvekt: andelen av kroppsvekten øvelsen løfter (null = vanlig øvelse med vekt). */
+  function bwFactor(name) { var lx = name ? libFor(name) : null; return lx && typeof lx.bw === 'number' ? lx.bw : null; }
+  function isTimed(name) { var lx = name ? libFor(name) : null; return !!(lx && lx.timed); }
+  function bodyKg() { var w = S.weights && S.weights.length ? E.num(S.weights[S.weights.length - 1].kg) : null; return w || E.num((S.profile || {}).weightKg) || null; }
+  /* Volum = kg × reps. På kroppsvektøvelser regnes kg som (andel × kroppsvekt) + eventuell ekstra vekt. */
+  function setsVolume(sets, name) {
+    var f = bwFactor(name), bk = f ? bodyKg() : null;
+    if (isTimed(name)) return 0;
+    return (sets || []).reduce(function (a, x) {
+      var w = E.num(x.weightKg !== undefined ? x.weightKg : x.w), r = E.num(x.reps !== undefined ? x.reps : x.r);
+      if (f !== null) { var eff = (w || 0) + (f && bk ? f * bk : 0); return a + (r ? eff * r : 0); }
+      return a + (w && r ? w * r : 0);
+    }, 0);
+  }
+  function workoutVolume(w) { return (w.exercises || []).reduce(function (a, e) { return a + setsVolume(e.sets, e.name); }, 0); }
+  function draftVolume(d) { return d.exercises.reduce(function (a, e) { return a + setsVolume(e.sets, e.name); }, 0); }
   function draftSetCount(d) { return d.exercises.reduce(function (a, e) { return a + e.sets.filter(function (x) { return E.num(x.w) !== null || E.num(x.r) !== null; }).length; }, 0); }
   function kgTxt(v) { return v >= 10000 ? fmt(v / 1000, 1) + ' tonn' : fmt(v) + ' kg'; }
   var CHEV_D = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
@@ -3315,16 +3329,17 @@
         var done = e.sets.filter(function (x) { return String(x.w).trim() || String(x.r).trim(); });
         return '<div class="exrow folded" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><button type="button" class="exfold" data-lg="fold" aria-expanded="false" aria-label="Åpne ' + esc(e.name) + '">' +
           '<span class="exthumbwrap">' + exThumb(e.name, 'sm') + '<span class="exok" aria-hidden="true">✓</span></span><span class="exft"><b>' + esc(e.name || 'Øvelse') + '</b><span>' + (done.length ? done.length + ' sett · ' + esc(done.map(function (x) { return (String(x.w).trim().replace('.', ',') || '–') + ' × ' + (String(x.r).trim().replace('.', ',') || '–'); }).join(', ')) : 'Ingen sett') + '</span></span>' +
-          '<span class="exfv">' + (setsVolume(e.sets) ? kgTxt(setsVolume(e.sets)) : '') + '</span>' + CHEV_D + '</button></div>';
+          '<span class="exfv">' + (setsVolume(e.sets, e.name) ? kgTxt(setsVolume(e.sets, e.name)) : '') + '</span>' + CHEV_D + '</button></div>';
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist' + (d.volume && isVol(last.title) ? ' volum' : '') + '</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + otherType + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
+        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b> ' + (isTimed(e.name) ? 'Skriv hvor mange sekunder du holdt. Kg-feltet er bare for ekstra vekt.' : 'Skriv bare reps. Kg-feltet er bare for ekstra vekt (vektbelte, manual, vektvest).') + (f && bodyKg() ? ' Teller som ' + fmt(f * bodyKg()) + ' kg i totalen (' + Math.round(f * 100) + ' % av ' + fmt(bodyKg(), 1) + ' kg).' : '') + '</div>'; })() +
         e.sets.map(function (x, j) {
-          var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {};
-          return '<div class="setrow" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
-            '<label class="unitin"><input class="input" data-f="w" inputmode="decimal" value="' + esc(x.w) + '" placeholder="' + (ph.weightKg !== null && ph.weightKg !== undefined ? fmt(ph.weightKg, 2) : 'kg') + '"><span>kg</span></label>' +
+          var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {}, bw = bwFactor(e.name) !== null, tm = isTimed(e.name);
+          return '<div class="setrow' + (bw ? ' bw' : '') + '" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
+            '<label class="unitin"><input class="input" data-f="w" inputmode="decimal" value="' + esc(x.w) + '" placeholder="' + (ph.weightKg !== null && ph.weightKg !== undefined ? fmt(ph.weightKg, 2) : bw ? 'KV' : 'kg') + '"><span>' + (bw ? '+kg' : 'kg') + '</span></label>' +
             '<span class="times">×</span>' +
-            '<label class="unitin"><input class="input" data-f="r" inputmode="decimal" value="' + esc(x.r) + '" placeholder="' + (ph.reps !== null && ph.reps !== undefined ? fmt(ph.reps, 1) : 'reps') + '"><span>reps</span></label>' +
+            '<label class="unitin"><input class="input" data-f="r" inputmode="decimal" value="' + esc(x.r) + '" placeholder="' + (ph.reps !== null && ph.reps !== undefined ? fmt(ph.reps, 1) : tm ? 'sek' : 'reps') + '"><span>' + (tm ? 'sek' : 'reps') + '</span></label>' +
             (e.sets.length > 1 ? '<button type="button" class="xbtn" data-lg="delset" aria-label="Fjern sett">×</button>' : '<span style="width:30px"></span>') + '</div>';
         }).join('') +
         '<button type="button" class="btn ghost sm addset" data-lg="addset">+ Sett</button></div>';
@@ -3617,7 +3632,7 @@
           return '<div class="lgtot">' + t('Tid', c.durationMin ? fmt(c.durationMin) + ' min' : '') + t('Distanse', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '') + t('Snittpuls', c.avgHr ? fmt(c.avgHr) : '') + t('Kalorier', c.kcal ? fmt(c.kcal) : '') + '</div>' +
             '<div class="small muted">' + esc([cap(c.modality || ''), c.speedKmh ? fmt(c.speedKmh, 1) + ' km/t' : '', c.inclinePct ? c.inclinePct + ' % stigning' : '', c.intensity ? c.intensity : ''].filter(Boolean).join(' · ')) + '</div>' + (w.notes ? '<p class="small">' + esc(w.notes) + '</p>' : ''); })() : '') +
         (hasEx ? muscleMapCard(muscleLoad([w]), { compact: true }) : '') +
-        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : (w.type === 'styrke' ? '<p class="small muted">Ingen øvelser registrert på denne økten.</p>' : '')) +
+        (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets, e.name); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : (w.type === 'styrke' ? '<p class="small muted">Ingen øvelser registrert på denne økten.</p>' : '')) +
         (w.type === 'styrke' ? '<div class="row"><button class="btn primary" id="wo_edit">' + (hasEx ? 'Endre' : 'Legg inn øvelser') + '</button>' + (hasEx ? '<button class="btn" id="wo_tpl">Bruk som mal i dag</button>' : '') + '</div>' : '') +
         '<button type="button" class="btn ghost danger-text" id="wo_del">Slett økta</button><div id="wo_delbox"></div></div>';
       $('#wo_del').onclick = function () {
@@ -3677,7 +3692,7 @@
     sessions.forEach(function (w) { (w.exercises || []).forEach(function (e) {
       var vs = (e.sets || []).filter(hasVal); if (!vs.length) return;
       var lx = libFor(e.name); if (!lx || !lx.muscles) return;
-      var vol = setsVolume(vs);
+      var vol = setsVolume(vs, e.name);
       function add(m, f, prim) {
         var k = mkey(m), o = M[k] || (M[k] = { key: k, score: 0, direct: 0, help: 0, vol: 0, ex: {} });
         o.score += vs.length * f; o.vol += vol * f; if (prim) o.direct += vs.length; else o.help += vs.length;
@@ -3850,7 +3865,7 @@
       if (!opts.noMuscles) html += muscleSectionHtml(cur);
       /* Øvelser med mest volum */
       var exs = {};
-      cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
+      cur.forEach(function (w) { w.exercises.forEach(function (e) { var k = exKey(e.name); if (!k) return; var o = exs[k] || (exs[k] = { name: e.name, vol: 0, sets: 0, best: null }); o.vol += setsVolume(e.sets, e.name); (e.sets || []).filter(hasVal).forEach(function (x) { o.sets++; if (!o.best || e1(x) > e1(o.best)) o.best = x; }); }); });
       var top = Object.keys(exs).map(function (k) { return exs[k]; }).sort(function (x, y) { return y.vol - x.vol; });
       html += '<div class="section"><h3>Øvelser</h3><div class="list">' + top.slice(0, 8).map(function (o) {
         return '<button type="button" class="li" data-exh="' + esc(o.name) + '">' + exThumb(o.name) + '<div class="grow"><div class="t1">' + esc(o.name) + '</div><div class="t2">' + o.sets + ' sett' + (o.best ? ' · beste ' + esc(setTxt(o.best)) : '') + '</div></div><div class="kc">' + kgTxt(o.vol) + '<span class="faint small">løftet</span></div></button>';
