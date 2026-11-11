@@ -1528,3 +1528,12 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 .cdest { font-size: 12.5px; line-height: 1.45; color: var(--ink-3); margin: -2px 2px 0; }
 .cdest:empty { display: none; }
 .cdest b { color: var(--accent); font-weight: 700; }
+
+/* «Nytt i Coach» */
+.notice-new { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
+.notice-new .nnicon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(150deg, #f7b77e, #e0823d); box-shadow: 0 10px 24px rgba(244, 162, 97, .35); }
+.notice-new .nnicon svg { width: 30px; height: 30px; stroke: #2a1708; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.notice-new h3 { font-size: 21px; margin: 4px 0 0; letter-spacing: -.02em; }
+.notice-new p { margin: 0; color: var(--ink-2); line-height: 1.5; }
+.notice-new ul { margin: 0; padding-left: 20px; color: var(--ink-2); line-height: 1.55; font-size: 14.5px; }
+.notice-new .row { margin-top: 6px; }

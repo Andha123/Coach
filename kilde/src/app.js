@@ -259,6 +259,7 @@
     }, err('recipes'));
     db.doc('meta/garminSync').onSnapshot(function (d) { S.garminMeta = d.exists ? clone(d.data()) : null; scheduleRender(); }, function () {});
     db.doc('meta/profile').onSnapshot(function (d) { S.profile = d.exists ? clone(d.data()) : null; mark('profile'); }, err('profile'));
+    db.doc('meta/notice').onSnapshot(function (d) { S.notice = d.exists ? clone(d.data()) : null; setTimeout(maybeNotice, 1500); }, function () {});
     setTimeout(restoreDraft, 300);
     db.collection('days').orderBy('date', 'desc').limit(120).onSnapshot(function (snap) {
       S.days = new Map(); snap.docs.forEach(function (d) { S.days.set(d.id, clone(d.data())); }); mark('days');
@@ -4459,6 +4460,24 @@
   /* ---------- Egne velgere i stedet for iPhone-hjulet ----------
    * Alle <select class="input"> får en knapp i Coach-stil; valget skrives tilbake til select-feltet og sender «change». */
   var CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
+  /* ---------- «Nytt i Coach»: en melding til brukeren (lagres i meta/notice), vises én gang ----------
+   * Felter: title, text, items[], action ({ label, view, trType }). Når den lukkes, merkes den som sett. */
+  function maybeNotice() {
+    var n = S.notice;
+    if (!n || n.seen || maybeNotice._shown === n.id || $('#sheetBg') || document.querySelector('.onb, .scanner, .splash')) return;
+    maybeNotice._shown = n.id;
+    function markSeen() { try { repo.set('meta/notice', Object.assign({}, n, { seen: true, seenAt: new Date().toISOString() })); } catch (e) {} }
+    openSheet('Nytt i Coach', function (body) {
+      body.innerHTML = '<div class="notice-new"><div class="nnicon">' + (CI.run || '') + '</div><h3>' + esc(n.title || 'Nyhet') + '</h3>' +
+        '<p>' + esc(n.text || '') + '</p>' +
+        ((n.items || []).length ? '<ul>' + n.items.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') +
+        '<div class="row">' + (n.action ? '<button type="button" class="btn primary grow" id="nn_go">' + esc(n.action.label || 'Prøv nå') + '</button>' : '') + '<button type="button" class="btn' + (n.action ? '' : ' primary grow') + '" id="nn_ok">Ok</button></div></div>';
+      $('#nn_ok').onclick = function () { markSeen(); closeSheet(); };
+      var g = $('#nn_go'); if (g) g.onclick = function () { markSeen(); closeSheet(); if (n.action.trType) { S.trType = n.action.trType; S.trTab = 'logg'; } if (n.action.view) go(n.action.view); };
+    });
+    var bg = $('#sheetBg'); if (bg) bg.addEventListener('click', function (e) { if (e.target === bg) markSeen(); });
+    var cl = $('#sheetClose'); if (cl) cl.addEventListener('click', markSeen);
+  }
   /* ---------- Egen kalender (i stedet for iPhone sin datovelger) ----------
    * Måned med mandag først, i dag markert med ring, valgt dag fylt, prikk på dager med økter. Sveip eller piler bytter måned. */
   var MONTHS = ['januar', 'februar', 'mars', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'desember'];
