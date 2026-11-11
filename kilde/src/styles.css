@@ -1524,3 +1524,7 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 .bwhint { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); background: rgba(124, 196, 166, .08); border: 1px solid rgba(124, 196, 166, .22); border-radius: 12px; padding: 8px 10px; margin: 2px 0 4px; }
 .bwhint b { color: #9fd9bf; font-weight: 650; margin-right: 4px; }
 .setrow.bw input[data-f="w"]::placeholder { color: #9fd9bf; opacity: .8; }
+
+.cdest { font-size: 12.5px; line-height: 1.45; color: var(--ink-3); margin: -2px 2px 0; }
+.cdest:empty { display: none; }
+.cdest b { color: var(--accent); font-weight: 700; }

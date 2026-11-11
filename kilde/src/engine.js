@@ -478,6 +478,32 @@
     return { values: s.values, missing: s.missing, items: items, estimated: estimated };
   }
 
+  /* Kaloriforbruk for kondisjonsøkter (grovt estimat, brutto kcal inkl. hvile). I prioritert rekkefølge:
+   * 1) Snittpuls + alder + kjønn + vekt: Keytel mfl. 2005 (J Sports Sci 23:289), gyldig ved jevn innsats (puls ≥ 90).
+   * 2) Fart kjent for gange/løping: ACSM-likningene for oksygenopptak (gange 0,1·v + 1,8·v·stigning + 3,5; løping 0,2·v + 0,9·v·stigning + 3,5
+   *    ml/kg/min, v i m/min), 5 kcal per liter O2.
+   * 3) Ellers MET-verdier fra Compendium of Physical Activities (2024) etter aktivitet og hvor hardt: kcal = MET × kg × timer. */
+  var ACT_MET = {
+    'løping': [8.0, 9.8, 11.8], 'gåtur': [3.0, 3.8, 5.0], 'tredemølle': [3.5, 5.0, 8.0], 'sykkel': [5.8, 7.5, 10.0], 'spinning': [6.8, 8.5, 10.5],
+    'roing': [4.8, 7.0, 8.5], 'ellipse': [4.0, 5.0, 6.8], 'svømming': [5.8, 7.0, 9.8], 'annet': [4.0, 6.0, 8.0]
+  };
+  function cardioKcal(o) {
+    o = o || {};
+    var min = num(o.min), kg = num(o.kg) || 75, km = num(o.km), hr = num(o.hr), age = num(o.age), grade = (num(o.inclinePct) || 0) / 100;
+    if (!min || min <= 0) return null;
+    var mod = String(o.mod || 'annet').toLowerCase(), lvl = { lett: 0, moderat: 1, hard: 2 }[o.intensity] !== undefined ? { lett: 0, moderat: 1, hard: 2 }[o.intensity] : 1;
+    if (hr && hr >= 90 && age && (o.sex === 'mann' || o.sex === 'kvinne') && num(o.kg)) {
+      var perMin = o.sex === 'kvinne' ? (-20.4022 + 0.4472 * hr - 0.1263 * kg + 0.074 * age) / 4.184 : (-55.0969 + 0.6309 * hr + 0.1988 * kg + 0.2017 * age) / 4.184;
+      if (perMin > 2) return { kcal: Math.round(perMin * min), method: 'puls' };
+    }
+    if (km && (mod === 'løping' || mod === 'gåtur' || mod === 'tredemølle')) {
+      var v = km * 1000 / min, run = mod === 'løping' || (mod === 'tredemølle' && v > 134), vo2 = run ? 0.2 * v + 0.9 * v * grade + 3.5 : 0.1 * v + 1.8 * v * grade + 3.5;
+      return { kcal: Math.round(vo2 * kg / 1000 * 5 * min), method: 'fart' };
+    }
+    var met = (ACT_MET[mod] || ACT_MET.annet)[lvl];
+    return { kcal: Math.round(met * kg * min / 60), method: 'met' };
+  }
+
   var api = {
     NUTRIENTS: NUTRIENTS, CORE: CORE, LABELS: LABELS,
     num: num, normUnit: normUnit, stkWeight: stkWeight, toBasis: toBasis, scale: scale, calcItem: calcItem, sum: sum, divide: divide,
@@ -486,7 +512,7 @@
     mifflin: mifflin, weightTrend: weightTrend, adaptiveTdee: adaptiveTdee, rollingAvg: rollingAvg,
     mealSignature: mealSignature, findDuplicate: findDuplicate, dayTotals: dayTotals,
     estimateEnergy: estimateEnergy, computeTargets: computeTargets, recommendAdjustment: recommendAdjustment,
-    e1rm: e1rm, parseRepRange: parseRepRange, progressionSuggestion: progressionSuggestion
+    e1rm: e1rm, parseRepRange: parseRepRange, progressionSuggestion: progressionSuggestion, cardioKcal: cardioKcal
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.Engine = api;

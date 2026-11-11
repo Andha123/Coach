@@ -3629,7 +3629,7 @@
       body.innerHTML = '<div class="stack"><div class="small muted">' + esc(cap(dateLabel(w.date))) + (w.durationMin ? ' · ' + fmt(w.durationMin) + ' min' : '') + (w.avgHr ? ' · puls ' + fmt(w.avgHr) : '') + (w.source === 'garmin' ? ' · Garmin' : '') + '</div>' +
         (wv ? '<div class="lgtot"><div><span>Totalt løftet</span><b>' + kgTxt(wv) + '</b></div><div><span>Sett</span><b>' + ns + '</b></div><div><span>Øvelser</span><b>' + w.exercises.length + '</b></div></div>' : '') +
         (w.cardio ? (function () { var c = w.cardio; function t(k, v) { return v ? '<div><span>' + k + '</span><b>' + v + '</b></div>' : ''; }
-          return '<div class="lgtot">' + t('Tid', c.durationMin ? fmt(c.durationMin) + ' min' : '') + t('Distanse', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '') + t('Snittpuls', c.avgHr ? fmt(c.avgHr) : '') + t('Kalorier', c.kcal ? fmt(c.kcal) : '') + '</div>' +
+          return '<div class="lgtot">' + t('Tid', c.durationMin ? fmt(c.durationMin) + ' min' : '') + t('Distanse', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '') + t('Snittpuls', c.avgHr ? fmt(c.avgHr) : '') + t(c.kcalEstimated ? 'Kalorier (estimat)' : 'Kalorier', c.kcal ? (c.kcalEstimated ? '≈ ' : '') + fmt(c.kcal) : '') + '</div>' +
             '<div class="small muted">' + esc([cap(c.modality || ''), c.speedKmh ? fmt(c.speedKmh, 1) + ' km/t' : '', c.inclinePct ? c.inclinePct + ' % stigning' : '', c.intensity ? c.intensity : ''].filter(Boolean).join(' · ')) + '</div>' + (w.notes ? '<p class="small">' + esc(w.notes) + '</p>' : ''); })() : '') +
         (hasEx ? muscleMapCard(muscleLoad([w]), { compact: true }) : '') +
         (hasEx ? '<div class="tbl"><table><tbody>' + w.exercises.map(function (e) { var ev = setsVolume(e.sets, e.name); return '<tr><td>' + esc(e.name) + (ev ? '<div class="small faint">' + kgTxt(ev) + '</div>' : '') + '</td><td class="r">' + ((e.sets || []).map(setTxt).join('<br>') || '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : (w.type === 'styrke' ? '<p class="small muted">Ingen øvelser registrert på denne økten.</p>' : '')) +
@@ -3916,7 +3916,7 @@
   function cardioSessions(r) { return S.workouts.filter(function (w) { return !w.planned && w.type === 'kondisjon' && (!r || (w.date >= r.from && w.date <= r.to)); }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (a.createdAt || '') < (b.createdAt || '') ? 1 : -1; }); }
   function cardioLine(w) {
     var c = w.cardio || {}, mod = (c.modality || 'annet').toLowerCase();
-    var det = [c.durationMin ? fmt(c.durationMin) + ' min' : '', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '', c.avgHr ? 'puls ' + fmt(c.avgHr) : '', c.kcal ? fmt(c.kcal) + ' kcal' : ''].filter(Boolean).join(' · ');
+    var det = [c.durationMin ? fmt(c.durationMin) + ' min' : '', c.distanceKm ? fmt(c.distanceKm, 2) + ' km' : '', c.avgHr ? 'puls ' + fmt(c.avgHr) : '', c.kcal ? (c.kcalEstimated ? '≈ ' : '') + fmt(c.kcal) + ' kcal' : ''].filter(Boolean).join(' · ');
     return '<button type="button" class="li" data-wid="' + esc(w.id) + '"><span class="cdico" aria-hidden="true">' + (CARDIO_ICON[mod] || CI.heart) + '</span><div class="grow"><div class="t1">' + esc(w.title || cap(mod)) + (w.source === 'garmin' ? ' <span class="pill garmin">Garmin</span>' : '') + '</div><div class="t2">' + esc(cap(dateLabel(w.date)) + (det ? ' · ' + det : '')) + '</div></div></button>';
   }
   function cardioLoggerHtml() {
@@ -3928,14 +3928,26 @@
     return '<div class="gcard logger cardio">' +
       '<div class="lghead"><div class="lgdate"><span>' + esc(c.date === today() ? 'I dag' : cap(dateLabel(c.date))) + '</span><input id="cd_date" type="text" readonly tabindex="-1" inputmode="none" data-datepick="cardio" value="' + esc(c.date) + '" aria-label="Dato"></div><span class="small faint">Kondisjonsøkt</span></div>' +
       '<div class="splits cdtypes">' + CARDIO_TYPES.map(function (x) { return '<button type="button" class="splitbtn' + (c.mod === x[0] ? ' on' : '') + '" data-cmod="' + x[0] + '">' + (CARDIO_ICON[x[0]] || '') + ' ' + x[1] + '</button>'; }).join('') + '</div>' +
-      '<div class="grid2">' + num('cd_min', 'Tid', c.min, 'min', '30') + num('cd_km', 'Distanse', c.km, 'km', 'valgfritt') + num('cd_hr', 'Snittpuls', c.hr, 'bpm', 'valgfritt') + num('cd_kcal', 'Kalorier', c.kcal, 'kcal', 'valgfritt') +
+      '<div class="grid2">' + num('cd_min', 'Tid', c.min, 'min', '30') + num('cd_km', 'Distanse', c.km, 'km', 'valgfritt') + num('cd_hr', 'Snittpuls', c.hr, 'bpm', 'valgfritt') + num('cd_kcal', 'Kalorier', c.kcal, 'kcal', (function () { var e0 = cardioEst(c); return e0 ? '≈ ' + fmt(e0.kcal) : 'valgfritt'; })()) +
       (c.mod === 'tredemølle' || c.mod === 'gåtur' ? num('cd_inc', 'Stigning', c.inc, '%', 'valgfritt') : '') + '</div>' +
       '<div id="cd_speed" class="small faint" style="margin:-4px 2px 0">' + cardioSpeedTxt(c) + '</div>' +
+      '<div id="cd_est" class="cdest">' + cardioEstTxt(c) + '</div>' +
       '<div class="field"><label>Hvor hardt?</label><div class="seg cdint" role="group">' + [['lett', 'Lett'], ['moderat', 'Moderat'], ['hard', 'Hard']].map(function (x) { return '<button type="button" data-cint="' + x[0] + '" aria-pressed="' + (c.intensity === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></div>' +
       '<div class="field"><label for="cd_notes">Notat</label><input class="input" id="cd_notes" value="' + esc(c.notes) + '" placeholder="valgfritt"></div>' +
       '<div id="cd_msg"></div><button type="button" class="btn primary" id="cd_save" style="min-height:50px">Lagre kondisjonsøkt</button></div>' +
       '<div class="section"><h3 style="margin:0">Kondisjonsøkter</h3><div class="small faint" style="margin:2px 2px 0">Denne uka: ' + wk.length + ' økt' + (wk.length === 1 ? '' : 'er') + (wkMin ? ' · ' + fmt(wkMin) + ' min' : '') + (wkKm ? ' · ' + fmt(wkKm, 1) + ' km' : '') + '</div>' +
       (list.length ? '<div class="list" style="margin-top:10px">' + list.map(cardioLine).join('') + '</div>' : '<p class="small muted">Ingen kondisjonsøkter ennå. Økter fra Garmin og de du lagrer her, vises her.</p>') + '</div>';
+  }
+  /* Grovt kaloriestimat når du ikke har tall fra klokka (se Engine.cardioKcal for kildene). */
+  function cardioEst(c) {
+    var p = S.profile || {};
+    return E.cardioKcal({ mod: c.mod, min: c.min, km: c.km, hr: c.hr, inclinePct: c.inc, intensity: c.intensity, kg: bodyKg(), age: p.age, sex: p.sex });
+  }
+  function cardioEstTxt(c) {
+    if (E.num(c.kcal) !== null) return '';
+    var e0 = cardioEst(c); if (!e0) return '';
+    var how = { puls: 'snittpuls, alder og vekt', fart: 'fart' + (E.num(c.inc) ? ', stigning' : '') + ' og vekt', met: 'aktivitet, hvor hardt og vekt' }[e0.method];
+    return '<b>≈ ' + fmt(e0.kcal) + ' kcal</b> estimert ut fra ' + how + (bodyKg() ? '' : ' (vekt ukjent, regner med 75 kg)') + '. Lagres som estimat hvis du ikke skriver inn tall fra klokka.';
   }
   function cardioSpeedTxt(c) {
     var m = E.num(c.min), k = E.num(c.km);
@@ -3947,23 +3959,25 @@
   function bindCardioLogger(v) {
     var c = S.cardioDraft, box = v.querySelector('.logger.cardio'); if (!box) return;
     function save() { try { localStorage.setItem('coach.cardioDraft', JSON.stringify(c)); } catch (e) {} }
+    function updEst() { var es = $('#cd_est'); if (es) es.innerHTML = cardioEstTxt(c); var k = $('#cd_kcal'), e0 = cardioEst(c); if (k) k.placeholder = e0 ? '≈ ' + fmt(e0.kcal) : 'valgfritt'; }
     [['cd_min', 'min'], ['cd_km', 'km'], ['cd_hr', 'hr'], ['cd_kcal', 'kcal'], ['cd_inc', 'inc'], ['cd_notes', 'notes']].forEach(function (x) {
-      var el = $('#' + x[0]); if (el) el.addEventListener('input', function () { c[x[1]] = el.value; save(); var sp = $('#cd_speed'); if (sp) sp.textContent = cardioSpeedTxt(c); });
+      var el = $('#' + x[0]); if (el) el.addEventListener('input', function () { c[x[1]] = el.value; save(); var sp = $('#cd_speed'); if (sp) sp.textContent = cardioSpeedTxt(c); updEst(); });
     });
     $('#cd_date').onchange = function (e) { c.date = e.target.value || today(); save(); renderTraining(); };
     box.querySelectorAll('[data-cmod]').forEach(function (b) { b.onclick = function () { c.mod = b.dataset.cmod; save(); renderTraining(); }; });
-    box.querySelectorAll('[data-cint]').forEach(function (b) { b.onclick = function () { c.intensity = b.dataset.cint; box.querySelectorAll('[data-cint]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); save(); }; });
+    box.querySelectorAll('[data-cint]').forEach(function (b) { b.onclick = function () { c.intensity = b.dataset.cint; box.querySelectorAll('[data-cint]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); save(); updEst(); }; });
     $('#cd_save').onclick = async function () {
       var min = E.num(c.min), msg = $('#cd_msg');
       if (!min || min <= 0) { msg.innerHTML = '<div class="notice bad">Skriv inn hvor mange minutter økta varte.</div>'; $('#cd_min').focus(); return; }
       var km = E.num(c.km), label = (CARDIO_TYPES.find(function (x) { return x[0] === c.mod; }) || ['', 'Kondisjon'])[1];
+      var kcal = E.num(c.kcal), est = kcal === null ? cardioEst(c) : null;
       this.disabled = true;
       try {
         await C.logWorkout(ctx, { date: c.date, type: 'kondisjon', title: label, notes: c.notes.trim(),
-          cardio: { modality: c.mod, duration_min: min, distance_km: km, avg_hr: E.num(c.hr), kcal: E.num(c.kcal), incline_pct: E.num(c.inc), speed_kmh: km ? km / min * 60 : null, intensity: c.intensity } });
+          cardio: { modality: c.mod, duration_min: min, distance_km: km, avg_hr: E.num(c.hr), kcal: kcal !== null ? kcal : (est ? est.kcal : null), kcal_estimated: kcal === null && !!est, incline_pct: E.num(c.inc), speed_kmh: km ? km / min * 60 : null, intensity: c.intensity } });
         S.cardioDraft = { date: today(), mod: c.mod, min: '', km: '', hr: '', kcal: '', inc: '', intensity: c.intensity, notes: '' };
         try { localStorage.removeItem('coach.cardioDraft'); } catch (e) {}
-        toast(label + ' lagret · ' + fmt(min) + ' min' + (km ? ' · ' + fmt(km, 1) + ' km' : ''));
+        toast(label + ' lagret · ' + fmt(min) + ' min' + (km ? ' · ' + fmt(km, 1) + ' km' : '') + (kcal !== null ? ' · ' + fmt(kcal) + ' kcal' : est ? ' · ≈ ' + fmt(est.kcal) + ' kcal' : ''));
         renderTraining();
       } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; this.disabled = false; }
     };

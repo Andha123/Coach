@@ -490,7 +490,7 @@
         modality: args.cardio.modality || 'tredemølle',
         durationMin: E.num(args.cardio.duration_min), speedKmh: E.num(args.cardio.speed_kmh), inclinePct: E.num(args.cardio.incline_pct),
         distanceKm: E.num(args.cardio.distance_km), rpe: E.num(args.cardio.rpe),
-        avgHr: E.num(args.cardio.avg_hr), maxHr: E.num(args.cardio.max_hr), kcal: E.num(args.cardio.kcal),
+        avgHr: E.num(args.cardio.avg_hr), maxHr: E.num(args.cardio.max_hr), kcal: E.num(args.cardio.kcal), kcalEstimated: !!args.cardio.kcal_estimated && E.num(args.cardio.kcal) !== null,
         intensity: ['lett', 'moderat', 'hard'].indexOf(args.cardio.intensity) >= 0 ? args.cardio.intensity : null
       } : null,
       notes: args.notes || '', createdAt: nowIso(ctx)
