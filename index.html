@@ -1639,7 +1639,7 @@ html.kp-open .sheet { padding-bottom: 350px !important; }
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794458239477';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794459911682';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -2051,8 +2051,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   var MUSCLE_NAMES = { CHEST: 'Bryst', FRONT_DELTOIDS: 'Fremre skulder', BACK_DELTOIDS: 'Bakre skulder', TRICEPS: 'Triceps', BICEPS: 'Biceps', UPPER_BACK: 'Øvre rygg', LOWER_BACK: 'Korsrygg',
     TRAPEZIUS: 'Trapes', FOREARM: 'Underarm', GLUTEAL: 'Sete', HAMSTRING: 'Bakside lår', QUADRICEPS: 'Forside lår', CALVES: 'Legger', LEFT_SOLEUS: 'Legger', RIGHT_SOLEUS: 'Legger',
     ABS: 'Mage', OBLIQUES: 'Skrå magemuskler', ABDUCTORS: 'Innside lår', ABDUCTOR: 'Hofte', NECK: 'Nakke' };
-  /* Kroppsvektøvelser: hvor stor del av kroppsvekten du løfter (brukes til «totalt løftet»). Armhevinger ca. 64 %
-   * (Ebben mfl. 2011), opptrekk og dips nær hele kroppsvekten. Mageøvelser teller bare reps (0). Ekstra vekt legges til.
+  /* Kroppsvektøvelser (tomt kg-felt = kroppsvekt). Tallet er omtrent hvor stor del av kroppsvekten øvelsen løfter
+   * (armhevinger ca. 64 %, Ebben mfl. 2011); det brukes ikke i «totalt løftet», som bare teller vekten du skriver inn.
    * TIMED: øvelser som måles i sekunder. */
   var BW = { 'Pull-up': 1, 'Chin-up': 1, 'Dips': .95, 'Chest dips': .95, 'Bench dips': .5, 'Push-up': .64, 'Inverted row': .55, 'Back extension': .45, 'Nordic curl': .5,
     'Hanging leg raise': 0, 'Captain\'s chair leg raise': 0, 'Plank': 0, 'Side plank': 0, 'Crunch': 0, 'Decline sit-up': 0, 'Dead bug': 0, 'Ab wheel rollout': 0, 'Russian twist': 0, 'Burpee': 0 };
@@ -6730,13 +6730,12 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   function bwFactor(name) { var lx = name ? libFor(name) : null; return lx && typeof lx.bw === 'number' ? lx.bw : null; }
   function isTimed(name) { var lx = name ? libFor(name) : null; return !!(lx && lx.timed); }
   function bodyKg() { var w = S.weights && S.weights.length ? E.num(S.weights[S.weights.length - 1].kg) : null; return w || E.num((S.profile || {}).weightKg) || null; }
-  /* Volum = kg × reps. På kroppsvektøvelser regnes kg som (andel × kroppsvekt) + eventuell ekstra vekt. */
+  /* Totalt løftet = vekten du faktisk skriver inn × reps. Kroppsvekten telles ikke med (heller ikke på dips og opptrekk);
+   * på kroppsvektøvelser teller bare ekstra vekt (vektbelte, manual). Planke (sekunder) teller ikke. */
   function setsVolume(sets, name) {
-    var f = bwFactor(name), bk = f ? bodyKg() : null;
     if (isTimed(name)) return 0;
     return (sets || []).reduce(function (a, x) {
       var w = E.num(x.weightKg !== undefined ? x.weightKg : x.w), r = E.num(x.reps !== undefined ? x.reps : x.r);
-      if (f !== null) { var eff = (w || 0) + (f && bk ? f * bk : 0); return a + (r ? eff * r : 0); }
       return a + (w && r ? w * r : 0);
     }, 0);
   }
@@ -6838,7 +6837,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? lastBlock(e.name, last, prev, d.volume && isVol(last.title), otherType) : (e.name.trim() ? '<div class="exnew">Ny øvelse, ingen tidligere tall</div>' : '')) +
-        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b>' + (isTimed(e.name) ? 'skriv sekunder' : 'tomt kg-felt = ' + (f && bodyKg() ? fmt(f * bodyKg()) + ' kg' : 'kroppsvekt')) + '</div>'; })() +
+        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b>' + (isTimed(e.name) ? 'skriv sekunder' : 'la kg stå tomt, eller skriv ekstra vekt') + '</div>'; })() +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {}, bw = bwFactor(e.name) !== null, tm = isTimed(e.name);
           return '<div class="setrow' + (bw ? ' bw' : '') + '" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +

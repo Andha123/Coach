@@ -3250,13 +3250,12 @@
   function bwFactor(name) { var lx = name ? libFor(name) : null; return lx && typeof lx.bw === 'number' ? lx.bw : null; }
   function isTimed(name) { var lx = name ? libFor(name) : null; return !!(lx && lx.timed); }
   function bodyKg() { var w = S.weights && S.weights.length ? E.num(S.weights[S.weights.length - 1].kg) : null; return w || E.num((S.profile || {}).weightKg) || null; }
-  /* Volum = kg × reps. På kroppsvektøvelser regnes kg som (andel × kroppsvekt) + eventuell ekstra vekt. */
+  /* Totalt løftet = vekten du faktisk skriver inn × reps. Kroppsvekten telles ikke med (heller ikke på dips og opptrekk);
+   * på kroppsvektøvelser teller bare ekstra vekt (vektbelte, manual). Planke (sekunder) teller ikke. */
   function setsVolume(sets, name) {
-    var f = bwFactor(name), bk = f ? bodyKg() : null;
     if (isTimed(name)) return 0;
     return (sets || []).reduce(function (a, x) {
       var w = E.num(x.weightKg !== undefined ? x.weightKg : x.w), r = E.num(x.reps !== undefined ? x.reps : x.r);
-      if (f !== null) { var eff = (w || 0) + (f && bk ? f * bk : 0); return a + (r ? eff * r : 0); }
       return a + (w && r ? w * r : 0);
     }, 0);
   }
@@ -3358,7 +3357,7 @@
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? lastBlock(e.name, last, prev, d.volume && isVol(last.title), otherType) : (e.name.trim() ? '<div class="exnew">Ny øvelse, ingen tidligere tall</div>' : '')) +
-        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b>' + (isTimed(e.name) ? 'skriv sekunder' : 'tomt kg-felt = ' + (f && bodyKg() ? fmt(f * bodyKg()) + ' kg' : 'kroppsvekt')) + '</div>'; })() +
+        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b>' + (isTimed(e.name) ? 'skriv sekunder' : 'la kg stå tomt, eller skriv ekstra vekt') + '</div>'; })() +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {}, bw = bwFactor(e.name) !== null, tm = isTimed(e.name);
           return '<div class="setrow' + (bw ? ' bw' : '') + '" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
