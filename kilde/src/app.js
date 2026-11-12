@@ -337,7 +337,7 @@
     }, true);
     try {
       var encQ = false;
-      new MutationObserver(function () { if (encQ) return; encQ = true; requestAnimationFrame(function () { encQ = false; enhanceSelects(document); }); }).observe(document.body, { childList: true, subtree: true });
+      new MutationObserver(function () { if (encQ) return; encQ = true; requestAnimationFrame(function () { encQ = false; enhanceSelects(document); kpEnhance(document); kpRefind(); }); }).observe(document.body, { childList: true, subtree: true });
     } catch (e) { /* eldre nettlesere bruker vanlig velger */ }
     /* iPhone som app på hjemskjermen: etter at tastaturet har vært oppe, krymper WebKit av og til visningen og lar
      * en svart stripe stå igjen nederst. Vi husker full høyde og tvinger en ny måling når den har krympet. */
@@ -3392,6 +3392,7 @@
       saveDraft();
       var vb = box.querySelector('#lg_total'), sb2 = box.querySelector('#lg_sets');
       if (vb) animateKg(vb, draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
+      if (!vb && draftHasValues(d)) { S.lgTotShown = 0; rerender(); }
     });
     box.addEventListener('click', async function (e) {
       var b = e.target.closest('[data-lg]'); if (!b) return;
@@ -4468,6 +4469,117 @@
   /* ---------- Egne velgere i stedet for iPhone-hjulet ----------
    * Alle <select class="input"> får en knapp i Coach-stil; valget skrives tilbake til select-feltet og sender «change». */
   var CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
+  /* ---------- Eget tall-tastatur (Liquid Glass) ----------
+   * På mobil får alle tallfelt Coach sitt eget tastatur i stedet for iPhone sitt. Feltene merkes skrivebeskyttet, så
+   * iPhone-tastaturet aldri dukker opp; tastaturet skriver i feltet og sender vanlige «input»/«change»/«blur»-hendelser,
+   * så resten av appen virker som før. Piler hopper mellom feltene, «Sist» fyller inn tallet fra forrige økt. */
+  var KP = { el: null, inp: null, fresh: false };
+  function kpTouch() { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
+  function kpEnhance(root) {
+    if (!kpTouch()) return;
+    (root || document).querySelectorAll('input[inputmode="decimal"]:not([data-kp]), input[inputmode="numeric"]:not([data-kp])').forEach(function (inp) {
+      if (inp.closest('.nokp')) return;
+      inp.dataset.kp = inp.getAttribute('inputmode'); inp.readOnly = true; inp.setAttribute('inputmode', 'none');
+    });
+  }
+  function kpFields() { return Array.prototype.filter.call(document.querySelectorAll('input[data-kp]'), function (x) { return x.offsetParent !== null && !x.disabled; }); }
+  function kpLabel(inp) {
+    var lab = inp.getAttribute('aria-label') || '', f = inp.dataset.f, sr = inp.closest('[data-set]'), ex = inp.closest('[data-ex]');
+    if (f === 'w' || f === 'r') return 'Sett ' + (sr ? +sr.dataset.set + 1 : '') + ' · ' + (f === 'w' ? ((inp.parentNode.querySelector('span') || {}).textContent || 'kg') : (inp.parentNode.querySelector('span') || {}).textContent || 'reps');
+    if (!lab) { var l = inp.id && document.querySelector('label[for="' + inp.id + '"]'); if (l) lab = l.textContent; else { var fl = inp.closest('.field'); if (fl && fl.querySelector('label')) lab = fl.querySelector('label').textContent; } }
+    var unit = inp.parentNode && inp.parentNode.classList.contains('unitin') ? (inp.parentNode.querySelector('span') || {}).textContent : '';
+    return (lab || 'Tall') + (unit && lab.indexOf(unit) < 0 ? ' · ' + unit : '');
+  }
+  function kpStep(inp) {
+    if (inp.dataset.f === 'w') return 2.5;
+    if (inp.dataset.f === 'r') return 1;
+    return null;
+  }
+  function kpFire(inp, type) { try { inp.dispatchEvent(type === 'blur' ? new FocusEvent('blur') : new Event(type, { bubbles: true })); } catch (e) {} }
+  function kpLeave() {
+    var inp = KP.inp; if (!inp) return;
+    inp.classList.remove('kpfocus'); KP.inp = null;
+    kpFire(inp, 'change'); kpFire(inp, 'blur');
+    try { inp.blur(); } catch (e) {}
+  }
+  function kpSet(inp) {
+    if (KP.inp === inp) return;
+    kpLeave();
+    KP.inp = inp; KP.fresh = true;
+    var ex = inp.closest('[data-ex]'), sr = inp.closest('[data-set]');
+    KP.key = inp.id ? '#' + inp.id : ex && sr && inp.dataset.f ? '[data-ex="' + ex.dataset.ex + '"] [data-set="' + sr.dataset.set + '"] input[data-f="' + inp.dataset.f + '"]' : null;
+    inp.classList.add('kpfocus');
+    try { inp.focus({ preventScroll: true }); } catch (e) {}
+    kpDraw();
+    setTimeout(function () {
+      var r = inp.getBoundingClientRect(), kh = KP.el ? KP.el.offsetHeight : 320, vis = window.innerHeight - kh - 16;
+      if (r.bottom > vis || r.top < 90) {
+        var sc = inp.closest('.sheet, .pgbody, .view'); if (sc) sc.scrollBy({ top: r.bottom > vis ? r.bottom - vis + 40 : r.top - 120, behavior: MOTION ? 'smooth' : 'auto' });
+      }
+    }, 30);
+  }
+  function kpOpen(inp) {
+    if (!KP.el) {
+      var el = document.createElement('div'); el.className = 'kp'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Tall-tastatur');
+      el.innerHTML = '<div class="kpbar"><button type="button" class="kpnav" data-kpn="-1" aria-label="Forrige felt"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button><button type="button" class="kpnav" data-kpn="1" aria-label="Neste felt"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>' +
+        '<div class="kplab"></div><div class="kpquick"></div><button type="button" class="kpdone" data-kpk="done">Ferdig</button></div>' +
+        '<div class="kpkeys">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', 'del'].map(function (k) { return '<button type="button" data-kpk="' + k + '" aria-label="' + (k === 'del' ? 'Slett' : k) + '">' + (k === 'del' ? ICON.del : k) + '</button>'; }).join('') + '</div>';
+      el.addEventListener('pointerdown', function (e) { e.preventDefault(); });
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b || !KP.inp) return;
+        var inp = KP.inp;
+        if (b.dataset.kpn) { var fs = kpFields(), i = fs.indexOf(inp), nx = fs[i + +b.dataset.kpn]; if (nx) { haptic(); kpSet(nx); } else if (+b.dataset.kpn > 0) kpClose(); return; }
+        if (b.dataset.kpq) { var q = b.dataset.kpq, cur = E.num(inp.value) || 0, v;
+          if (q === 'last') v = inp.placeholder.replace(/[^0-9,\.]/g, '');
+          else { v = Math.max(0, Math.round((cur + +q) * 100) / 100); v = String(v).replace('.', ','); }
+          inp.value = v; KP.fresh = false; kpFire(inp, 'input'); kpDraw(); return; }
+        var k = b.dataset.kpk; if (!k) return;
+        if (k === 'done') { kpClose(); return; }
+        var s = inp.value, allowComma = inp.dataset.kp !== 'numeric';
+        if (k === 'del') s = KP.fresh ? '' : s.slice(0, -1);
+        else {
+          if (KP.fresh) s = '';
+          if (k === ',') { if (!allowComma || s.indexOf(',') >= 0) return; s = (s || '0') + ','; }
+          else { if (s === '0') s = ''; var d = s.indexOf(','); if (d >= 0 && s.length - d > 2) return; if (s.replace(',', '').length >= (inp.dataset.kp === 'numeric' ? 14 : 6)) return; s += k; }
+        }
+        KP.fresh = false; inp.value = s; kpFire(inp, 'input'); kpDraw();
+      });
+      document.body.appendChild(el); KP.el = el;
+      requestAnimationFrame(function () { el.classList.add('in'); });
+    }
+    document.documentElement.classList.add('kp-open');
+    kpSet(inp);
+  }
+  /* Tegnes siden på nytt mens du skriver, flyttes tastaturet over til det nye feltet i stedet for å lukkes. */
+  function kpRefind() {
+    if (!KP.inp || KP.inp.isConnected) return;
+    var n = KP.key ? document.querySelector(KP.key) : null;
+    if (n && n.dataset.kp) { KP.inp = n; n.classList.add('kpfocus'); try { n.focus({ preventScroll: true }); } catch (e) {} kpDraw(); }
+    else { KP.inp = null; kpClose(); }
+  }
+  function kpDraw() {
+    if (!KP.el || !KP.inp) return;
+    var inp = KP.inp, st = kpStep(inp), last = inp.placeholder && /\d/.test(inp.placeholder) ? inp.placeholder : '', fs = kpFields(), i = fs.indexOf(inp);
+    KP.el.querySelector('.kplab').textContent = kpLabel(inp);
+    KP.el.querySelector('[data-kpn="-1"]').disabled = i <= 0;
+    KP.el.querySelector('.kpquick').innerHTML = (last && !inp.value ? '<button type="button" data-kpq="last">Sist ' + esc(last) + '</button>' : '') +
+      (st ? '<button type="button" data-kpq="-' + st + '">−' + String(st).replace('.', ',') + '</button><button type="button" data-kpq="' + st + '">+' + String(st).replace('.', ',') + '</button>' : '');
+    KP.el.querySelector('[data-kpk=","]').disabled = inp.dataset.kp === 'numeric';
+    inp.classList.toggle('kpfresh', KP.fresh && !!inp.value);
+  }
+  function kpClose() {
+    kpLeave();
+    document.documentElement.classList.remove('kp-open');
+    var el = KP.el; KP.el = null; if (!el) return;
+    el.classList.remove('in'); setTimeout(function () { el.remove(); }, MOTION ? 300 : 0);
+  }
+  /* Trykk i et tallfelt åpner tastaturet; trykk utenfor lukker det. Bare et trykk (ikke rulling) teller. */
+  document.addEventListener('click', function (e) {
+    if (!kpTouch()) return;
+    var inp = e.target.closest && e.target.closest('input[data-kp]');
+    if (inp) { e.preventDefault(); haptic(); kpOpen(inp); return; }
+    if (KP.el && !e.target.closest('.kp')) kpClose();
+  }, true);
   /* ---------- «Nytt i Coach»: en melding til brukeren (lagres i meta/notice), vises én gang ----------
    * Felter: title, text, items[], action ({ label, view, trType }). Når den lukkes, merkes den som sett. */
   function maybeNotice() {
