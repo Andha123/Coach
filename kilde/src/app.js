@@ -3272,11 +3272,16 @@
     cancelAnimationFrame(el._raf);
     var dur = Math.min(1600, 700 + Math.sqrt(Math.abs(to - from)) * 14), t0 = performance.now();
     var box = el.closest('.lgvolbox'); if (box && to > from) { box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
+    /* Grønt mens tallet øker, så du ser at totalen gikk opp. Toner tilbake når det er ferdig. */
+    clearTimeout(el._upT); el.classList.toggle('up', to > from); if (to > from && box) box.classList.add('up');
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function step(now) {
       var t = Math.min(1, (now - t0) / dur), v = from + (to - from) * ease(t);
       el._cur = v; el.textContent = kgTxt(Math.round(v)); if (el.id === 'lg_total') S.lgTotShown = v;
-      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to; }
+      if (t < 1) el._raf = requestAnimationFrame(step); else {
+        el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to;
+        el._upT = setTimeout(function () { el.classList.remove('up'); if (box) box.classList.remove('up'); }, 500);
+      }
     }
     if (el.id === 'lg_total') S.lgTotShown = from;
     if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); if (el.id === 'lg_total') S.lgTotShown = to; return; }

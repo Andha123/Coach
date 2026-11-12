@@ -1564,12 +1564,19 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 .notice-new ul { margin: 0; padding-left: 20px; color: var(--ink-2); line-height: 1.55; font-size: 14.5px; }
 .notice-new .row { margin-top: 6px; }
 
+/* Totalt løftet: grønt mens tallet øker */
+.lgvolbox b { transition: color .45s ease, text-shadow .45s ease; }
+.lgvolbox b.up { color: #7ee2a8; text-shadow: 0 0 18px rgba(126, 226, 168, .55); transition: color .12s ease, text-shadow .12s ease; }
+.lgvolbox { transition: border-color .45s ease, box-shadow .45s ease; }
+.lgvolbox.up { border-color: rgba(126, 226, 168, .5) !important; box-shadow: 0 0 0 1px rgba(126, 226, 168, .25), 0 10px 30px rgba(126, 226, 168, .15) !important; }
+.lgvolbox.bump b { animation: none; }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794457356579';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794457394470';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -6682,11 +6689,16 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     cancelAnimationFrame(el._raf);
     var dur = Math.min(1600, 700 + Math.sqrt(Math.abs(to - from)) * 14), t0 = performance.now();
     var box = el.closest('.lgvolbox'); if (box && to > from) { box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
+    /* Grønt mens tallet øker, så du ser at totalen gikk opp. Toner tilbake når det er ferdig. */
+    clearTimeout(el._upT); el.classList.toggle('up', to > from); if (to > from && box) box.classList.add('up');
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function step(now) {
       var t = Math.min(1, (now - t0) / dur), v = from + (to - from) * ease(t);
       el._cur = v; el.textContent = kgTxt(Math.round(v)); if (el.id === 'lg_total') S.lgTotShown = v;
-      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to; }
+      if (t < 1) el._raf = requestAnimationFrame(step); else {
+        el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to;
+        el._upT = setTimeout(function () { el.classList.remove('up'); if (box) box.classList.remove('up'); }, 500);
+      }
     }
     if (el.id === 'lg_total') S.lgTotShown = from;
     if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); if (el.id === 'lg_total') S.lgTotShown = to; return; }
