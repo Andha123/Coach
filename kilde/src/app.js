@@ -3216,7 +3216,7 @@
   function lastFor(name, excludeId, vol) { return histFor(name, excludeId, vol)[0] || null; }
   function topSet(sets) {
     var b = null, be = -1;
-    (sets || []).forEach(function (x) { var e = x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; if (e > be || (e === be && (x.weightKg || 0) > ((b && b.weightKg) || 0))) { be = e; b = x; } });
+    (sets || []).forEach(function (x) { var e = setScore(x.weightKg, x.reps); if (e > be || (e === be && (x.weightKg || 0) > ((b && b.weightKg) || 0))) { be = e; b = x; } });
     return b;
   }
   /* Øvelsene du har gjort på økter av denne typen: nyeste økt først (samme volum-valg foran), i den rekkefølgen du tok dem. */
@@ -3245,7 +3245,6 @@
     var w = cands.find(function (x) { return /volum/i.test(x.title || '') === !!volume; }) || cands[0];
     return w ? w.exercises.map(function (e) { return { name: e.name, sets: (e.sets && e.sets.length ? e.sets : [{}]).map(function () { return { w: '', r: '' }; }) }; }) : [];
   }
-  /* Total vekt løftet = summen av kg × reps for alle sett. */
   /* Kroppsvekt: andelen av kroppsvekten øvelsen løfter (null = vanlig øvelse med vekt). */
   function bwFactor(name) { var lx = name ? libFor(name) : null; return lx && typeof lx.bw === 'number' ? lx.bw : null; }
   function isTimed(name) { var lx = name ? libFor(name) : null; return !!(lx && lx.timed); }
@@ -3260,8 +3259,20 @@
     }, 0);
   }
   function workoutVolume(w) { return (w.exercises || []).reduce(function (a, e) { return a + setsVolume(e.sets, e.name); }, 0); }
-  function draftVolume(d) { return d.exercises.reduce(function (a, e) { return a + setsVolume(e.sets, e.name); }, 0); }
-  function draftSetCount(d) { return d.exercises.reduce(function (a, e) { return a + e.sets.filter(function (x) { return E.num(x.w) !== null || E.num(x.r) !== null; }).length; }, 0); }
+  /* Settene i utkastet som tall. Tomt kg-felt på et sett med reps = samme vekt som settet før
+   * (ikke på kroppsvektøvelser, der tomt = kroppsvekt). Brukes både til totalen og når økta lagres, så tallene er like. */
+  function draftSets(e) {
+    var bw = bwFactor(e.name) !== null, lastW = null;
+    /* Et sett teller når reps er fylt inn; bare kg uten reps er et sett du ikke har tatt ennå. */
+    return (e.sets || []).filter(function (x) { return String(x.r || '').trim() !== '' && E.num(x.r) !== null; }).map(function (x) {
+      var w = E.num(x.w), r = E.num(x.r);
+      if (w === null && r !== null && !bw && lastW !== null) w = lastW;
+      if (w !== null) lastW = w;
+      return { weightKg: w, reps: r };
+    });
+  }
+  function draftVolume(d) { return d.exercises.reduce(function (a, e) { return a + setsVolume(draftSets(e), e.name); }, 0); }
+  function draftSetCount(d) { return d.exercises.reduce(function (a, e) { return a + draftSets(e).length; }, 0); }
   function kgTxt(v) { return v >= 10000 ? fmt(v / 1000, 1) + ' tonn' : fmt(v) + ' kg'; }
   var CHEV_D = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg>';
   /* Telleren for total vekt: starter rolig, går fort i midten og bremser inn mot det nye tallet. */
@@ -3350,10 +3361,10 @@
       var hist = histFor(e.name, d.editId, d.volume), last = hist[0], prev = hist[1];
       var otherType = last && isVol(last.title) !== !!d.volume ? ' <span class="faint">(' + (isVol(last.title) ? 'volumøkt' : 'vanlig økt') + ')</span>' : '';
       if (e.folded) {
-        var done = e.sets.filter(function (x) { return String(x.w).trim() || String(x.r).trim(); });
+        var done = draftSets(e).map(function (x) { return { w: x.weightKg === null ? (bwFactor(e.name) !== null ? 'KV' : '') : numStr(x.weightKg), r: numStr(x.reps) }; });
         return '<div class="exrow folded" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><button type="button" class="exfold" data-lg="fold" aria-expanded="false" aria-label="Åpne ' + esc(e.name) + '">' +
           '<span class="exthumbwrap">' + exThumb(e.name, 'sm') + '<span class="exok" aria-hidden="true">✓</span></span><span class="exft"><b>' + esc(e.name || 'Øvelse') + '</b><span>' + (done.length ? done.length + ' sett · ' + esc(done.map(function (x) { return (String(x.w).trim().replace('.', ',') || '–') + ' × ' + (String(x.r).trim().replace('.', ',') || '–'); }).join(', ')) : 'Ingen sett') + '</span></span>' +
-          '<span class="exfv">' + (setsVolume(e.sets, e.name) ? kgTxt(setsVolume(e.sets, e.name)) : '') + '</span>' + CHEV_D + '</button></div>';
+          '<span class="exfv">' + (setsVolume(draftSets(e), e.name) ? kgTxt(setsVolume(draftSets(e), e.name)) : '') + '</span>' + CHEV_D + '</button></div>';
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
         (last ? lastBlock(e.name, last, prev, d.volume && isVol(last.title), otherType) : (e.name.trim() ? '<div class="exnew">Ny øvelse, ingen tidligere tall</div>' : '')) +
@@ -3405,7 +3416,20 @@
       var row = e.target.closest('[data-ex]'); if (!row) return;
       var ex = d.exercises[+row.dataset.ex], f = e.target.dataset.f;
       if (f === 'name') ex.name = e.target.value;
-      else { var sr = e.target.closest('[data-set]'); if (sr) ex.sets[+sr.dataset.set][f] = e.target.value; }
+      else {
+        var sr = e.target.closest('[data-set]');
+        if (sr) {
+          var j = +sr.dataset.set, set = ex.sets[j]; set[f] = e.target.value;
+          /* Skriver du reps og kg-feltet er tomt, fylles vekten inn så settet ikke lagres uten vekt:
+           * samme som settet over, ellers det grå tallet fra sist (ikke på kroppsvektøvelser). */
+          if (f === 'r' && String(set.r).trim() && !String(set.w).trim()) {
+            var bwx = bwFactor(ex.name) !== null, prevW = j > 0 ? String(ex.sets[j - 1].w || '').trim() : '';
+            var wi = sr.querySelector('input[data-f="w"]'), ghost = wi && /\d/.test(wi.placeholder) ? wi.placeholder : '';
+            var fillW = prevW || (bwx ? '' : ghost);
+            if (fillW) { set.w = fillW; if (wi) { wi.value = fillW; wi.classList.add('autofill'); } }
+          }
+        }
+      }
       saveDraft();
       var vb = box.querySelector('#lg_total'), sb2 = box.querySelector('#lg_sets');
       if (vb) animateKg(vb, draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
@@ -3579,19 +3603,19 @@
 
   function draftToExercises(d) {
     return d.exercises.filter(function (e) { return e.name.trim(); }).map(function (e) {
-      return { name: e.name.trim(), sets: e.sets.filter(function (x) { return String(x.w).trim() !== '' || String(x.r).trim() !== ''; }).map(function (x) { return { weight_kg: E.num(x.w), reps: E.num(x.r) }; }) };
+      return { name: e.name.trim(), sets: draftSets(e).map(function (x) { return { weight_kg: x.weightKg, reps: x.reps }; }) };
     }).filter(function (e) { return e.sets.length; });
   }
   function bestE1rm(name, excludeId) {
     var n = exKey(name), best = 0;
-    S.workouts.forEach(function (w) { if (w.id === excludeId) return; (w.exercises || []).forEach(function (e) { if (exKey(e.name) !== n) return; (e.sets || []).forEach(function (x) { if (x.weightKg && x.reps) best = Math.max(best, E.e1rm(x.weightKg, x.reps) || 0); }); }); });
+    S.workouts.forEach(function (w) { if (w.id === excludeId) return; (w.exercises || []).forEach(function (e) { if (exKey(e.name) !== n) return; (e.sets || []).forEach(function (x) { best = Math.max(best, setScore(x.weightKg, x.reps)); }); }); });
     return best;
   }
   async function saveStrength() {
     var d = loadDraft(), msg = $('#lg_msg');
     var exercises = draftToExercises(d);
     if (!exercises.length) { msg.innerHTML = '<div class="notice bad">Fyll inn vekt og reps på minst én øvelse.</div>'; return; }
-    var prs = exercises.filter(function (e) { var prev = bestE1rm(e.name, d.editId); return prev > 0 && e.sets.some(function (x) { return x.weight_kg && x.reps && E.e1rm(x.weight_kg, x.reps) > prev + 0.01; }); }).map(function (e) { return e.name; });
+    var prs = exercises.filter(function (e) { var prev = bestE1rm(e.name, d.editId); return prev > 0 && e.sets.some(function (x) { return setScore(x.weight_kg, x.reps) > prev + 0.01; }); }).map(function (e) { return e.name; });
     try {
       var w = await C.logStrength(ctx, { date: d.date, title: draftTitle(d), exercises: exercises, edit_id: d.editId || undefined });
       S.draft = newDraft(); saveDraft(true);
@@ -3699,7 +3723,7 @@
     var o = { n: list.length, vol: 0, sets: 0, reps: 0, min: 0, ex: {} };
     list.forEach(function (w) {
       o.vol += workoutVolume(w); if (w.durationMin) o.min += w.durationMin;
-      w.exercises.forEach(function (e) { var vs = (e.sets || []).filter(hasVal); o.sets += vs.length; vs.forEach(function (x) { o.reps += x.reps || 0; }); if (vs.length) o.ex[exKey(e.name)] = 1; });
+      w.exercises.forEach(function (e) { var vs = (e.sets || []).filter(hasVal); o.sets += vs.length; if (!isTimed(e.name)) vs.forEach(function (x) { o.reps += x.reps || 0; }); if (vs.length) o.ex[exKey(e.name)] = 1; });
     });
     o.exN = Object.keys(o.ex).length;
     return o;
@@ -3709,7 +3733,10 @@
     var d = Math.round((cur - prev) / prev * 100);
     return d === 0 ? '<em class="dz">som forrige</em>' : '<em class="' + (d > 0 ? 'du' : 'dd') + '">' + (d > 0 ? '↑ ' : '↓ ') + Math.abs(d) + ' %</em>';
   }
-  function e1(x) { return x.weightKg && x.reps ? E.e1rm(x.weightKg, x.reps) || 0 : 0; }
+  /* Rangering av sett (beste sett, rekorder, fremgang): Epley uten tak, så 31,8 × 13 slår 31,8 × 12.
+   * «Est. 1RM» som vises som tall bruker fortsatt E.e1rm (med tak på 12 reps, der formelen er pålitelig). */
+  function setScore(w, r) { w = E.num(w); r = E.num(r); return w && r && r > 0 ? w * (1 + (r > 1 ? r : 0) / 30) : 0; }
+  function e1(x) { return setScore(x.weightKg, x.reps); }
   /* ---------- Muskelkart med belastning ----------
    * Hver øvelse gir sett til musklene den trener: hovedmuskler teller fullt, hjelpemuskler halvt. Fargen viser hvor
    * mye hver muskel er trent: hvit = ikke trent, så lys rav, oransje og rød jo mer. */

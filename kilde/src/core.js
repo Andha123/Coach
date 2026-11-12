@@ -467,7 +467,7 @@
   function cleanSets(sets) {
     return (sets || []).map(function (s) {
       var o = { reps: E.num(s.reps), weightKg: E.num(s.weight_kg !== undefined ? s.weight_kg : s.weightKg), rir: E.num(s.rir), rpe: E.num(s.rpe) };
-      if (o.reps !== null && (o.reps < 0 || o.reps > 200)) throw new Error('Ugyldig antall repetisjoner.');
+      if (o.reps !== null && (o.reps < 0 || o.reps > 1000)) throw new Error('Ugyldig antall repetisjoner.'); // opptil 1000 (sekunder på planke)
       if (o.weightKg !== null && (o.weightKg < 0 || o.weightKg > 600)) throw new Error('Ugyldig belastning.');
       return o;
     });
