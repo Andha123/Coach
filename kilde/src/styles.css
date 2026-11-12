@@ -1584,3 +1584,26 @@ html.kp-open nav.tabs { transform: translate3d(0, 140%, 0); transition: transfor
 nav.tabs { transition: transform .3s ease; }
 html.kp-open .view, html.kp-open .pgbody { padding-bottom: 360px !important; }
 html.kp-open .sheet { padding-bottom: 350px !important; }
+
+/* «Sist» i styrkeloggen: ryddig og lett å lese */
+.exnew { font-size: 12.5px; color: var(--ink-3); margin: -2px 2px 2px; }
+.exlast2 { display: flex; flex-direction: column; gap: 7px; width: 100%; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: rgba(255, 249, 242, .045); border: 1px solid rgba(255, 240, 225, .1); border-radius: 16px; padding: 9px 12px 10px; margin-top: -2px; -webkit-tap-highlight-color: transparent; }
+.exlast2:active { transform: scale(.985); }
+.elh { display: flex; align-items: center; gap: 8px; }
+.elt { flex: 1; min-width: 0; font-size: 11.5px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.elt .faint { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.ell { display: inline-flex; align-items: center; gap: 1px; font-size: 12.5px; font-weight: 600; color: var(--accent); flex: none; }
+.ell svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.eltr { flex: none; font-size: 11.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.eltr.up { color: #7ee2a8; background: rgba(126, 226, 168, .12); }
+.eltr.down { color: var(--ink-3); background: rgba(255, 249, 242, .06); }
+.els { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.elw { font-size: 17px; font-weight: 750; letter-spacing: -.01em; font-variant-numeric: tabular-nums; margin-right: 1px; }
+.elw small { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
+.elx { color: var(--ink-3); font-size: 13px; margin: 0 1px; }
+.elr { min-width: 30px; text-align: center; padding: 4px 9px; border-radius: 10px; background: rgba(255, 249, 242, .08); font-size: 14.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.elr.wide { min-width: 0; font-size: 13.5px; }
+
+.bwhint { background: none !important; border: 0 !important; padding: 0 2px !important; margin: -2px 0 0 !important; font-size: 12px !important; color: var(--ink-3) !important; }
+.bwhint b { display: inline-block; font-size: 11px; font-weight: 700; color: #9fd9bf !important; background: rgba(124, 196, 166, .12); border-radius: 999px; padding: 2px 8px; margin-right: 6px; text-transform: uppercase; letter-spacing: .04em; }

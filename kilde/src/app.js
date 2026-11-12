@@ -3305,6 +3305,24 @@
     var best = Object.keys(n).sort(function (a, b) { return n[b] - n[a]; })[0];
     return n[best] / tot >= 0.7 ? best : null;
   }
+  /* «Sist»: dato øverst, vekten én gang og repsene som små brikker, og en liten pil som viser om du gikk fram fra gangen før. */
+  function lastBlock(name, last, prev, vol, otherType) {
+    var sets = (last.sets || []).filter(hasVal);
+    var ws = sets.map(function (x) { return x.weightKg === null || x.weightKg === undefined ? null : +x.weightKg; });
+    var same = sets.length && ws.every(function (w) { return w === ws[0]; });
+    var body = same
+      ? '<b class="elw">' + (ws[0] === null ? 'KV' : fmt(ws[0], 2) + '<small>kg</small>') + '</b><span class="elx">×</span>' + sets.map(function (x) { return '<span class="elr">' + (x.reps === null || x.reps === undefined ? '–' : fmt(x.reps, 1)) + '</span>'; }).join('')
+      : sets.map(function (x) { return '<span class="elr wide">' + esc(setTxt(x)) + '</span>'; }).join('');
+    var trend = '';
+    if (prev) {
+      /* Sammenlign beste sett (estimert 1RM), eller flest reps på kroppsvekt, så antall sett ikke gir falsk fremgang. */
+      function best(list) { var v = (list || []).filter(hasVal), m = v.reduce(function (t, x) { return Math.max(t, e1(x)); }, 0); return m || v.reduce(function (t, x) { return Math.max(t, x.reps || 0); }, 0); }
+      var a = best(last.sets), b = best(prev.sets);
+      if (a && b && Math.abs(a - b) / b >= 0.01) trend = '<span class="eltr ' + (a > b ? 'up' : 'down') + '">' + (a > b ? '↑' : '↓') + ' ' + Math.round(Math.abs(a - b) / b * 100) + ' %</span>';
+    }
+    return '<button type="button" class="exlast2" data-lg="hist"><span class="elh"><span class="elt">Sist' + (vol ? ' volum' : '') + ' · ' + esc(shortDate(last.date)) + otherType + '</span>' + trend + '<span class="ell">Historikk<svg viewBox="0 0 24 24"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></span>' +
+      '<span class="els">' + body + '</span></button>';
+  }
   function strengthLoggerHtml() {
     var d = loadDraft();
     var html = '<div class="gcard logger">' +
@@ -3339,8 +3357,8 @@
           '<span class="exfv">' + (setsVolume(e.sets, e.name) ? kgTxt(setsVolume(e.sets, e.name)) : '') + '</span>' + CHEV_D + '</button></div>';
       }
       return '<div class="exrow" data-ex="' + i + '" data-key="' + esc(exKey(e.name)) + '"><div class="exhead"><button type="button" class="thumbbtn" data-lg="hist" aria-label="Se ' + esc(e.name) + '">' + exThumb(e.name, 'sm') + '</button><input class="exname" data-f="name" value="' + esc(e.name) + '" aria-label="Øvelse" list="lg_known"><button type="button" class="btn sm exdone" data-lg="fold" aria-expanded="true">Ferdig</button><button type="button" class="xbtn" data-lg="delex" aria-label="Fjern øvelse">×</button></div>' +
-        (last ? '<button type="button" class="exlast" data-lg="hist"><span><b>Sist' + (d.volume && isVol(last.title) ? ' volum' : '') + '</b> ' + esc(last.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(last.date)) + otherType + (prev ? '<br><span class="faint">Før det ' + esc(prev.sets.map(setTxt).join(', ')) + ' · ' + esc(shortDate(prev.date)) + '</span>' : '') + '</span><i>Historikk ›</i></button>' : (e.name.trim() ? '<div class="exlast faint">Ny øvelse – ingen tidligere tall</div>' : '')) +
-        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b> ' + (isTimed(e.name) ? 'Skriv hvor mange sekunder du holdt. Kg-feltet er bare for ekstra vekt.' : 'Skriv bare reps. Kg-feltet er bare for ekstra vekt (vektbelte, manual, vektvest).') + (f && bodyKg() ? ' Teller som ' + fmt(f * bodyKg()) + ' kg i totalen (' + Math.round(f * 100) + ' % av ' + fmt(bodyKg(), 1) + ' kg).' : '') + '</div>'; })() +
+        (last ? lastBlock(e.name, last, prev, d.volume && isVol(last.title), otherType) : (e.name.trim() ? '<div class="exnew">Ny øvelse, ingen tidligere tall</div>' : '')) +
+        (function () { var f = bwFactor(e.name); if (f === null) return ''; return '<div class="bwhint"><b>Kroppsvekt</b>' + (isTimed(e.name) ? 'skriv sekunder' : 'tomt kg-felt = ' + (f && bodyKg() ? fmt(f * bodyKg()) + ' kg' : 'kroppsvekt')) + '</div>'; })() +
         e.sets.map(function (x, j) {
           var ph = last && last.sets[Math.min(j, last.sets.length - 1)] || {}, bw = bwFactor(e.name) !== null, tm = isTimed(e.name);
           return '<div class="setrow' + (bw ? ' bw' : '') + '" data-set="' + j + '"><span class="setno">' + (j + 1) + '</span>' +
