@@ -3275,10 +3275,11 @@
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function step(now) {
       var t = Math.min(1, (now - t0) / dur), v = from + (to - from) * ease(t);
-      el._cur = v; el.textContent = kgTxt(Math.round(v));
-      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; }
+      el._cur = v; el.textContent = kgTxt(Math.round(v)); if (el.id === 'lg_total') S.lgTotShown = v;
+      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to; }
     }
-    if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); return; }
+    if (el.id === 'lg_total') S.lgTotShown = from;
+    if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); if (el.id === 'lg_total') S.lgTotShown = to; return; }
     el._raf = requestAnimationFrame(step);
   }
   function draftHasValues(d) { return d.exercises.some(function (e) { return e.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }); }); }
@@ -3348,7 +3349,7 @@
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
 
-      (draftHasValues(d) ? '<div class="lgtot"><div class="lgvolbox"><span>Totalt løftet</span><b id="lg_vol" data-v="' + draftVolume(d) + '">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
+      (draftHasValues(d) ? '<div class="lgtot"><div class="lgvolbox"><span>Totalt løftet</span><b id="lg_total" data-v="' + (S.lgTotShown !== undefined ? S.lgTotShown : draftVolume(d)) + '">' + kgTxt(Math.round(S.lgTotShown !== undefined ? S.lgTotShown : draftVolume(d))) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
@@ -3359,6 +3360,8 @@
     function rerender() { saveDraft(); renderTraining(); }
     box.querySelector('#lg_date').onchange = function (e) { d.date = e.target.value || today(); rerender(); };
     box.querySelector('#lg_vol').onclick = function () { d.volume = !d.volume; d.title = ''; rerender(); };
+    /* Totalen teller opp fra forrige tall også når siden tegnes på nytt (nytt sett, øvelse ferdig, tilbake til økta). */
+    var tot0 = box.querySelector('#lg_total'); if (tot0) animateKg(tot0, draftVolume(d)); else S.lgTotShown = undefined;
     box.querySelectorAll('[data-split]').forEach(function (b) { b.onclick = function () {
       d.split = d.split === b.dataset.split ? '' : b.dataset.split; d.title = '';
       if (!draftHasValues(d)) d.exercises = [];
@@ -3382,7 +3385,7 @@
       if (f === 'name') ex.name = e.target.value;
       else { var sr = e.target.closest('[data-set]'); if (sr) ex.sets[+sr.dataset.set][f] = e.target.value; }
       saveDraft();
-      var vb = box.querySelector('#lg_vol'), sb2 = box.querySelector('#lg_sets');
+      var vb = box.querySelector('#lg_total'), sb2 = box.querySelector('#lg_sets');
       if (vb) animateKg(vb, draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
     });
     box.addEventListener('click', async function (e) {

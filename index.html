@@ -1569,7 +1569,7 @@ html[data-vdir="l"]::view-transition-new(root) { animation-name: vtInL; }
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794373310397';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794457356579';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -6685,10 +6685,11 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
     function step(now) {
       var t = Math.min(1, (now - t0) / dur), v = from + (to - from) * ease(t);
-      el._cur = v; el.textContent = kgTxt(Math.round(v));
-      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; }
+      el._cur = v; el.textContent = kgTxt(Math.round(v)); if (el.id === 'lg_total') S.lgTotShown = v;
+      if (t < 1) el._raf = requestAnimationFrame(step); else { el._cur = to; el.textContent = kgTxt(to); el.dataset.v = to; if (el.id === 'lg_total') S.lgTotShown = to; }
     }
-    if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); return; }
+    if (el.id === 'lg_total') S.lgTotShown = from;
+    if (!MOTION) { el._cur = to; el.textContent = kgTxt(to); if (el.id === 'lg_total') S.lgTotShown = to; return; }
     el._raf = requestAnimationFrame(step);
   }
   function draftHasValues(d) { return d.exercises.some(function (e) { return e.sets.some(function (x) { return String(x.w).trim() || String(x.r).trim(); }); }); }
@@ -6758,7 +6759,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       '<datalist id="lg_known">' + knownExercises().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
       '<button type="button" class="btn addexbtn" data-lg="picker">+ Legg til øvelse</button>' +
 
-      (draftHasValues(d) ? '<div class="lgtot"><div class="lgvolbox"><span>Totalt løftet</span><b id="lg_vol" data-v="' + draftVolume(d) + '">' + kgTxt(draftVolume(d)) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
+      (draftHasValues(d) ? '<div class="lgtot"><div class="lgvolbox"><span>Totalt løftet</span><b id="lg_total" data-v="' + (S.lgTotShown !== undefined ? S.lgTotShown : draftVolume(d)) + '">' + kgTxt(Math.round(S.lgTotShown !== undefined ? S.lgTotShown : draftVolume(d))) + '</b></div><div><span>Sett</span><b id="lg_sets">' + draftSetCount(d) + '</b></div></div>' +
         '<div class="small faint" style="text-align:center">Lagres fortløpende. Du kan gå ut av appen og fortsette senere.</div>' : '') +
       '<div id="lg_msg"></div><div class="row"><button type="button" class="btn primary grow" data-lg="save">' + (d.editId ? 'Lagre endringer' : 'Lagre økt') + '</button>' + (d.exercises.length ? '<button type="button" class="btn ghost" data-lg="clear">Tøm</button>' : '') + '</div></div>';
     return html;
@@ -6769,6 +6770,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     function rerender() { saveDraft(); renderTraining(); }
     box.querySelector('#lg_date').onchange = function (e) { d.date = e.target.value || today(); rerender(); };
     box.querySelector('#lg_vol').onclick = function () { d.volume = !d.volume; d.title = ''; rerender(); };
+    /* Totalen teller opp fra forrige tall også når siden tegnes på nytt (nytt sett, øvelse ferdig, tilbake til økta). */
+    var tot0 = box.querySelector('#lg_total'); if (tot0) animateKg(tot0, draftVolume(d)); else S.lgTotShown = undefined;
     box.querySelectorAll('[data-split]').forEach(function (b) { b.onclick = function () {
       d.split = d.split === b.dataset.split ? '' : b.dataset.split; d.title = '';
       if (!draftHasValues(d)) d.exercises = [];
@@ -6792,7 +6795,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       if (f === 'name') ex.name = e.target.value;
       else { var sr = e.target.closest('[data-set]'); if (sr) ex.sets[+sr.dataset.set][f] = e.target.value; }
       saveDraft();
-      var vb = box.querySelector('#lg_vol'), sb2 = box.querySelector('#lg_sets');
+      var vb = box.querySelector('#lg_total'), sb2 = box.querySelector('#lg_sets');
       if (vb) animateKg(vb, draftVolume(d)); if (sb2) sb2.textContent = draftSetCount(d);
     });
     box.addEventListener('click', async function (e) {
