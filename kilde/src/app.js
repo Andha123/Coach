@@ -3155,9 +3155,11 @@
   var SPLITS = ['Push', 'Pull', 'Bein', 'Overkropp', 'Fullkropp'];
   function newDraft() { return { date: today(), split: '', volume: false, title: '', exercises: [], editId: null }; }
   function loadDraft() {
-    if (S.draft) return S.draft;
-    try { var d = JSON.parse(localStorage.getItem('coach.draft') || 'null'); if (d && d.exercises) S.draft = d; } catch (e) {}
-    return S.draft || (S.draft = newDraft());
+    if (!S.draft) { try { var d = JSON.parse(localStorage.getItem('coach.draft') || 'null'); if (d && d.exercises) S.draft = d; } catch (e) {} }
+    if (!S.draft) S.draft = newDraft();
+    /* Et utkast uten tall som ikke er en redigering, gjelder alltid i dag (ellers lagres økta på datoen forrige økt ble lagret). */
+    if (!S.draft.editId && S.draft.date < today() && !draftHasValues(S.draft)) S.draft.date = today();
+    return S.draft;
   }
   /* Utkastet lagres på telefonen ved hvert tastetrykk, og i databasen et par sekunder etter (og med en gang når du
    * går ut av appen). Da mister du ingenting om appen lukkes midt i økta, eller om telefonen rydder i lagringen. */
@@ -3192,7 +3194,13 @@
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (S.draft) { try { localStorage.setItem('coach.draft', JSON.stringify(S.draft)); } catch (e) {} } pushDraft(); } });
   window.addEventListener('pagehide', function () { pushDraft(); });
-  function draftTitle(d) { return d.title || (d.split ? d.split + (d.volume ? ' (volum)' : '') : 'Styrketrening'); }
+  /* Navnet på økta. Er ingen økttype valgt, brukes typen øvelsene tydelig hører til (så en push-økt ikke lagres som
+   * «Styrketrening» og blander seg med vanlige økter i «Sist»). */
+  function draftTitle(d) {
+    if (d.title) return d.title;
+    var sp = d.split || guessSplit(d.exercises);
+    return sp ? sp + (d.volume ? ' (volum)' : '') : 'Styrketrening';
+  }
   function doneWorkouts(excludeId) { return S.workouts.filter(function (w) { return !w.planned && w.id !== excludeId && (w.exercises || []).length; }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }); }
   function exKey(n) { return C.exKey(n); }
   function hasVal(x) { return x && ((x.weightKg !== null && x.weightKg !== undefined) || (x.reps !== null && x.reps !== undefined)); }
@@ -3342,6 +3350,7 @@
       (d.volume ? '<div class="small faint" style="margin:-4px 2px 0">Volumøkt: «Sist» og forslag hentes fra tidligere volumøkter.</div>' : '') +
       '<div class="splits">' + SPLITS.map(function (x) { return '<button type="button" class="splitbtn' + (d.split === x ? ' on' : '') + '" data-split="' + x + '">' + x + '</button>'; }).join('') + '</div>';
     var guess = guessSplit(d.exercises);
+    if (!d.split && d.exercises.length && draftHasValues(d)) html += '<div class="notice splitwarn"><span>Ingen økttype er valgt. ' + (guess ? 'Økta lagres som <b>' + esc(guess + (d.volume ? ' (volum)' : '')) + '</b> ut fra øvelsene.' : 'Velg Push, Pull, Bein eller en annen type over, så blir «Sist» riktig neste gang.') + '</span>' + (guess ? '<button type="button" class="btn sm primary" data-fixsplit="' + esc(guess) + '">Velg ' + esc(guess) + '</button>' : '') + '</div>';
     if (guess && d.split && d.split !== guess && /^(Push|Pull|Bein)$/.test(d.split)) html += '<div class="notice splitwarn"><span>Øvelsene ser ut som en <b>' + esc(guess.toLowerCase()) + '</b>-økt, men økta er merket ' + esc(d.split) + '.</span><button type="button" class="btn sm primary" data-fixsplit="' + esc(guess) + '">Bytt til ' + esc(guess) + '</button></div>';
     var cat = splitCatalog(d.split, d.editId, d.volume), inDraft = {};
     d.exercises.forEach(function (e) { inDraft[exKey(e.name)] = 1; });
