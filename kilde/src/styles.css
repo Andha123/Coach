@@ -1611,3 +1611,8 @@ html.kp-open .sheet { padding-bottom: 350px !important; }
 /* Vekt som ble fylt inn automatisk når du skrev reps */
 input.autofill { animation: autofill 1.2s ease-out; }
 @keyframes autofill { 0% { box-shadow: 0 0 0 3px rgba(126, 226, 168, .45); } 100% { box-shadow: 0 0 0 0 rgba(126, 226, 168, 0); } }
+
+/* Meldingen nederst: bred nok til at teksten ligger på én linje, knappen brytes aldri. */
+.toast { width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; }
+.toast span { min-width: 0; }
+.toast button { white-space: nowrap; flex: none; padding: 6px 2px; }

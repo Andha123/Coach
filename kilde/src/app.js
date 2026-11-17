@@ -2154,7 +2154,7 @@
       toast('Leser strekkoden …');
       var code = null;
       try { code = await decodeBarcode(file); } catch (e) { code = null; }
-      clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
+      hideToast(true);
       if (code) { code = String(code).replace(/\D/g, ''); }
       if (code && validEan(code)) handleBarcode(code, o);
       else openScanFail(file, o);
@@ -2390,7 +2390,7 @@
       toast('Slår opp varen …');
       var off = null;
       try { off = await foodLookup(code); } catch (e) { off = null; }
-      clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
+      hideToast(true);
       if (off && off.name && off.per100.kcal !== null && off.per100.protein !== null) {
         try { var pr = await ensureProduct(off); openAddItem(date, pr.id, mt, { scanned: again, note: off.notes || null, fresh: true }); }
         catch (e) { toast(e.message); }
@@ -4950,19 +4950,36 @@
   }
 
   /* ---------- Toast ---------- */
-  var toastTimer = null;
+  var toastTimer = null, toastUntil = 0, toastBorn = 0;
+  /* Meldingen nederst forsvinner av seg selv etter noen sekunder, når du trykker et annet sted, eller når du kommer tilbake til appen etter at tiden er ute. */
+  function hideToast(fast) {
+    clearTimeout(toastTimer); toastUntil = 0;
+    var host = $('#toastHost'), t = host && host.firstChild; if (!t) return;
+    if (fast || !MOTION) { host.innerHTML = ''; return; }
+    t.style.pointerEvents = 'none'; t.style.animation = ''; t.classList.add('closing');
+    setTimeout(function () { if (t.parentNode) t.remove(); }, 220);
+  }
   function toast(text, actionLabel, action) {
     var host = $('#toastHost');
     host.innerHTML = '<div class="toast" role="status"><span>' + esc(text) + '</span>' + (actionLabel ? '<button id="toastAct">' + esc(actionLabel) + '</button>' : '') + '</div>';
-    if (actionLabel) $('#toastAct').onclick = async function () { host.innerHTML = ''; try { await action(); } catch (e) { toast(e.message); } };
+    if (actionLabel) $('#toastAct').onclick = async function () { hideToast(true); try { await action(); } catch (e) { toast(e.message); } };
     var tEl = host.firstChild, ty0 = 0;
     tEl.addEventListener('touchstart', function (e) { ty0 = e.touches[0].clientY; }, { passive: true });
     var tRaf = 0, tD = 0;
     tEl.addEventListener('touchmove', function (e) { tD = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.animation = 'none'; if (!tRaf) tRaf = requestAnimationFrame(function () { tRaf = 0; tEl.style.transform = 'translate3d(-50%,' + tD + 'px,0)'; tEl.style.opacity = String(Math.max(0, 1 - tD / 90)); }); }, { passive: true });
-    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 10000 : 3500);
+    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; clearTimeout(toastTimer); toastUntil = 0; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
+    var ms = actionLabel ? 5000 : 3000;
+    toastBorn = Date.now(); toastUntil = toastBorn + ms;
+    clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms);
   }
+  document.addEventListener('pointerdown', function (e) {
+    if (!e.isTrusted || !toastUntil || Date.now() - toastBorn < 500) return;
+    var t = $('#toastHost .toast'); if (t && !t.contains(e.target)) hideToast();
+  }, true);
+  function toastCheck() { if (toastUntil && Date.now() > toastUntil + 400) hideToast(document.hidden); }
+  document.addEventListener('visibilitychange', toastCheck);
+  window.addEventListener('pageshow', toastCheck); window.addEventListener('focus', toastCheck);
+  setInterval(toastCheck, 1000);
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

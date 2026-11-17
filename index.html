@@ -1638,12 +1638,17 @@ html.kp-open .sheet { padding-bottom: 350px !important; }
 input.autofill { animation: autofill 1.2s ease-out; }
 @keyframes autofill { 0% { box-shadow: 0 0 0 3px rgba(126, 226, 168, .45); } 100% { box-shadow: 0 0 0 0 rgba(126, 226, 168, 0); } }
 
+/* Meldingen nederst: bred nok til at teksten ligger på én linje, knappen brytes aldri. */
+.toast { width: max-content; max-width: calc(100% - 32px); box-sizing: border-box; }
+.toast span { min-width: 0; }
+.toast button { white-space: nowrap; flex: none; padding: 6px 2px; }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794891481751';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794934847610';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -5638,7 +5643,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       toast('Leser strekkoden …');
       var code = null;
       try { code = await decodeBarcode(file); } catch (e) { code = null; }
-      clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
+      hideToast(true);
       if (code) { code = String(code).replace(/\D/g, ''); }
       if (code && validEan(code)) handleBarcode(code, o);
       else openScanFail(file, o);
@@ -5874,7 +5879,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
       toast('Slår opp varen …');
       var off = null;
       try { off = await foodLookup(code); } catch (e) { off = null; }
-      clearTimeout(toastTimer); $('#toastHost').innerHTML = '';
+      hideToast(true);
       if (off && off.name && off.per100.kcal !== null && off.per100.protein !== null) {
         try { var pr = await ensureProduct(off); openAddItem(date, pr.id, mt, { scanned: again, note: off.notes || null, fresh: true }); }
         catch (e) { toast(e.message); }
@@ -8434,19 +8439,36 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
 
   /* ---------- Toast ---------- */
-  var toastTimer = null;
+  var toastTimer = null, toastUntil = 0, toastBorn = 0;
+  /* Meldingen nederst forsvinner av seg selv etter noen sekunder, når du trykker et annet sted, eller når du kommer tilbake til appen etter at tiden er ute. */
+  function hideToast(fast) {
+    clearTimeout(toastTimer); toastUntil = 0;
+    var host = $('#toastHost'), t = host && host.firstChild; if (!t) return;
+    if (fast || !MOTION) { host.innerHTML = ''; return; }
+    t.style.pointerEvents = 'none'; t.style.animation = ''; t.classList.add('closing');
+    setTimeout(function () { if (t.parentNode) t.remove(); }, 220);
+  }
   function toast(text, actionLabel, action) {
     var host = $('#toastHost');
     host.innerHTML = '<div class="toast" role="status"><span>' + esc(text) + '</span>' + (actionLabel ? '<button id="toastAct">' + esc(actionLabel) + '</button>' : '') + '</div>';
-    if (actionLabel) $('#toastAct').onclick = async function () { host.innerHTML = ''; try { await action(); } catch (e) { toast(e.message); } };
+    if (actionLabel) $('#toastAct').onclick = async function () { hideToast(true); try { await action(); } catch (e) { toast(e.message); } };
     var tEl = host.firstChild, ty0 = 0;
     tEl.addEventListener('touchstart', function (e) { ty0 = e.touches[0].clientY; }, { passive: true });
     var tRaf = 0, tD = 0;
     tEl.addEventListener('touchmove', function (e) { tD = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.animation = 'none'; if (!tRaf) tRaf = requestAnimationFrame(function () { tRaf = 0; tEl.style.transform = 'translate3d(-50%,' + tD + 'px,0)'; tEl.style.opacity = String(Math.max(0, 1 - tD / 90)); }); }, { passive: true });
-    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 10000 : 3500);
+    tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; clearTimeout(toastTimer); toastUntil = 0; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
+    var ms = actionLabel ? 5000 : 3000;
+    toastBorn = Date.now(); toastUntil = toastBorn + ms;
+    clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms);
   }
+  document.addEventListener('pointerdown', function (e) {
+    if (!e.isTrusted || !toastUntil || Date.now() - toastBorn < 500) return;
+    var t = $('#toastHost .toast'); if (t && !t.contains(e.target)) hideToast();
+  }, true);
+  function toastCheck() { if (toastUntil && Date.now() > toastUntil + 400) hideToast(document.hidden); }
+  document.addEventListener('visibilitychange', toastCheck);
+  window.addEventListener('pageshow', toastCheck); window.addEventListener('focus', toastCheck);
+  setInterval(toastCheck, 1000);
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
