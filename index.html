@@ -1643,7 +1643,7 @@ input.autofill { animation: autofill 1.2s ease-out; }
 <body>
 <div id="root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794802160588';</script>
+<script>window.COACH_CONFIG = {"url":"https://qihytqjnnlxzpovqtcxq.supabase.co","key":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpaHl0cWpubmx4enBvdnF0Y3hxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MTMxODEsImV4cCI6MjEwODA4OTE4MX0.vxn91gtATtGZl6c3jIh9mA8pUWMjKBZIMMOBNOPU54g"}; window.COACH_BUILD = '1794891481751';</script>
 <script>
 /* Coach-logoen: to aktivitetsringer som danner en «C», med en gnist der ringen slutter. Delt av app og innlogging. */
 window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linearGradient id="lgA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd8b0"/><stop offset=".55" stop-color="#f4a261"/><stop offset="1" stop-color="#e0782f"/></linearGradient><linearGradient id="lgB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfeaff"/><stop offset="1" stop-color="#5fb2f5"/></linearGradient></defs>' +
@@ -7111,9 +7111,12 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     var prs = exercises.filter(function (e) { var prev = bestE1rm(e.name, d.editId); return prev > 0 && e.sets.some(function (x) { return setScore(x.weight_kg, x.reps) > prev + 0.01; }); }).map(function (e) { return e.name; });
     try {
       var w = await C.logStrength(ctx, { date: d.date, title: draftTitle(d), exercises: exercises, edit_id: d.editId || undefined });
+      var keep = clone(d);
       S.draft = newDraft(); saveDraft(true);
       var vol = setsVolume([].concat.apply([], exercises.map(function (e) { return e.sets.map(function (x) { return { weightKg: x.weight_kg, reps: x.reps }; }); })));
-      toast((d.editId ? 'Økten er oppdatert' : w.merged ? 'Lagret sammen med Garmin-økten' : 'Økt lagret') + (vol ? ' · ' + kgTxt(vol) + ' løftet' : '') + (prs.length ? ' · Ny rekord: ' + prs.slice(0, 2).join(', ') : ''));
+      /* Lagret for tidlig? «Fortsett» legger økta tilbake i loggen akkurat slik den var, og neste lagring oppdaterer den samme økta. */
+      toast((d.editId ? 'Økten er oppdatert' : w.merged ? 'Lagret sammen med Garmin-økten' : 'Økt lagret') + (vol ? ' · ' + kgTxt(vol) + ' løftet' : '') + (prs.length ? ' · Ny rekord: ' + prs.slice(0, 2).join(', ') : ''),
+        w && w.id ? 'Fortsett' : null, function () { keep.editId = w.id; keep.date = w.date || keep.date; S.draft = keep; saveDraft(true); S.trType = 'styrke'; renderTraining(); var lg = $('.logger .addexbtn'); if (lg) scrollInView(lg); });
       renderTraining();
     } catch (er) { msg.innerHTML = '<div class="notice bad">' + esc(er.message) + '</div>'; }
   }
@@ -8112,7 +8115,8 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
   }
   /* Trykk i et tallfelt åpner tastaturet; trykk utenfor lukker det. Bare et trykk (ikke rulling) teller. */
   document.addEventListener('click', function (e) {
-    if (!kpTouch()) return;
+    /* Bare ekte trykk: vibrasjonen på iPhone lages med et usynlig klikk, og det skal ikke lukke tastaturet. */
+    if (!kpTouch() || !e.isTrusted || (hapticEl && hapticEl.contains(e.target))) return;
     var inp = e.target.closest && e.target.closest('input[data-kp]');
     if (inp) { e.preventDefault(); haptic(); kpOpen(inp); return; }
     if (KP.el && !e.target.closest('.kp')) kpClose();
@@ -8441,7 +8445,7 @@ window.COACH_LOGO_SVG = '<svg class="coachlogo" viewBox="0 0 64 64"><defs><linea
     tEl.addEventListener('touchmove', function (e) { tD = Math.max(0, e.touches[0].clientY - ty0); tEl.style.transition = 'none'; tEl.style.animation = 'none'; if (!tRaf) tRaf = requestAnimationFrame(function () { tRaf = 0; tEl.style.transform = 'translate3d(-50%,' + tD + 'px,0)'; tEl.style.opacity = String(Math.max(0, 1 - tD / 90)); }); }, { passive: true });
     tEl.addEventListener('touchend', function (e) { var d = e.changedTouches[0].clientY - ty0; tEl.style.transition = ''; if (d > 40) { tEl.style.transform = 'translate3d(-50%,120px,0)'; tEl.style.opacity = '0'; setTimeout(function () { if (tEl.parentNode) tEl.remove(); }, 250); } else { tEl.style.transform = ''; tEl.style.opacity = ''; } });
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 7000 : 3500);
+    toastTimer = setTimeout(function () { var t = host.firstChild; if (!t) return; t.classList.add('closing'); setTimeout(function () { if (t.parentNode) t.remove(); }, 200); }, actionLabel ? 10000 : 3500);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
