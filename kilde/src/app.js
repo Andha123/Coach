@@ -3459,7 +3459,7 @@
         templateFor(d.split, d.editId, d.volume).forEach(function (t) { if (!d.exercises.some(function (e) { return exKey(e.name) === exKey(t.name); })) d.exercises.push(t); });
         rerender();
       }
-      if (act === 'picker') { openExercisePicker(d.split); }
+      if (act === 'picker') { try { diag('picker', 'åpner'); openExercisePicker(d.split); diag('picker', 'åpnet · ' + !!$('#sheetBg')); } catch (er) { diag('picker-feil', er && (er.stack || er.message)); toast('Kunne ikke åpne øvelseslisten: ' + (er && er.message)); } }
       if (act === 'clear') { S.draft = newDraft(); saveDraft(true); renderTraining(); }
       if (act === 'canceledit') { S.draft = newDraft(); rerender(); }
       if (act === 'save') { await saveStrength(); }
@@ -4948,6 +4948,55 @@
       toast('Eksport lagret');
     } catch (e) { if (e && e.code !== 'declined') toast('Eksport feilet: ' + (e.message || e.code)); }
   }
+
+  /* ---------- Feilsøking ----------
+   * Små spor fra telefonen (trykk i treningsloggen og feil) lagres i din egen database (meta/diag),
+   * så feil som bare skjer på iPhone kan finnes. Ingen mat- eller treningsdata, bare hva som ble trykket og feilmeldinger. */
+  var DIAG = [], diagT = 0;
+  function diag(tag, info) {
+    try {
+      DIAG.push({ t: new Date().toISOString(), tag: tag, info: info ? String(info).slice(0, 400) : '' });
+      if (DIAG.length > 60) DIAG = DIAG.slice(-60);
+      clearTimeout(diagT);
+      diagT = setTimeout(function () { try { if (S.db) S.db.doc('meta/diag').set({ entries: DIAG, ua: navigator.userAgent, standalone: !!window.COACH_STANDALONE, at: new Date().toISOString() }).catch(function () {}); } catch (e) {} }, 1200);
+    } catch (e) {}
+  }
+  function diagEl(el) {
+    if (!el || !el.tagName) return '?';
+    var b = el.closest('[data-lg],[data-pick],[data-sugg],[data-split],button,input') || el;
+    return b.tagName.toLowerCase() + (b.className && typeof b.className === 'string' ? '.' + b.className.trim().split(/\s+/).join('.') : '') + (b.dataset && b.dataset.lg ? '[lg=' + b.dataset.lg + ']' : '') + (b !== el ? ' <' + el.tagName.toLowerCase() + '>' : '');
+  }
+  window.addEventListener('error', function (e) { if (e && e.message) diag('error', e.message + ' @' + (e.lineno || '') + ':' + (e.colno || '')); });
+  window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; diag('reject', r && (r.stack || r.message) || String(r)); });
+  ['pointerdown', 'pointerup', 'click'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      var t = e.target; if (!t || !t.closest || !t.closest('.logger')) return;
+      var top = document.elementFromPoint(e.clientX || 0, e.clientY || 0);
+      diag(ev, diagEl(t) + (e.isTrusted ? '' : ' (synt)') + (top && top !== t && !t.contains(top) && !top.contains(t) ? ' · øverst: ' + diagEl(top) : '') + ' · y=' + Math.round(e.clientY || 0) + ' sheet=' + !!$('#sheetBg') + ' kp=' + !!KP.el);
+    }, true);
+  });
+
+  /* iPhone svelger et trykk som kommer mens siden fortsatt ruller eller spretter tilbake (f.eks. rett etter at en øvelse
+   * er brettet sammen og siden ble kortere). For knappene i treningsloggen som bare legger til eller åpner noe:
+   * kom det ikke noe klikk etter et rolig trykk, trykkes knappen for deg. */
+  var TAPFIX = '.logger [data-lg="picker"], .logger [data-lg="addset"], .logger [data-lg="fold"], .logger [data-lg="hist"], .logger [data-pick], .logger [data-sugg]';
+  var tapS = null, tapClickAt = 0;
+  document.addEventListener('touchstart', function (e) {
+    var b = e.target.closest && e.target.closest(TAPFIX); var t = e.touches[0];
+    tapS = b && e.touches.length === 1 ? { b: b, x: t.clientX, y: t.clientY, at: Date.now() } : null;
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', function (e) { if (!tapS) return; var t = e.touches[0]; if (Math.abs(t.clientX - tapS.x) > 10 || Math.abs(t.clientY - tapS.y) > 10) tapS = null; }, { passive: true, capture: true });
+  document.addEventListener('click', function () { tapClickAt = Date.now(); }, true);
+  document.addEventListener('touchend', function (e) {
+    var s0 = tapS; tapS = null; if (!s0 || Date.now() - s0.at > 700) return;
+    var t = e.changedTouches[0], under = document.elementFromPoint(t.clientX, t.clientY);
+    if (!under || !s0.b.contains(under)) return;
+    var at = Date.now();
+    setTimeout(function () {
+      if (tapClickAt >= at - 50 || !s0.b.isConnected || $('#sheetBg')) return;
+      diag('tap-fallback', diagEl(s0.b)); s0.b.click();
+    }, 450);
+  }, { passive: true, capture: true });
 
   /* ---------- Toast ---------- */
   var toastTimer = null, toastUntil = 0, toastBorn = 0;
